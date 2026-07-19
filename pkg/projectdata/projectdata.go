@@ -1,5 +1,9 @@
-// Package projectdata manages a project's data and data
-// storage.
+// Package projectdata defines the projects core data
+// structures.
+//
+// It does not validate data content, except maybe some ID
+// integrity checking. Data validation is done in the
+// datavalidation package (who saw that coming).
 //
 // Data structures use a Referential Modeling approach to
 // dependency and hierarchy. This is the same approach used
@@ -10,13 +14,8 @@
 // CRUD operations for each entity type.
 //
 // I (Paulio) choose this approach because it is simple,
-// flexible, and modular so I can . It also simplifies use
-// with the data storage layer that uses SQLite (Relational
-// Database).
-//
-// The data layer is the source of truth for all project
-// data. The data layer also provides a subscription
-// service allowing notification of data changes.
+// flexible, and modular. It also simplifies use with the
+// SQLite (Relational Database) storage package.
 package projectdata
 
 // ProjectData stores and provides access to project data.

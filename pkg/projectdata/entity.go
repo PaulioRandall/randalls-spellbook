@@ -12,15 +12,26 @@ type EntityId string
 // video, tag, etc.
 type EntityType string
 
-// Entity is the base structure that all entities embed.
-type Entity struct {
-	// id and primary key to the entity. It must be unique,
-	// never empty, and never change.
-	entityId EntityId
-}
-
-type _entity interface{ _entity() }
-
 func newEntityId() EntityId {
 	return EntityId(uuid.New().String())
+}
+
+type _entity interface {
+	EntityId() EntityId
+}
+
+type _mediaEntity interface {
+	_entity
+	Name() string
+	Description() string
+}
+
+type _mediaSupportEntity interface {
+	MediaId() EntityId
+}
+
+type _observationEntity interface {
+	_entity
+	_mediaSupportEntity
+	Description() string
 }
