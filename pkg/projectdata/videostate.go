@@ -1,12 +1,16 @@
 package projectdata
 
-// VideoState holds information about the state of a
+// videoState holds information about the state of a
 // single video.
-type VideoState struct {
-	Entity
+type videoState struct {
+	// id is unique and primary key to the entity. It
+	// must be unique, never empty, and never change.
+	id EntityId
+
+	// TODO
 	MediaRef Entity
 
 	// TODO: last known time position
 }
 
-func (vs VideoState) _entity() {}
+func (vs videoState) _entity() {}

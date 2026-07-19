@@ -1,11 +1,11 @@
 package projectdata
 
-// VideoSection holds information about a single
+// videoSection holds information about a single
 // video section.
 //
-// VideoSection allows users to partition or define
+// videoSection allows users to partition or define
 // sections of their video so it's easier to analyse.
-type VideoSection struct {
+type videoSection struct {
 	Entity
 	MediaRef Entity
 
@@ -27,4 +27,4 @@ type VideoSection struct {
 	// TODO: end time
 }
 
-func (vs VideoSection) _entity() {}
+func (vs videoSection) _entity() {}

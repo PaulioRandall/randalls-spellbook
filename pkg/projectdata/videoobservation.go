@@ -1,8 +1,8 @@
 package projectdata
 
-// VideoObservation holds information about a single
+// videoObservation holds information about a single
 // video observation.
-type VideoObservation struct {
+type videoObservation struct {
 	Entity
 	MediaRef Entity
 
@@ -11,4 +11,4 @@ type VideoObservation struct {
 	Description string
 }
 
-func (vo VideoObservation) _entity() {}
+func (vo videoObservation) _entity() {}

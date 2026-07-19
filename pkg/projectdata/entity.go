@@ -14,14 +14,12 @@ type EntityType string
 
 // Entity is the base structure that all entities embed.
 type Entity struct {
-	// EntityId and Primary Key unique to the entity. It must
-	// be unique, never empty, and never change.
-	EntityId
-
-	// EntityType exposes the entity's type to avoid the need
-	// to type checking.
-	EntityType
+	// id and primary key to the entity. It must be unique,
+	// never empty, and never change.
+	entityId EntityId
 }
+
+type _entity interface{ _entity() }
 
 func newEntityId() EntityId {
 	return EntityId(uuid.New().String())

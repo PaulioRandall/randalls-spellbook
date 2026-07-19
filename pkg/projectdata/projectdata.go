@@ -21,8 +21,8 @@ package projectdata
 
 // ProjectData stores and provides access to project data.
 type ProjectData struct {
-	videos            []Video
-	videoStates       []VideoState
-	videoSections     []VideoSection
-	videoObservations []VideoObservation
+	videos            []video
+	videoStates       []videoState
+	videoSections     []videoSection
+	videoObservations []videoObservation
 }
