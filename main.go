@@ -2,22 +2,22 @@ package main
 
 import (
 	"log"
-	
-	"github.com/crgimenes/glaze"
+
+	"randalls-spellbook/view"
 )
 
 func main() {
-	w, err := glaze.New(true)
-	
+	v, err := view.New(true)
+
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer w.Destroy()
+	defer v.Destroy()
 
 	w.SetTitle("Glaze")
 	w.SetSize(800, 600, glaze.HintNone)
 	w.SetHtml("<h1>Hello from Glaze</h1>")
-	
+
 	w.Run()
 }
