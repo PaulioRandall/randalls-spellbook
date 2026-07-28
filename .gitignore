@@ -1,4 +1,3 @@
 .DS_Store
-.exe
-
-ui/node_modules
+node_modules
+build
