@@ -1,11 +1,17 @@
 <script>
+	import Video from '$lib/Video.svelte'
 </script>
 
 <main>
-	<h1>&lt;page-title&gt;</h1>
-	<h2>A heading</h2>
-	<p>A paragraph...</p>
+	<Video src="https://www.w3schools.com/html/movie.mp4" type="video/mp4" />
 </main>
 
 <style>
+	main {
+		width: 100%;
+		height: 100%;
+
+		display: flex;
+		flex-direction: column;
+	}
 </style>

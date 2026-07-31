@@ -43,7 +43,7 @@ func startUi(handler http.Handler, debug bool) error {
 		Hint:    glaze.HintNone,
 		Handler: handler,
 		OnReady: func(addr string) {
-			println("WebView started and ready!")
+			// Do nothing at the moment.
 		},
 	}
 
