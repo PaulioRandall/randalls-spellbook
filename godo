@@ -11,14 +11,17 @@ fi
 
 printUsage() {
 	println "Usage:"
-	println "\t" "Terminal is cleared unless '--noclear' flag is provided"
+	println "\t" "Navigate to /ui to do UI specific stuff."
+	println ""
+	println "\t" "Terminal is cleared unless '--noclear' flag is provided."
 	println "\t" "./godo [--noclear] [help]  " "\t\t" "Print usage"
 	println "\t" "./godo [--noclear] clean   " "\t\t" "Clean Go caches"
 	println "\t" "./godo [--noclear] tidy    " "\t\t" "Tidy Go mod"
-	println "\t" "./godo [--noclear] format  " "\t\t" "Format all Go code"
+	println "\t" "./godo [--noclear] fmt     " "\t\t" "Format all Go code"
 	println "\t" "./godo [--noclear] test    " "\t\t" "tidy -> format -> test -> vet"
 	println "\t" "./godo [--noclear] audit   " "\t\t" "clean -> tidy -> format -> test -> vet"
-	println "\t" "./godo [--noclear] example1" "\t\t" "Runs example 1: Minimal app"
+	println "\t" "./godo [--noclear] dev     " "\t\t" "Build UI & start the app in dev mode"
+	println "\t" "./godo [--noclear] run     " "\t\t" "Starts the app in dev mode (when build not needed)"
 }
 
 println() {
@@ -29,34 +32,42 @@ println() {
 	printf "\\n"
 }
 
+runCmd() {
+	println "$1"
+	$1
+}
+
 godoClean() {
-	println "go clean -cache -testcache"
-	go clean -cache -testcache
+	runCmd "go clean -cache -testcache"
 }
 
 godoTidy() {
-	println "go mod tidy"
-	go mod tidy
+	runCmd "go mod tidy"
 }
 
 godoFormat() {
-	println "go fmt ./..."
-	go fmt ./...
+	runCmd "go fmt ./..."
 }
 
 godoTest() {
-	println "go test ./... -timeout \"2s\""
-	go test ./... -timeout "2s"
+	runCmd "go test ./... -timeout 2s"
 }
 
 godoVet() {
-	println "go vet ./..."
-	go vet ./...
+	runCmd "go vet ./..."
 }
 
+
 godoRun() {
-	println "go run ./main.go"
-	go run ./main.go
+	runCmd "go run ./main.go"
+}
+
+godoUiBuild() {
+	runCmd "npm --prefix ./ui/ run build"
+}
+
+godoUiBuildlessAudit() {
+	runCmd "npm --prefix ./ui/ run buildlessaudit"
 }
 
 if [[ "$1" == "" || "$1" == "help" ]]; then
@@ -74,7 +85,7 @@ if [[ "$1" == "tidy" ]]; then
 	exit 0
 fi
 
-if [[ "$1" == "format" ]]; then
+if [[ "$1" == "fmt" ]]; then
 	godoFormat
 	exit 0
 fi
@@ -88,11 +99,21 @@ if [[ "$1" == "test" ]]; then
 fi
 
 if [[ "$1" == "audit" ]]; then
+	godoUiBuild
 	godoClean
 	godoTidy
 	godoFormat
 	godoTest
 	godoVet
+	godoUiBuildlessAudit
+	exit 0
+fi
+
+if [[ "$1" == "dev" ]]; then
+	godoTidy
+	godoFormat
+	godoUiBuild
+	godoRun
 	exit 0
 fi
 

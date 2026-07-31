@@ -7,7 +7,11 @@ import (
 )
 
 func main() {
-	e := ui.Run(true)
+	// TODO: Determine using cmd option -d.
+	debug := true
+
+	// Blocks!
+	e := ui.Run(debug)
 
 	if e != nil {
 		log.Fatal(e)
