@@ -37,7 +37,7 @@
 	}
 
 	onMount(() => {
-		input.max = Math.ceil(mediaElement.duration)
+		input.max = mediaElement.duration
 		input.disabled = !mediaElement.seekable
 		startTrackingMediaTime()
 		return stopTrackingMediaTime
@@ -65,12 +65,12 @@
 <svelte:window {onpointerup} />
 
 <input
+	{...attrs}
 	bind:this={input}
 	bind:value
-	{...attrs}
-		{name}
+	class:media-seekbar={true}
+	{name}
 	disabled={!mediaElement}
-	class="media-seekbar"
 	type="range"
 	min="0"
 	step="1"
