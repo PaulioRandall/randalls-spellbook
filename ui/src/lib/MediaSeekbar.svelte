@@ -1,33 +1,81 @@
 <script>
 	import { onMount } from 'svelte'
+	import eventUtil from '$lib/eventUtil.js'
 
 	let {
 		mediaElement, //
-		value = $bindable(0),
-		active = $bindable(false),
+		name,
+		initValue,
+		onseekstart,
+		onseekvalue,
+		onseekend,
 		...attrs
 	} = $props()
 
 	let input = null
+	let trackingMediaTime = false
+	let value = $state(initValue)
 
-	// TODO: If mousedown then active, else inactive
-	//       Need to set inactive is mouseup occurs for the
-	//       the same button, globally. <svelte:window onmouseup={}>
+	function onpointerdown(event) {
+		if (eventUtil.isPrimaryButton(event)) {
+			stopTrackingMediaTime()
+			onseekstart?.(name)
+		}
+	}
+
+	function oninput(event) {
+		if (!trackingMediaTime) {
+			onseekvalue?.(name, value)
+		}
+	}
+
+	function onpointerup(event) {
+		if (!trackingMediaTime && eventUtil.isPrimaryButton(event)) {
+			startTrackingMediaTime()
+			onseekend?.(name)
+		}
+	}
 
 	onMount(() => {
 		input.max = Math.ceil(mediaElement.duration)
 		input.disabled = !mediaElement.seekable
+		startTrackingMediaTime()
+		return stopTrackingMediaTime
 	})
+
+	function trackMediaTime() {
+		value = mediaElement.currentTime
+	}
+
+	function startTrackingMediaTime() {
+		if (mediaElement) {
+			mediaElement.addEventListener('timeupdate', trackMediaTime)
+			trackingMediaTime = true
+		}
+	}
+
+	function stopTrackingMediaTime() {
+		if (mediaElement) {
+			mediaElement.removeEventListener('timeupdate', trackMediaTime)
+			trackingMediaTime = false
+		}
+	}
 </script>
 
+<svelte:window {onpointerup} />
+
 <input
-	{...attrs}
-	class="media-seekbar"
-	type="range"
 	bind:this={input}
 	bind:value
+	{...attrs}
+		{name}
+	disabled={!mediaElement}
+	class="media-seekbar"
+	type="range"
 	min="0"
-	step="1" />
+	step="1"
+	{onpointerdown}
+	{oninput} />
 
 <style>
 	.media-seekbar {

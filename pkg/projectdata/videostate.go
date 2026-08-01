@@ -2,7 +2,6 @@ package projectdata
 
 import (
 	"errors"
-	//"fmt"
 )
 
 // videoState holds information about the state of a

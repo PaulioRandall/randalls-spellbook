@@ -6,8 +6,6 @@
 	let { src, type } = $props()
 	let mediaElement = $state(null)
 	let playing = $state(false)
-	let currentTime = $state(0)
-	let userSeeking = false
 
 	function playPause() {
 		if (mediaElement.paused) {
@@ -24,26 +22,14 @@
 		syncVideoState()
 	}
 
-	function updateCurrentTime() {
-		if (!userSeeking) {
-			currentTime = mediaElement.currentTime
-		}
-	}
-
 	function syncVideoState() {
 		playing = !mediaElement.paused
-		currentTime = mediaElement.currentTime
 	}
 
-	onMount(() => {
-		mediaElement.addEventListener('timeupdate', updateCurrentTime)
-	})
-
-	onDestroy(() => {
-		if (mediaElement) {
-			mediaElement.removeEventListener('timeupdate', updateCurrentTime)
-		}
-	})
+	function onseekvalue(_, seekTime) {
+		mediaElement.currentTime = seekTime
+		syncVideoState()
+	}
 </script>
 
 <div class="video-container">
@@ -60,10 +46,7 @@
 
 	<div class="video-controls">
 		<div class="video-seekbar">
-			<MediaSeekbar
-				{mediaElement}
-				bind:value={currentTime}
-				bind:active={userSeeking} />
+			<MediaSeekbar {mediaElement} {onseekvalue} />
 		</div>
 		<div class="video-control-buttons">
 			<Button onclick={playPause}>
