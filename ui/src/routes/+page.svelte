@@ -1,9 +1,11 @@
 <script>
-	import Video from '$lib/Video.svelte'
+	// TODO
 </script>
 
 <main>
-	<Video src="https://www.w3schools.com/html/movie.mp4" type="video/mp4" />
+	<div class="menu">
+		<a class="option" href="/media">Open Video</a>
+	</div>
 </main>
 
 <style>
@@ -11,7 +13,26 @@
 		width: 100%;
 		height: 100%;
 
+		padding: 16px;
+	}
+
+	.menu {
 		display: flex;
-		flex-direction: column;
+		flex-wrap: wrap;
+		gap: 16px;
+	}
+
+	.option {
+		width: 320px;
+		height: 240px;
+
+		display: flex;
+		justify-content: center;
+		align-items: center;
+
+		border: 1px solid black;
+		border-radius: 8px;
+
+		cursor: pointer;
 	}
 </style>

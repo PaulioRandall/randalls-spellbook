@@ -1,7 +1,8 @@
 <script>
 	import { onMount, onDestroy } from 'svelte'
-	import Button from '$lib/Button.svelte'
-	import MediaSeekbar from '$lib/MediaSeekbar.svelte'
+
+	import MediaSeekbar from './MediaSeekbar.svelte'
+	import MediaButton from './MediaButton.svelte'
 
 	let { src, type } = $props()
 	let mediaElement = $state(null)
@@ -30,6 +31,30 @@
 		mediaElement.currentTime = seekTime
 		syncVideoState()
 	}
+
+	function suspend() {
+		console.log('suspend')
+	}
+
+	function stalled() {
+		console.log('stalled')
+	}
+
+	function loadedmetadata() {
+		console.log('loadedmetadata')
+	}
+
+	function loadeddata() {
+		console.log('loadeddata')
+	}
+
+	function emptied() {
+		console.log('emptied')
+	}
+
+	function canplay() {
+		console.log('canplay')
+	}
 </script>
 
 <div class="video-container">
@@ -41,7 +66,7 @@
 		height="240"
 		onclick={playPause}>
 		<source {src} {type} />
-		Your browser does not support standard HTML videos.
+		HTML videos not supported by browser.
 	</video>
 
 	<div class="video-controls">
@@ -49,10 +74,10 @@
 			<MediaSeekbar {mediaElement} {onseekvalue} />
 		</div>
 		<div class="video-control-buttons">
-			<Button onclick={playPause}>
+			<MediaButton onclick={playPause}>
 				{#if playing}Pause{:else}Play{/if}
-			</Button>
-			<Button onclick={reset}>Reset</Button>
+			</MediaButton>
+			<MediaButton onclick={reset}>Reset</MediaButton>
 		</div>
 	</div>
 </div>

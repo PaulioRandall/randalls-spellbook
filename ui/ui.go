@@ -3,6 +3,7 @@ package ui
 import (
 	"embed"
 	"io/fs"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/crgimenes/glaze"
@@ -10,6 +11,9 @@ import (
 
 //go:embed build/*
 var uiFS embed.FS
+
+// webview is set when app is run.
+var webview glaze.WebView
 
 // Run starts (blocking) the UI by creating a WebView
 // window and starting a file server for the build dir
@@ -35,17 +39,42 @@ func newBuildDirFileServer() (http.Handler, error) {
 }
 
 func startUi(handler http.Handler, debug bool) error {
-	options := glaze.AppOptions{
+	options := AppOptions{
 		Debug:   debug,
 		Title:   "Randall's Spellbook",
 		Width:   800,
 		Height:  600,
 		Hint:    glaze.HintNone,
 		Handler: handler,
-		OnReady: func(addr string) {
-			// Do nothing at the moment.
+		OnWebViewReady: func(w glaze.WebView) error {
+			webview = w
+
+			e := w.Bind("selectVideoFile", selectVideoFile)
+			if e != nil {
+				return e
+			}
+
+			return w.Bind("readVideoFile", readVideoFile)
 		},
 	}
 
-	return glaze.AppWindow(options)
+	return AppWindow(options)
+}
+
+func selectVideoFile() (string, error) {
+	return webview.OpenFile(glaze.FileDialogOptions{
+		Title: "Select file to open",
+		Filters: []glaze.FileFilter{
+			glaze.FileFilter{
+				Name: "Videos",
+				Extensions: []string{
+					"mp4",
+				},
+			},
+		},
+	})
+}
+
+func readVideoFile(filepath string) ([]byte, error) {
+	return ioutil.ReadFile(filepath)
 }
