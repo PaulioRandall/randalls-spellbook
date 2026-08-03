@@ -31,30 +31,6 @@
 		mediaElement.currentTime = seekTime
 		syncVideoState()
 	}
-
-	function suspend() {
-		console.log('suspend')
-	}
-
-	function stalled() {
-		console.log('stalled')
-	}
-
-	function loadedmetadata() {
-		console.log('loadedmetadata')
-	}
-
-	function loadeddata() {
-		console.log('loadeddata')
-	}
-
-	function emptied() {
-		console.log('emptied')
-	}
-
-	function canplay() {
-		console.log('canplay')
-	}
 </script>
 
 <div class="video-container">
@@ -65,7 +41,7 @@
 		width="320"
 		height="240"
 		onclick={playPause}>
-		<source {src} {type} />
+		<source src="/media?token=123&path={encodeURI(src)}" {type} />
 		HTML videos not supported by browser.
 	</video>
 

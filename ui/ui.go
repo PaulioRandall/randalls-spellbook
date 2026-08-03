@@ -1,41 +1,25 @@
 package ui
 
 import (
-	"embed"
-	"io/fs"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/crgimenes/glaze"
 )
 
-//go:embed build/*
-var uiFS embed.FS
-
 // webview is set when app is run.
 var webview glaze.WebView
 
 // Run starts (blocking) the UI by creating a WebView
-// window and starting a file server for the build dir
-// (output of Svelte's static adpater).
+// window and starting the file server.
 func Run(debug bool) error {
-	buildDirFileServer, e := newBuildDirFileServer()
+	handler, e := newFileServer()
 
 	if e != nil {
 		return e
 	}
 
-	return startUi(buildDirFileServer, debug)
-}
-
-func newBuildDirFileServer() (http.Handler, error) {
-	buildFS, e := fs.Sub(uiFS, "build")
-	if e != nil {
-		return nil, e
-	}
-
-	server := http.FileServer(http.FS(buildFS))
-	return server, nil
+	return startUi(handler, debug)
 }
 
 func startUi(handler http.Handler, debug bool) error {

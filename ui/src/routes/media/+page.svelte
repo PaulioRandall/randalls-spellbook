@@ -13,16 +13,7 @@
 			return
 		}
 
-		const data = await window.readVideoFile(filepath)
-
-		if (!data) {
-			alert('An error occurred loading the video :(')
-			return
-		}
-
-		const unit8Data = Uint8Array.fromBase64(data, (c) => c.charCodeAt(0))
-		const blob = new Blob([unit8Data], { type })
-		src = URL.createObjectURL(blob)
+		src = filepath
 	})
 
 	// TODO: test out Vidstack Svelte video player
