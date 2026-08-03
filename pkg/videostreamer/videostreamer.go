@@ -7,31 +7,31 @@ import (
 	"path/filepath"
 )
 
-type TokenPool interface {
-	Validate(token string) bool
+type App interface {
+	GetMediaPath(id string) string
+
+	// TODO: Remove
+	ConsumeToken(token string) bool
 }
 
 type VideoStreamer struct {
-	tp TokenPool
+	app App
 }
 
-// TODO: Update to accept an interface with a function that
-//
-//	accepts an ID and returns a local filepath.
-func New(tp TokenPool) http.Handler {
-	return VideoStreamer{tp}
+func New(app App) http.Handler {
+	return VideoStreamer{app}
 }
 
 func (vs VideoStreamer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// TODO: Update to accept an ID to a video that is looked
 	//       up in the project data to get the path.
-	path := getAndCheckParams(w, r, vs.tp)
+	path := vs.getAndCheckParams(w, r)
 	serveVideo(w, r, path)
 }
 
-func getAndCheckParams(w http.ResponseWriter, r *http.Request, tp TokenPool) string {
+func (vs VideoStreamer) getAndCheckParams(w http.ResponseWriter, r *http.Request) string {
 	token := r.URL.Query().Get("token")
-	if isMissingOrInvalidToken(token, tp) {
+	if isMissingOrInvalidToken(token, vs.app) {
 		http.Error(w, "Missing or invalid token", http.StatusBadRequest)
 		return ""
 	}
@@ -45,8 +45,8 @@ func getAndCheckParams(w http.ResponseWriter, r *http.Request, tp TokenPool) str
 	return filepath.Clean(path)
 }
 
-func isMissingOrInvalidToken(token string, tokenPool TokenPool) bool {
-	if token == "" || !tokenPool.Validate(token) {
+func isMissingOrInvalidToken(token string, app App) bool {
+	if token == "" || !app.ConsumeToken(token) {
 		return true
 	}
 	return false
