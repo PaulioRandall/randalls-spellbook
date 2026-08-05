@@ -4,7 +4,8 @@
 	import MediaSeekbar from './MediaSeekbar.svelte'
 	import MediaButton from './MediaButton.svelte'
 
-	let { src, type } = $props()
+	let { entityId } = $props()
+	let media = $state(null)
 	let mediaElement = $state(null)
 	let playing = $state(false)
 
@@ -31,25 +32,30 @@
 		mediaElement.currentTime = seekTime
 		syncVideoState()
 	}
+
+	onMount(async () => {
+		media = await window.getVideoById(entityId)
+	})
 </script>
 
-<div class="video-container">
-	<!-- TODO: Probably should be its own component -->
+<div class="media-video-container">
 	<video
 		bind:this={mediaElement}
-		class="video"
+		class="media-video"
 		width="320"
 		height="240"
+		title={media?.name}
+		alt={media?.description}
 		onclick={playPause}>
-		<source src="/media?token=123&path={encodeURI(src)}" {type} />
+		<source src="/media?entity_id={encodeURI(entityId)}" type="video/mp4" />
 		HTML videos not supported by browser.
 	</video>
 
-	<div class="video-controls">
-		<div class="video-seekbar">
+	<div class="media-video-controls">
+		<div class="media-video-seekbar">
 			<MediaSeekbar {mediaElement} {onseekvalue} />
 		</div>
-		<div class="video-control-buttons">
+		<div class="media-video-control-buttons">
 			<MediaButton onclick={playPause}>
 				{#if playing}Pause{:else}Play{/if}
 			</MediaButton>
@@ -59,7 +65,7 @@
 </div>
 
 <style>
-	.video-container {
+	.media-video-container {
 		width: 100%;
 		height: 100%;
 
@@ -67,23 +73,23 @@
 		flex-direction: column;
 	}
 
-	.video {
+	.media-video {
 		width: 100%;
 		flex-grow: 1;
 	}
 
-	.video-controls {
+	.media-video-controls {
 		flex-basis: 60px;
 		flex-grow: 0;
 		flex-shrink: 0;
 		width: 100%;
 	}
 
-	.video-seekbar {
+	.media-video-seekbar {
 		width: 100%;
 	}
 
-	.video-control-buttons {
+	.media-video-control-buttons {
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: center;

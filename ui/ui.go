@@ -1,11 +1,23 @@
 package ui
 
 import (
-	"io/ioutil"
+	"embed"
+	"errors"
+	"io/fs"
 	"net/http"
 
 	"github.com/crgimenes/glaze"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/entity"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/mediaserver"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/project"
 )
+
+//go:embed build/*
+var buildFS embed.FS
+
+// project stores project data.
+var proj *project.Project
 
 // webview is set when app is run.
 var webview glaze.WebView
@@ -13,13 +25,31 @@ var webview glaze.WebView
 // Run starts (blocking) the UI by creating a WebView
 // window and starting the file server.
 func Run(debug bool) error {
-	handler, e := newFileServer()
+	proj = project.New()
+	fileServer, err := createFileServer()
 
-	if e != nil {
-		return e
+	if err != nil {
+		return err
 	}
 
-	return startUi(handler, debug)
+	return startUi(fileServer, debug)
+}
+
+func createFileServer() (*http.ServeMux, error) {
+	svelteFS, err := fs.Sub(buildFS, "build")
+	if err != nil {
+		return nil, err
+	}
+
+	mux := http.NewServeMux()
+
+	// Handle requests for media, e.g. videos.
+	mux.Handle("/media/", mediaserver.New(proj))
+
+	// Handle requests for statically built Svelte files.
+	mux.Handle("/", http.FileServerFS(svelteFS))
+
+	return mux, nil
 }
 
 func startUi(handler http.Handler, debug bool) error {
@@ -33,32 +63,63 @@ func startUi(handler http.Handler, debug bool) error {
 		OnWebViewReady: func(w glaze.WebView) error {
 			webview = w
 
-			e := w.Bind("selectVideoFile", selectVideoFile)
-			if e != nil {
-				return e
+			// TODO: Create struct and use BindMethods.
+
+			err := w.Bind("selectLocalMediaFile", selectLocalMediaFile)
+			if err != nil {
+				return err
 			}
 
-			return w.Bind("readVideoFile", readVideoFile)
+			err = w.Bind("addVideoToProject", addVideoToProject)
+			if err != nil {
+				return err
+			}
+
+			err = w.Bind("getVideoById", getVideoById)
+			if err != nil {
+				return err
+			}
+
+			return nil
 		},
 	}
 
 	return AppWindow(options)
 }
 
-func selectVideoFile() (string, error) {
+func selectLocalMediaFile() (string, error) {
 	return webview.OpenFile(glaze.FileDialogOptions{
-		Title: "Select file to open",
-		Filters: []glaze.FileFilter{
-			glaze.FileFilter{
-				Name: "Videos",
-				Extensions: []string{
-					"mp4",
-				},
-			},
-		},
+		Title: "Select media file",
 	})
 }
 
-func readVideoFile(filepath string) ([]byte, error) {
-	return ioutil.ReadFile(filepath)
+func addVideoToProject(
+	name, description, localPath string,
+) (string, error) {
+	media, err := proj.AddVideo(name, description, localPath)
+	return string(media.EntityId()), err
+}
+
+type MediaResult struct {
+	EntityId    string `json:"entityId"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	LocalPath   string `json:"lcoalPath"`
+}
+
+func getVideoById(entityId string) (MediaResult, error) {
+	media := proj.GetMediaById(entity.EntityId(entityId))
+
+	if media == nil {
+		return MediaResult{}, errors.New("Unable to find video")
+	}
+
+	response := MediaResult{
+		EntityId:    media.EntityId().String(),
+		Name:        media.Name(),
+		Description: media.Description(),
+		LocalPath:   media.LocalPath(),
+	}
+
+	return response, nil
 }

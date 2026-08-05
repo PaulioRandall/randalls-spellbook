@@ -1,29 +1,35 @@
 <script>
 	import { onMount } from 'svelte'
-	import Video from './Video.svelte'
+	import MediaVideo from './MediaVideo.svelte'
 
-	let src = $state(null)
-	let type = $state('video/mp4')
+	let entityId = $state('')
 
 	onMount(async () => {
-		const filepath = await window.selectVideoFile()
+		const localPath = await window.selectLocalMediaFile()
 
-		if (!filepath) {
+		if (!localPath) {
 			alert('Refresh page and select a video this time!')
 			return
 		}
 
-		src = filepath
+		const name = extractNameFromLocalPath(localPath)
+		const description = ''
+
+		entityId = await addVideoToProject(
+			name, //
+			description,
+			localPath
+		)
 	})
 
-	// TODO: test out Vidstack Svelte video player
-	// TODO: Check state of video player before trying to
-	//       interact with it.
+	function extractNameFromLocalPath(localPath) {
+		return localPath.split(/[\\/]/).pop().split('.')[0]
+	}
 </script>
 
 <main>
-	{#if src}
-		<Video {src} {type} />
+	{#if entityId}
+		<MediaVideo {entityId} />
 	{/if}
 </main>
 
