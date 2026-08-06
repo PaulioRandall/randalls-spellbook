@@ -75,7 +75,12 @@ func startUi(handler http.Handler, debug bool) error {
 				return err
 			}
 
-			err = w.Bind("getVideoById", getVideoById)
+			err = w.Bind("getAllMedia", getAllMedia)
+			if err != nil {
+				return err
+			}
+
+			err = w.Bind("getMediaById", getMediaById)
 			if err != nil {
 				return err
 			}
@@ -107,19 +112,32 @@ type MediaResult struct {
 	LocalPath   string `json:"lcoalPath"`
 }
 
-func getVideoById(entityId string) (MediaResult, error) {
-	media := proj.GetMediaById(entity.EntityId(entityId))
-
-	if media == nil {
-		return MediaResult{}, errors.New("Unable to find video")
-	}
-
-	response := MediaResult{
+func makeMediaResult(media entity.Media) MediaResult {
+	return MediaResult{
 		EntityId:    media.EntityId().String(),
 		Name:        media.Name(),
 		Description: media.Description(),
 		LocalPath:   media.LocalPath(),
 	}
+}
 
-	return response, nil
+func getAllMedia() []MediaResult {
+	mediaList := proj.GetAllMedia()
+	result := []MediaResult{}
+
+	for _, media := range mediaList {
+		result = append(result, makeMediaResult(media))
+	}
+
+	return result
+}
+
+func getMediaById(entityId string) (MediaResult, error) {
+	media := proj.GetMediaById(entity.EntityId(entityId))
+
+	if media == nil {
+		return MediaResult{}, errors.New("Unable to find media")
+	}
+
+	return makeMediaResult(media), nil
 }

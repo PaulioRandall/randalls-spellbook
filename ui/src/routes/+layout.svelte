@@ -3,9 +3,7 @@
 </script>
 
 <div class="page">
-	<div class="page-content">
-		<slot />
-	</div>
+	<slot />
 </div>
 
 <style>
@@ -15,9 +13,5 @@
 
 		width: 100vw;
 		min-height: 100vh;
-	}
-
-	.page-content {
-		flex-grow: 1;
 	}
 </style>

@@ -4,7 +4,7 @@
 
 <main>
 	<div class="menu">
-		<a class="option" href="/media">Open Video</a>
+		<a class="option" href="/media">Media</a>
 	</div>
 </main>
 

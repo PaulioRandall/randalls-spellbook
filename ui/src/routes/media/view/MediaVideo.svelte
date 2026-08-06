@@ -1,6 +1,7 @@
 <script>
 	import { onMount, onDestroy } from 'svelte'
 
+	import backend from '$lib/backend.js'
 	import MediaSeekbar from './MediaSeekbar.svelte'
 	import MediaButton from './MediaButton.svelte'
 
@@ -34,7 +35,7 @@
 	}
 
 	onMount(async () => {
-		media = await window.getVideoById(entityId)
+		media = await backend.getMediaById(entityId)
 	})
 </script>
 

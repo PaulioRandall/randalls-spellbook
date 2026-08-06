@@ -81,6 +81,8 @@ body {
 
 	text-size-adjust: 100%;
 	tab-size: 2;
+
+	overscroll-behaviour-y: none;
 }
 
 section {

@@ -36,13 +36,6 @@
 		}
 	}
 
-	onMount(() => {
-		input.max = mediaElement.duration
-		input.disabled = !mediaElement.seekable
-		startTrackingMediaTime()
-		return stopTrackingMediaTime
-	})
-
 	function trackMediaTime() {
 		value = mediaElement.currentTime
 	}
@@ -60,6 +53,13 @@
 			trackingMediaTime = false
 		}
 	}
+
+	onMount(() => {
+		input.max = mediaElement.duration
+		input.disabled = !mediaElement.seekable
+		startTrackingMediaTime()
+		return stopTrackingMediaTime
+	})
 </script>
 
 <svelte:window {onpointerup} />

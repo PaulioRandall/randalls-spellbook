@@ -10,6 +10,7 @@ import (
 // TODO: Improve error descriptions to include names and
 //       paths so users have the info to fix their own file
 //       issues.
+// TODO: Return 404 if media doesn't exist.
 
 type MediaSource interface {
 	GetMediaById(id entity.EntityId) entity.Media

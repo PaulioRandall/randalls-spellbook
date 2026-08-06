@@ -28,6 +28,11 @@ func (p *Project) AddVideo(
 	return v, e
 }
 
+// GetAllMedia returns all media.
+func (p Project) GetAllMedia() []entity.Media {
+	return p.media
+}
+
 // GetMediaById returns the media with the given EntityId
 // or nil if it doesn't exist.
 func (p Project) GetMediaById(entityId entity.EntityId) entity.Media {
