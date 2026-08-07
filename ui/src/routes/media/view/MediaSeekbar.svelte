@@ -54,11 +54,31 @@
 		}
 	}
 
-	onMount(() => {
+	function durationChanged() {
 		input.max = mediaElement.duration
+	}
+
+	function startTrackingDurationChanges() {
+		if (mediaElement) {
+			mediaElement.addEventListener('durationchange', durationChanged)
+		}
+	}
+
+	function stopTrackingDurationChanges() {
+		if (mediaElement) {
+			mediaElement.removeEventListener('durationchange', durationChanged)
+		}
+	}
+
+	onMount(() => {
 		input.disabled = !mediaElement.seekable
+		startTrackingDurationChanges()
 		startTrackingMediaTime()
-		return stopTrackingMediaTime
+
+		return () => {
+			stopTrackingDurationChanges()
+			stopTrackingMediaTime()
+		}
 	})
 </script>
 

@@ -9,7 +9,6 @@
 
 	onMount(() => {
 		entityId = page.url.searchParams.get('entity_id')
-		console.log(entityId)
 	})
 </script>
 
