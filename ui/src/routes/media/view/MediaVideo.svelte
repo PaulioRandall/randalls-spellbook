@@ -4,6 +4,8 @@
 	import backend from '$lib/backend.js'
 	import MediaSeekbar from './MediaSeekbar.svelte'
 	import MediaButton from './MediaButton.svelte'
+	import MediaButtonPlayPause from './MediaButtonPlayPause.svelte'
+	import MediaButtonReset from './MediaButtonReset.svelte'
 
 	let { entityId } = $props()
 	let media = $state(null)
@@ -19,14 +21,12 @@
 		syncVideoState()
 	}
 
-	function reset() {
-		mediaElement.pause()
-		mediaElement.load()
-		syncVideoState()
-	}
-
 	function syncVideoState() {
 		playing = !mediaElement.paused
+	}
+
+	function onpause() {
+		syncVideoState()
 	}
 
 	function onseekvalue(_, seekTime) {
@@ -47,7 +47,8 @@
 		height="240"
 		title={media?.name}
 		alt={media?.description}
-		onclick={playPause}>
+		onclick={playPause}
+		{onpause}>
 		<source src="/media?entity_id={encodeURI(entityId)}" type="video/mp4" />
 		HTML videos not supported by browser.
 	</video>
@@ -57,10 +58,8 @@
 			<MediaSeekbar {mediaElement} {onseekvalue} />
 		</div>
 		<div class="media-video-control-buttons">
-			<MediaButton onclick={playPause}>
-				{#if playing}Pause{:else}Play{/if}
-			</MediaButton>
-			<MediaButton onclick={reset}>Reset</MediaButton>
+			<MediaButtonPlayPause {mediaElement} />
+			<MediaButtonReset {mediaElement} />
 		</div>
 	</div>
 </div>
@@ -88,11 +87,5 @@
 
 	.media-video-seekbar {
 		width: 100%;
-	}
-
-	.media-video-control-buttons {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
 	}
 </style>
