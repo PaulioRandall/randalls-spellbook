@@ -1,11 +1,11 @@
 <script>
 	import MediaButton from './MediaButton.svelte'
 
-	let { mediaController } = $props()
+	let { svelteMediaElement } = $props()
 </script>
 
 <MediaButton
-	disabled={!mediaController.loaded}
-	onclick={() => mediaController.restart()}>
+	disabled={!svelteMediaElement.loaded}
+	onclick={() => svelteMediaElement.restart()}>
 	Reset
 </MediaButton>

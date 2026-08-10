@@ -1,14 +1,14 @@
 <script>
 	import MediaButton from './MediaButton.svelte'
 
-	let { mediaController } = $props()
+	let { svelteMediaElement } = $props()
 	let label = $derived(
-		mediaController.playing ? 'Pause' : 'Play' //
+		svelteMediaElement.playing ? 'Pause' : 'Play' //
 	)
 </script>
 
 <MediaButton
-	disabled={!mediaController.playable}
-	onclick={() => mediaController.playPause()}>
+	disabled={!svelteMediaElement.playable}
+	onclick={() => svelteMediaElement.playPause()}>
 	{label}
 </MediaButton>
