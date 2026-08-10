@@ -2,40 +2,26 @@
 	import { onMount, onDestroy } from 'svelte'
 
 	import backend from '$lib/backend.js'
+	import MediaController from '$lib/MediaController.svelte.js'
+
 	import MediaSeekbar from './MediaSeekbar.svelte'
 	import MediaButton from './MediaButton.svelte'
 	import MediaButtonPlayPause from './MediaButtonPlayPause.svelte'
-	import MediaButtonReset from './MediaButtonReset.svelte'
+	import MediaButtonRestart from './MediaButtonRestart.svelte'
 
+	const mediaController = new MediaController()
 	let { entityId } = $props()
+
 	let media = $state(null)
 	let mediaElement = $state(null)
-	let playing = $state(false)
-
-	function playPause() {
-		if (mediaElement.paused) {
-			mediaElement.play()
-		} else {
-			mediaElement.pause()
-		}
-		syncVideoState()
-	}
-
-	function syncVideoState() {
-		playing = !mediaElement.paused
-	}
-
-	function onpause() {
-		syncVideoState()
-	}
 
 	function onseekvalue(_, seekTime) {
 		mediaElement.currentTime = seekTime
-		syncVideoState()
 	}
 
 	onMount(async () => {
 		media = await backend.getMediaById(entityId)
+		mediaController.setElement(mediaElement)
 	})
 </script>
 
@@ -47,8 +33,7 @@
 		height="240"
 		title={media?.name}
 		alt={media?.description}
-		onclick={playPause}
-		{onpause}>
+		onclick={() => mediaController.playPause()}>
 		<source src="/media?entity_id={encodeURI(entityId)}" type="video/mp4" />
 		HTML videos not supported by browser.
 	</video>
@@ -58,8 +43,13 @@
 			<MediaSeekbar {mediaElement} {onseekvalue} />
 		</div>
 		<div class="media-video-control-buttons">
-			<MediaButtonPlayPause {mediaElement} />
-			<MediaButtonReset {mediaElement} />
+			<MediaButtonPlayPause {mediaController} />
+			<MediaButtonRestart {mediaController} />
+			<MediaButton
+				disabled={!mediaController.loaded}
+				onclick={() => mediaController.reload()}>
+				Reload
+			</MediaButton>
 		</div>
 	</div>
 </div>
