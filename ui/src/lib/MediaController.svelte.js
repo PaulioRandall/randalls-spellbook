@@ -1,3 +1,8 @@
+import ArrayUtil from '$lib/ArrayUtil.js'
+
+// TODO: Create functions for each public field so $effect
+//       runes won't trigger if devs don't want them to.
+
 // MediaController is an adapter for the built-in
 // HTMLMediaElement class that is usable when the
 // HTMLMediaElement is not set. This class serves multiple
@@ -13,62 +18,195 @@
 //    HTMLMediaElement changes, so Svelte components don't
 //    need to monitor its existance.
 export default class MediaController {
-	_element = null
-	hasElement = $state(false)
-
+	// loaded is a readonly state that is true when the
+	// media has loaded.
 	loaded = $state(false)
+
+	// playable is a readonly state that is true when the
+	// media is in a playable state.
 	playable = $state(false)
+
+	// playing is a readonly state that is true when the
+	// media is playing.
 	playing = $state(false)
 
+	// paused is a readonly state that is true when the
+	// playing state is false, that is, it's always opposite
+	// of the playing state.
+	paused = $derived(!this.playing)
+
+	// seekable is a readonly state that is true when the
+	// underlying HTMLMediaElement is seekable.
 	seekable = $state(false)
+
+	// seeking is a readonly state that is true when the
+	// underlying HTMLMediaElement is in seeking mode.
 	seeking = $state(false)
 
+	// duration is a readonly state for the current media
+	// duration.
 	duration = $state(0)
+
+	// currentTime is a readonly state for the current
+	// playback time. This differs from playtime which is not
+	// updated during seeking.
 	currentTime = $state(0)
+
+	// playtime is a readonly state for the current playback
+	// time, however it is only updated during playback.
+	// This differs from currentTime which is also updated
+	// during seeking.
 	playtime = $state(0)
+
+	// remaining is a readonly state for the amount of time
+	// remaining in playback, i.e. duration - playtime. It
+	// updates inline with the playtime field.
 	remaining = $derived(this.duration - this.playtime)
+
+	// _element is an updatable state for the underlying
+	// HTMLMediaElement.
+	_element = $state(null)
+
+	// element is a readonly state for the underlying
+	// HTMLMediaElement.
+	element = $derived(this._element)
 
 	_muxListeners = generateMuxListeners(this)
 	_userListeners = {/* eventType: [listener] */}
 
+	// isLoaded returns the raw unreactive value of the
+	// loaded field.
+	isLoaded() {
+		const v = $state.raw(this.loaded)
+		// svelte-ignore state_referenced_locally
+		return v
+	}
+
+	// isPlayable returns the raw unreactive value of the
+	// playable field.
+	isPlayable() {
+		const v = $state.raw(this.playable)
+		// svelte-ignore state_referenced_locally
+		return v
+	}
+
+	// isPlaying returns the raw unreactive value of the
+	// playing field.
+	isPlaying() {
+		const v = $state.raw(this.playing)
+		// svelte-ignore state_referenced_locally
+		return v
+	}
+
+	// isPaused returns the raw unreactive value of the
+	// paused field.
+	isPaused() {
+		const v = $state.raw(this.paused)
+		// svelte-ignore state_referenced_locally
+		return v
+	}
+
+	// isSeekable returns the raw unreactive value of the
+	// seekable field.
+	isSeekable() {
+		const v = $state.raw(this.seekable)
+		// svelte-ignore state_referenced_locally
+		return v
+	}
+
+	// isSeeking returns the raw unreactive value of the
+	// seeking field.
+	isSeeking() {
+		const v = $state.raw(this.seeking)
+		// svelte-ignore state_referenced_locally
+		return v
+	}
+
+	// getDuration returns the raw unreactive value of the
+	// duration field.
+	getDuration() {
+		const v = $state.raw(this.duration)
+		// svelte-ignore state_referenced_locally
+		return v
+	}
+
+	// getCurrentTime returns the raw unreactive value of the
+	// currentTime field.
+	getCurrentTime() {
+		const v = $state.raw(this.currentTime)
+		// svelte-ignore state_referenced_locally
+		return v
+	}
+
+	// getPlaytime returns the raw unreactive value of the
+	// playtime field.
+	getPlaytime() {
+		const v = $state.raw(this.playtime)
+		// svelte-ignore state_referenced_locally
+		return v
+	}
+
+	// getRemaining returns the raw unreactive value of the
+	// remaining field.
+	getRemaining() {
+		const v = $state.raw(this.remaining)
+		// svelte-ignore state_referenced_locally
+		return v
+	}
+
+	// hasElement returns true if a HTMLMediaElement is set,
+	// else returns false.
+	hasElement() {
+		const v = $state.raw(this._element)
+		// svelte-ignore state_referenced_locally
+		return !!v
+	}
+
+	// getElement returns the current HTMLMediaElement or
+	// null if it is not set.
+	getElement() {
+		const v = $state.raw(this._element)
+		// svelte-ignore state_referenced_locally
+		return v
+	}
+
 	// setElement sets the underlying HTMLMediaElement. If
 	// one is already set then it will be unset first,
-	// invoking the relevant events to fire.
+	// invoking the relevant events to fire. If the
+	// mediaElement argument is falsey it is interpreted as
+	// an unset only with the element field bein set to null.
 	setElement(mediaElement) {
-		this.unsetElement()
+		this._unsetElement()
+
+		if (!mediaElement) {
+			return
+		}
 
 		const validType = mediaElement instanceof HTMLMediaElement
-		if (!mediaElement || !validType) {
+		if (!validType) {
 			throw new Error('Not a HTMLMediaElement')
 		}
 
 		this._element = mediaElement
-		this.hasElement = true
-
 		this._addMuxListeners()
 		this._callUserListeners('elementset')
 	}
 
-	// unsetElement removes the underlying MediaElement if it
-	// is set.
-	unsetElement(mediaElement) {
-		if (!this._element) {
+	// _unsetElement sets the underlying HTMLMediaElement
+	// to null. It will reset all state then fire the
+	// 'elementunset' event.
+	_unsetElement(mediaElement) {
+		if (this._element === null) {
 			return
 		}
 
 		this._removeMuxListeners()
 
-		this._element = null
 		this.hasElement = false
+		this._element = null
 		this._resetStates()
 
 		this._callUserListeners('elementunset')
-	}
-
-	// get returns the current MediaElement or null if it is
-	// not set.
-	get() {
-		return this._element
 	}
 
 	// reload reloads the media. Load related functions will
@@ -114,7 +252,7 @@ export default class MediaController {
 	// function, restart does not reload the media so load
 	// related events are not fired.
 	restart() {
-		if (this._element) {
+		if (this.hasElement()) {
 			this._element.currentTime = 0
 		}
 	}
@@ -129,22 +267,6 @@ export default class MediaController {
 		this.duration = 0
 		this.currentTime = 0
 		this.playtime = 0
-		this.remaining = 0
-	}
-
-	_updateMetadata() {
-		this.seekable = this._element.seekable
-		this.duration = this._element.duration
-		this.currentTime = 0
-		this._updateLoadStates()
-	}
-
-	_updateLoadStates() {
-		const METADATA_READY = HTMLMediaElement.HAVE_METADATA
-		this.loaded = this._element.readyState >= METADATA_READY
-
-		const DATA_READY = HTMLMediaElement.HAVE_FUTURE_DATA
-		this.playable = this._element.readyState >= DATA_READY
 	}
 
 	// _addMuxListeners adds all middleware listeners to the
@@ -210,44 +332,49 @@ export default class MediaController {
 	}
 }
 
-function removeFromArray(array, item) {
-	const i = array.indexOf(item)
-
-	if (i > -1) {
-		array.splice(i, 1)
+function generateMuxListeners(mc) {
+	function updateMetadata() {
+		mc.seekable = mc._element.seekable
+		mc.duration = mc._element.duration
+		mc.currentTime = 0
+		updateLoadStates()
 	}
 
-	return item
-}
+	function updateLoadStates() {
+		const METADATA_READY = HTMLMediaElement.HAVE_METADATA
+		mc.loaded = mc._element.readyState >= METADATA_READY
 
-function generateMuxListeners(mc) {
+		const DATA_READY = HTMLMediaElement.HAVE_FUTURE_DATA
+		mc.playable = mc._element.readyState >= DATA_READY
+	}
+
 	function loadedmetadata(event) {
-		mc._updateMetadata()
+		updateLoadStates()
 		mc._callUserListeners('loadedmetadata', event)
 	}
 
 	function loadstart(event) {
-		mc._updateLoadStates()
+		updateLoadStates()
 		mc._callUserListeners('loadstart', event)
 	}
 
 	function loadeddata(event) {
-		mc._updateLoadStates()
+		updateLoadStates()
 		mc._callUserListeners('loadeddata', event)
 	}
 
 	function progress(event) {
-		mc._updateLoadStates()
+		updateLoadStates()
 		mc._callUserListeners('progress', event)
 	}
 
 	function canplay(event) {
-		mc._updateLoadStates()
+		updateLoadStates()
 		mc._callUserListeners('canplay', event)
 	}
 
 	function canplaythrough(event) {
-		mc._updateLoadStates()
+		updateLoadStates()
 		mc._callUserListeners('canplaythrough', event)
 	}
 
