@@ -23,6 +23,9 @@
 		media = await backend.getMediaById(entityId)
 		svelteMediaElement.setElement(mediaElement)
 	})
+
+	$effect(() => console.log('seektime', svelteMediaElement.seektime))
+	$effect(() => console.log('playtime', svelteMediaElement.playtime))
 </script>
 
 <div class="media-video-container">

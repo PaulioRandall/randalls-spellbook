@@ -2,8 +2,9 @@
 	import MediaButton from './MediaButton.svelte'
 
 	let { svelteMediaElement } = $props()
+
 	let label = $derived(
-		svelteMediaElement.playing ? 'Pause' : 'Play' //
+		svelteMediaElement.paused ? 'Play' : 'Pause' //
 	)
 </script>
 

@@ -35,49 +35,68 @@ export default class SvelteMediaElement {
 	_muxListeners = generateMuxListeners(this)
 	_userListeners = {/* eventType: [listener] */}
 
-	// _element is an updatable state for the underlying
+	// element is a Svelte state for the underlying
 	// HTMLMediaElement.
-	_element = $state(null)
+	element = $state(null)
 
-	// element is a readonly state for the underlying
-	// HTMLMediaElement.
-	element = $derived(this._element)
-
-	// loaded is a readonly state that is true when the
+	// loaded is a Svelte state that is true when the
 	// media has loaded.
 	loaded = $state(false)
 
-	// playable is a readonly state that is true when the
+	// playable is a Svelte state that is true when the
 	// media is in a playable state.
 	playable = $state(false)
 
-	// playing is a readonly state that is true when the
-	// media is playing.
+	// playing is a Svelte state that is true when the
+	// media is playing. E.g. playing is true when the user
+	// actively watching a video but will change to false
+	// when playback stops to buffer the video. It's
+	// useful for toggling independent spinners and messaging
+	// related to data loading.
 	playing = $state(false)
 
-	// paused is a readonly state that is true when the
-	// playing state is false, that is, it's always opposite
-	// of the playing state.
-	paused = $derived(!this.playing)
+	// paused is a Svelte state that is true prior to
+	// loading, straight after loading, before autoplay
+	// begins (if enabled), and when the user has paused the
+	// video. It will be false when the media has stopped
+	// playing because it's waiting for data, unlike the
+	// playing field which is only true during user observed
+	// playback.
+	paused = $state(true)
 
-	// seekable is a readonly state that is true when the
+	// running is a Svelte state that is true when paused
+	// is false. A media can be both running and not
+	// playing, usually indicating the media doesn't have
+	// enough data to continue play right now but will
+	// continue playing when data arrives.
+	running = $derived(!this.paused)
+
+	// seekable is a Svelte state that is true when the
 	// underlying HTMLMediaElement is seekable.
 	seekable = $state(false)
 
-	// seeking is a readonly state that is true when the
+	// seeking is a Svelte state that is true when the
 	// underlying HTMLMediaElement is in seeking mode.
 	seeking = $state(false)
 
-	// duration is a readonly state for the current media
+	// duration is a Svelte state for the current media
 	// duration.
 	duration = $state(0)
 
-	// currentTime is a readonly state for the current
+	// currentTime is a Svelte state for the current
 	// playback time. This differs from playtime which is not
 	// updated during seeking.
 	currentTime = $state(0)
 
-	// playtime is a readonly state for the current playback
+	// currentRemaining is a Svelte state for the
+	// amount of time remaining in playback based on the
+	// currentTime, i.e. duration - currentTime. It
+	// updates inline with the currentTime field.
+	currentRemaining = $derived(
+		this.duration - this._currentTime //
+	)
+
+	// playtime is a Svelte state for the current playback
 	// time, however it is only updated during playback.
 	// This differs from currentTime which is also updated
 	// during seeking. When currentTime is updated then
@@ -85,16 +104,16 @@ export default class SvelteMediaElement {
 	// both.
 	playtime = $state(0)
 
-	// seektime is a readonly state for the currentTime that
+	// seektime is a Svelte state for the currentTime that
 	// is only updated when seeking is true. When currentTime
 	// is updated then either playtime or seektime will
 	// update, but never both.
 	seektime = $state(0)
 
-	// remaining is a readonly state for the amount of time
-	// remaining in playback, i.e. duration - playtime. It
-	// updates inline with the playtime field.
-	remaining = $derived(this.duration - this.playtime)
+	// remainingTime is a Svelte state for the amount of
+	// time remaining in playback, i.e. duration - playtime.
+	// It updates inline with the playtime field.
+	remainingTime = $derived(this.duration - this.playtime)
 
 	// hasElement returns true if a HTMLMediaElement is set,
 	// else returns false. Tracking is prevented.
@@ -127,10 +146,27 @@ export default class SvelteMediaElement {
 				throw new Error('Not a HTMLMediaElement')
 			}
 
-			this._element = mediaElement
+			this.element = mediaElement
 			this._addMuxListeners()
 			this._callUserListeners('elementset')
 		})
+	}
+
+	// _unsetElement sets the underlying HTMLMediaElement
+	// to null. It will reset all state then fire the
+	// 'elementunset' event.
+	_unsetElement(mediaElement) {
+		if (this.element === null) {
+			return
+		}
+
+		this._removeMuxListeners()
+
+		this.hasElement = false
+		this.element = null
+		this._resetStates()
+
+		this._callUserListeners('elementunset')
 	}
 
 	// isLoaded returns the loaded field without tracking.
@@ -152,6 +188,11 @@ export default class SvelteMediaElement {
 	// isPaused returns the paused field without tracking.
 	isPaused() {
 		return untrack(() => this.paused)
+	}
+
+	// isRunning returns the running field without tracking.
+	isRunning() {
+		return untrack(() => this.running)
 	}
 
 	// isSeekable returns the seekable field without
@@ -177,6 +218,12 @@ export default class SvelteMediaElement {
 		return untrack(() => this.currentTime)
 	}
 
+	// getCurrentRemaining returns the currentRemaining field
+	// without tracking.
+	getCurrentRemaining() {
+		return untrack(() => this.currentRemaining)
+	}
+
 	// getPlaytime returns the playtime field without
 	// tracking.
 	getPlaytime() {
@@ -189,53 +236,36 @@ export default class SvelteMediaElement {
 		return untrack(() => this.seektime)
 	}
 
-	// getRemaining returns the remaining field without
+	// getRemainingTime returns the remaining field without
 	// tracking.
-	getRemaining() {
-		return untrack(() => this.remaining)
+	getRemainingTime() {
+		return untrack(() => this.remainingTime)
 	}
 
 	// reload reloads the media. Load related functions will
 	// fire as if the load function was called with the
 	// current source. Tracking is prevented.
 	reload() {
-		untrack(() => {
-			this._resetStates()
-			this._element.load()
-		})
+		untrack(() => this.element.load())
 	}
-
-	/*
-	// load first unloads the current media and removes any
-	// existing sources, then adds the specified source and
-	// begins loading it.
-	loadSource(src, type) {
-		if (this._element) {
-			return
-		}
-
-		// 1. Unload current media & remove source
-		// 2. Add new source
-	}
-	*/
 
 	// play begins playing the media if it has loaded and is
 	// not currently playing. Tracking is prevented.
 	play() {
-		untrack(() => this._element?.play())
+		untrack(() => this.element?.play())
 	}
 
 	// pause stops playing the media if is currently playing.
 	// Tracking is prevented.
 	pause() {
-		untrack(() => this._element?.pause())
+		untrack(() => this.element?.pause())
 	}
 
 	// playPause begins playing the media if it is not
 	// playing and stops playing if it is.
 	playPause() {
 		untrack(() => {
-			return this.playing ? this.pause() : this.play()
+			return this.paused ? this.play() : this.pause()
 		})
 	}
 
@@ -244,39 +274,27 @@ export default class SvelteMediaElement {
 	// related events are not fired.
 	restart() {
 		untrack(() => {
-			if (this._element) {
-				this._element.currentTime = 0
+			if (this.element) {
+				this.element.currentTime = 0
 			}
 		})
 	}
 
-	// _unsetElement sets the underlying HTMLMediaElement
-	// to null. It will reset all state then fire the
-	// 'elementunset' event.
-	_unsetElement(mediaElement) {
-		if (this._element === null) {
-			return
-		}
-
-		this._removeMuxListeners()
-
-		this.hasElement = false
-		this._element = null
-		this._resetStates()
-
-		this._callUserListeners('elementunset')
-	}
-
+	// _resetStates resets all fields to their preload
+	// defaults. This should only be called when media load
+	// starts or after unloading the media.
 	_resetStates() {
-		this.loaded = false
-		this.playable = false
 		this.playing = false
-		this.seekable = false
+		this.paused = true
 		this.seeking = false
 
 		this.duration = 0
 		this.currentTime = 0
 		this.playtime = 0
+
+		this.playable = false
+		this.seekable = false
+		this.loaded = false
 	}
 
 	// _addMuxListeners adds all middleware listeners to the
@@ -284,7 +302,7 @@ export default class SvelteMediaElement {
 	_addMuxListeners() {
 		for (const eventType in this._muxListeners) {
 			const listener = this._muxListeners[eventType]
-			this._element.addEventListener(eventType, listener)
+			this.element.addEventListener(eventType, listener)
 		}
 	}
 
@@ -293,7 +311,7 @@ export default class SvelteMediaElement {
 	_removeMuxListeners() {
 		for (const eventType in this._muxListeners) {
 			const listener = this._muxListeners[eventType]
-			this._element.removeEventListener(eventType, listener)
+			this.element.removeEventListener(eventType, listener)
 		}
 	}
 
@@ -344,40 +362,23 @@ export default class SvelteMediaElement {
 
 function generateMuxListeners(mc) {
 	function updateMetadata() {
-		mc.seekable = mc._element.seekable
-		mc.duration = mc._element.duration
-		mc.currentTime = 0
-		mc.playtime = 0
-		mc.seektime = 0
+		mc.seekable = mc.element.seekable
+		mc.duration = mc.element.duration
+		mc.currentTime = mc.currentTime
 		updateLoadStates()
 	}
 
 	function updateLoadStates() {
 		const METADATA_READY = HTMLMediaElement.HAVE_METADATA
-		mc.loaded = mc._element.readyState >= METADATA_READY
+		mc.loaded = mc.element.readyState >= METADATA_READY
 
 		const DATA_READY = HTMLMediaElement.HAVE_FUTURE_DATA
-		mc.playable = mc._element.readyState >= DATA_READY
+		mc.playable = mc.element.readyState >= DATA_READY
 	}
 
-	function loadedmetadata(event) {
+	function abort() {
 		updateLoadStates()
-		mc._callUserListeners('loadedmetadata', event)
-	}
-
-	function loadstart(event) {
-		updateLoadStates()
-		mc._callUserListeners('loadstart', event)
-	}
-
-	function loadeddata(event) {
-		updateLoadStates()
-		mc._callUserListeners('loadeddata', event)
-	}
-
-	function progress(event) {
-		updateLoadStates()
-		mc._callUserListeners('progress', event)
+		mc._callUserListeners('abort', event)
 	}
 
 	function canplay(event) {
@@ -391,12 +392,87 @@ function generateMuxListeners(mc) {
 	}
 
 	function durationchange(event) {
-		mc.duration = mc._element.duration
+		mc.duration = mc.element.duration
 		mc._callUserListeners('durationchange', event)
 	}
 
+	function emptied(event) {
+		mc._resetStates()
+		mc._callUserListeners('emptied', event)
+	}
+
+	function ended(event) {
+		mc.playing = false
+		mc.paused = mc.element.paused
+		mc._callUserListeners('ended', event)
+	}
+
+	function error(event) {
+		updateLoadStates()
+		mc._callUserListeners('error', event)
+	}
+
+	function loadeddata(event) {
+		updateLoadStates()
+		mc._callUserListeners('loadeddata', event)
+	}
+
+	function loadedmetadata(event) {
+		updateLoadStates()
+		mc._callUserListeners('loadedmetadata', event)
+	}
+
+	function loadstart(event) {
+		mc._resetStates()
+		updateLoadStates()
+		mc._callUserListeners('loadstart', event)
+	}
+
+	function pause(event) {
+		mc.paused = true
+		mc.playing = false
+		mc._callUserListeners('pause', event)
+	}
+
+	function play(event) {
+		mc.paused = false
+		mc._callUserListeners('play', event)
+	}
+
+	function playing(event) {
+		mc.playing = true
+		mc._callUserListeners('playing', event)
+	}
+
+	function progress(event) {
+		updateLoadStates()
+		mc._callUserListeners('progress', event)
+	}
+
+	function ratechange(event) {
+		mc._callUserListeners('ratechange', event)
+	}
+
+	function seeked(event) {
+		mc.seeking = false
+		mc._callUserListeners('seeked', event)
+	}
+
+	function seeking(event) {
+		mc.seeking = true
+		mc._callUserListeners('seeking', event)
+	}
+
+	function stalled(event) {
+		mc._callUserListeners('stalled', event)
+	}
+
+	function suspend(event) {
+		mc._callUserListeners('suspend', event)
+	}
+
 	function timeupdate(event) {
-		mc.currentTime = mc._element.currentTime
+		mc.currentTime = mc.element.currentTime
 		mc._callUserListeners('timeupdate', event)
 
 		if (mc.seeking) {
@@ -408,38 +484,42 @@ function generateMuxListeners(mc) {
 		}
 	}
 
-	function play(event) {
-		mc.playing = true
-		mc._callUserListeners('play', event)
+	function volumechange(event) {
+		mc._callUserListeners('volumechange', event)
 	}
 
-	function pause(event) {
+	function waiting(event) {
 		mc.playing = false
-		mc._callUserListeners('pause', event)
+		mc._callUserListeners('waiting', event)
 	}
 
-	function seeking(event) {
-		mc.seeking = true
-		mc._callUserListeners('seeking', event)
-	}
-
-	function seeked(event) {
-		mc.seeking = false
-		mc._callUserListeners('seeked', event)
+	function waitingforkey(event) {
+		mc._callUserListeners('waitingforkey', event)
 	}
 
 	return {
-		loadedmetadata,
-		loadstart,
-		loadeddata,
-		progress,
+		abort,
 		canplay,
 		canplaythrough,
 		durationchange,
-		timeupdate,
-		play,
+		emptied,
+		ended,
+		error,
+		loadeddata,
+		loadedmetadata,
+		loadstart,
 		pause,
-		seeking,
+		play,
+		playing,
+		progress,
+		ratechange,
 		seeked,
+		seeking,
+		stalled,
+		suspend,
+		timeupdate,
+		volumechange,
+		waiting,
+		waitingforkey,
 	}
 }
