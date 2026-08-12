@@ -24,8 +24,38 @@
 		svelteMediaElement.setElement(mediaElement)
 	})
 
-	$effect(() => console.log('seektime', svelteMediaElement.seektime))
-	$effect(() => console.log('playtime', svelteMediaElement.playtime))
+	function logOnEvent(name) {
+		svelteMediaElement.on(name, () => {
+			console.log('EVENT', name)
+		})
+	}
+
+	logOnEvent('elementset')
+	logOnEvent('elementunset')
+	logOnEvent('loaded')
+	logOnEvent('running')
+	logOnEvent('paused')
+
+	function logReactor(name) {
+		return () => {
+			console.log(name, svelteMediaElement[name])
+		}
+	}
+
+	$effect(logReactor('element'))
+	$effect(logReactor('loaded'))
+	$effect(logReactor('playable'))
+	$effect(logReactor('playing'))
+	$effect(logReactor('paused'))
+	$effect(logReactor('running'))
+	$effect(logReactor('seekable'))
+	$effect(logReactor('seeking'))
+	$effect(logReactor('duration'))
+	$effect(logReactor('currentTime'))
+	$effect(logReactor('currentRemaining'))
+	$effect(logReactor('playtime'))
+	$effect(logReactor('seektime'))
+	$effect(logReactor('remainingTime'))
 </script>
 
 <div class="media-video-container">

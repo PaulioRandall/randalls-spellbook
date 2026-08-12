@@ -1,6 +1,51 @@
 import { untrack } from 'svelte'
 import ArrayUtil from '$lib/ArrayUtil.js'
 
+// HTML_MEDIA_ELEMENT_EVENT_TYPES is an array of all
+// HTMLMediaELement event types that users can register
+// listeners for.
+const HTML_MEDIA_ELEMENT_EVENT_TYPES = [
+	'abort',
+	'canplay',
+	'canplaythrough',
+	'durationchange',
+	'emptied',
+	'ended',
+	'error',
+	'loadeddata',
+	'loadedmetadata',
+	'loadstart',
+	'pause',
+	'play',
+	'playing',
+	'progress',
+	'ratechange',
+	'seeked',
+	'seeking',
+	'stalled',
+	'suspend',
+	'timeupdate',
+	'volumechange',
+	'waiting',
+	'waitingforkey',
+]
+
+// SPECIAL_EVENT_TYPES is an array of all custom event
+// types fired by SvelteMediaElement, not by the
+// underlying HTMLMediaELement.
+const SPECIAL_EVENT_TYPES = [
+	'elementset',
+	'elementunset',
+	'loaded',
+	'running',
+	'paused',
+]
+
+const EVENT_TYPES = [
+	...HTML_MEDIA_ELEMENT_EVENT_TYPES, //
+	...SPECIAL_EVENT_TYPES,
+]
+
 // SvelteMediaElement is a Svelte adapter for the built-in
 // HTMLMediaElement class that is allows some functionality
 // even when the underlying HTMLMediaElement is not set.
@@ -10,7 +55,8 @@ import ArrayUtil from '$lib/ArrayUtil.js'
 // HTMLMediaElement is set and unset separate to
 // instance construction, the SvelteMediaElement instance
 // passed to components can always be non-null. This
-// removes a lot of existence checking that I had before.
+// moves most existence checking from the components into
+// this class.
 //
 // The adapter stores listeners added by components so when
 // a HTMLMediaElement is set and unset the listeners will
@@ -31,470 +77,685 @@ import ArrayUtil from '$lib/ArrayUtil.js'
 // remaining time (duration - playtime) that are only
 // updated when the video is actually playing, i.e. not
 // during seeking.
+//
+// Documentation for each property and function will end
+// with 'Tracked' if its use is tracked by Svelte, else it
+// will end with 'Untracked'. This allows user to quickly
+// see if use of a particular property or function will
+// trigger execution of $effect and $derived runes.
+// Properties and their getters should be tracked while
+// public functions should be untracked. This makes it even
+// easier for readers to quickly understand the reactivity
+// of some code.
+//
+// TODO: replace all $derived with $state so users can
+//       access the updated values within the same tick,
+//       e.g. in events fired after root $state is updated.
 export default class SvelteMediaElement {
-	_muxListeners = generateMuxListeners(this)
-	_userListeners = {/* eventType: [listener] */}
+	// _muxCallbacks are middleware event listeners. Instead
+	// of passing the users event listeners directly to the
+	// underlying HTMLMediaElement, they are called through
+	// by these mux callbacks.
+	_muxCallbacks = generateMuxCallbacks(this)
 
-	// element is a Svelte state for the underlying
-	// HTMLMediaElement.
-	element = $state(null)
+	// _userCallbacks are the user defined listeners. They
+	// include HTMLMediaElement event types and special
+	// custom types that are fired only by this class, e.g.
+	// 'elementset' and 'elementunset' event types.
+	_userCallbacks = {/* eventType: [callback] */}
 
-	// loaded is a Svelte state that is true when the
-	// media has loaded.
-	loaded = $state(false)
-
-	// playable is a Svelte state that is true when the
-	// media is in a playable state.
-	playable = $state(false)
-
-	// playing is a Svelte state that is true when the
-	// media is playing. E.g. playing is true when the user
-	// actively watching a video but will change to false
-	// when playback stops to buffer the video. It's
-	// useful for toggling independent spinners and messaging
-	// related to data loading.
-	playing = $state(false)
-
-	// paused is a Svelte state that is true prior to
-	// loading, straight after loading, before autoplay
-	// begins (if enabled), and when the user has paused the
-	// video. It will be false when the media has stopped
-	// playing because it's waiting for data, unlike the
-	// playing field which is only true during user observed
-	// playback.
-	paused = $state(true)
-
-	// running is a Svelte state that is true when paused
-	// is false. A media can be both running and not
-	// playing, usually indicating the media doesn't have
-	// enough data to continue play right now but will
-	// continue playing when data arrives.
-	running = $derived(!this.paused)
-
-	// seekable is a Svelte state that is true when the
-	// underlying HTMLMediaElement is seekable.
-	seekable = $state(false)
-
-	// seeking is a Svelte state that is true when the
-	// underlying HTMLMediaElement is in seeking mode.
-	seeking = $state(false)
-
-	// duration is a Svelte state for the current media
-	// duration.
-	duration = $state(0)
-
-	// currentTime is a Svelte state for the current
-	// playback time. This differs from playtime which is not
-	// updated during seeking.
-	currentTime = $state(0)
-
-	// currentRemaining is a Svelte state for the
-	// amount of time remaining in playback based on the
-	// currentTime, i.e. duration - currentTime. It
-	// updates inline with the currentTime field.
-	currentRemaining = $derived(
-		this.duration - this._currentTime //
-	)
-
-	// playtime is a Svelte state for the current playback
-	// time, however it is only updated during playback.
-	// This differs from currentTime which is also updated
-	// during seeking. When currentTime is updated then
-	// either playtime or seektime will update, but never
-	// both.
-	playtime = $state(0)
-
-	// seektime is a Svelte state for the currentTime that
-	// is only updated when seeking is true. When currentTime
-	// is updated then either playtime or seektime will
-	// update, but never both.
-	seektime = $state(0)
-
-	// remainingTime is a Svelte state for the amount of
-	// time remaining in playback, i.e. duration - playtime.
-	// It updates inline with the playtime field.
-	remainingTime = $derived(this.duration - this.playtime)
-
-	// hasElement returns true if a HTMLMediaElement is set,
-	// else returns false. Tracking is prevented.
-	hasElement() {
-		return untrack(() => !!this.element)
+	// element is the underlying HTMLMediaElement or null
+	// when no element is set.
+	//
+	// Tracked.
+	_element = $state(null)
+	get element() {
+		return this._element
 	}
 
-	// getElement returns the current HTMLMediaElement or
-	// null if it is not set. Tracking is prevented.
+	// hasElement returns true if the element property is
+	// set, i.e. not null.
+	//
+	// Untracked.
+	hasElement() {
+		return untrack(() => this._element === null)
+	}
+
+	// getElement returns the untracked value of the element
+	// property.
+	//
+	// Untracked.
 	getElement() {
-		return untrack(() => this.element)
+		return untrack(() => this._element)
 	}
 
 	// setElement sets the underlying HTMLMediaElement. If
-	// one is already set then it will be unset first,
-	// invoking the relevant events to fire. If the
-	// mediaElement argument is falsey it is interpreted as
-	// an unset only with the element field bein set to null.
-	// Tracking is prevented.
-	setElement(mediaElement) {
+	// one is already set then unsetElement is called first
+	// causing relevant events to fire.
+	//
+	// Untracked.
+	setElement(element) {
 		untrack(() => {
-			this._unsetElement()
+			this.unsetElement()
 
-			if (!mediaElement) {
-				return
-			}
-
-			const validType = mediaElement instanceof HTMLMediaElement
-			if (!validType) {
+			const validType = element instanceof HTMLMediaElement
+			if (!element || !validType) {
 				throw new Error('Not a HTMLMediaElement')
 			}
 
-			this.element = mediaElement
-			this._addMuxListeners()
-			this._callUserListeners('elementset')
+			this._element = element
+			this._addMuxCallbacks()
+			this._fireEvent('elementset')
 		})
 	}
 
-	// _unsetElement sets the underlying HTMLMediaElement
+	// unsetElement sets the underlying HTMLMediaElement
 	// to null. It will reset all state then fire the
 	// 'elementunset' event.
-	_unsetElement(mediaElement) {
-		if (this.element === null) {
-			return
-		}
+	//
+	// Untracked.
+	unsetElement() {
+		untrack(() => {
+			if (this._element === null) {
+				return
+			}
 
-		this._removeMuxListeners()
+			this._removeMuxCallbacks()
+			this._element = null
+			this._resetStates()
 
-		this.hasElement = false
-		this.element = null
-		this._resetStates()
-
-		this._callUserListeners('elementunset')
+			this._fireEvent('elementunset')
+		})
 	}
 
-	// isLoaded returns the loaded field without tracking.
+	// loaded is true when the media metadata has loaded.
+	// It tells you nothing about data loading.
+	//
+	// Tracked.
+	_loaded = $state(false)
+	get loaded() {
+		return this._loaded
+	}
+
+	// isLoaded returns the untracked value of the loaded
+	// property.
+	//
+	// Untracked.
 	isLoaded() {
-		return untrack(() => this.loaded)
+		return untrack(() => this._loaded)
 	}
 
-	// isPlayable returns the playable field without
-	// tracking.
+	//_playable is true when the media has data loaded for
+	// some playback to occur.
+	//
+	// Tracked.
+	_playable = $state(false)
+	get playable() {
+		return this._playable
+	}
+
+	// isPlayable returns the untracked value of the playable
+	// property.
+	//
+	// Untracked.
 	isPlayable() {
-		return untrack(() => this.playable)
+		return untrack(() => this._playable)
 	}
 
-	// isPlaying returns the playing field without tracking.
+	// playing is true when the media is playing. E.g.
+	// when the user is actively watching a video, but will
+	// change to false when playback stops to buffer the
+	// video. Thus, this is not quite the opposite of paused.
+	//
+	// Tracked.
+	_playing = $state(false)
+	get playing() {
+		return this._playing
+	}
+
+	// isPlaying returns the untracked value of the playing
+	// property.
+	//
+	// Untracked.
 	isPlaying() {
-		return untrack(() => this.playing)
+		return untrack(() => this._playing)
 	}
 
-	// isPaused returns the paused field without tracking.
+	// paused is true prior to loading, straight after
+	// loading, before autoplay begins (if enabled), and when
+	// the user has paused the media. It will still be false
+	// when the media has stopped playing due to needing more
+	// data, unlike the playing field..
+	//
+	// Tracked.
+	_paused = $state(true)
+	get paused() {
+		return this._paused
+	}
+
+	// isPaused returns the untracked value of the paused
+	// property.
+	//
+	// Untracked.
 	isPaused() {
-		return untrack(() => this.paused)
+		return untrack(() => this._paused)
 	}
 
-	// isRunning returns the running field without tracking.
+	// running is true when paused is false. A media can be
+	// both running and not playing, usually indicating the
+	// media doesn't have enough data to continue playback
+	// right now but will continue when data arrives.
+	//
+	// Tracked.
+	_running = $derived(!this._paused)
+	get running() {
+		return this._running
+	}
+
+	// isRunning returns the untracked value of the running
+	// property.
+	//
+	// Untracked.
 	isRunning() {
-		return untrack(() => this.running)
+		return untrack(() => this._running)
 	}
 
-	// isSeekable returns the seekable field without
-	// tracking.
+	// seekable is true when the underlying HTMLMediaElement
+	// is seekable.
+	//
+	// Tracked.
+	_seekable = $state(false)
+	get seekable() {
+		return this._seekable
+	}
+
+	// isSeekable returns the untracked value of the seekable
+	// property.
+	//
+	// Untracked.
 	isSeekable() {
-		return untrack(() => this.seekable)
+		return untrack(() => this._seekable)
 	}
 
-	// isSeeking returns the seeking field without tracking.
+	// seeking is true when the underlying HTMLMediaElement
+	// is in seeking mode.
+	//
+	// Tracked.
+	_seeking = $state(false)
+	get seeking() {
+		return this._seeking
+	}
+
+	// isSeeking returns the untracked value of the seeking
+	// property.
+	//
+	// Untracked.
 	isSeeking() {
-		return untrack(() => this.seeking)
+		return untrack(() => this._seeking)
 	}
 
-	// getDuration returns the duration field without
-	// tracking.
+	// duration is the total duration of the current media.
+	// If element is not set or loaded then this will be 0.
+	//
+	// Tracked.
+	_duration = $state(0)
+	get duration() {
+		return this._duration
+	}
+
+	// getDuration returns the untracked value of the
+	// duration property.
+	//
+	// Untracked.
 	getDuration() {
-		return untrack(() => this.duration)
+		return untrack(() => this._duration)
 	}
 
-	// getCurrentTime returns the currentTime field without
-	// tracking.
+	// currentTime is the current playback time. This
+	// maps directly to currentTime within the underlying
+	// HTMLMediaElement.
+	//
+	// Tracked.
+	_currentTime = $state(0)
+	get currentTime() {
+		return this._currentTime
+	}
+
+	// getCurrentTime returns the untracked value of the
+	// currentTime property.
+	//
+	// Untracked.
 	getCurrentTime() {
-		return untrack(() => this.currentTime)
+		return untrack(() => this._currentTime)
 	}
 
-	// getCurrentRemaining returns the currentRemaining field
-	// without tracking.
+	// currentRemaining is the amount of time remaining in
+	// playback based on the currentTime. It updates inline
+	// with the currentTime field.
+	//
+	// Tracked.
+	_currentRemaining = $derived(
+		this._duration - this._currentTime //
+	)
+	get currentRemaining() {
+		return this._currentRemaining
+	}
+
+	// getCurrentRemaining returns the untracked value of the
+	// currentRemaining property.
+	//
+	// Untracked.
 	getCurrentRemaining() {
-		return untrack(() => this.currentRemaining)
+		return untrack(() => this._currentRemaining)
 	}
 
-	// getPlaytime returns the playtime field without
-	// tracking.
+	// playtime is the current playback time, however it is
+	// only updated during playback. This differs from
+	// currentTime which is also updated during seeking.
+	//
+	// Tracked.
+	_playtime = $state(0)
+	get playtime() {
+		return this._playtime
+	}
+
+	// getPlaytime returns the untracked value of the
+	// playtime property.
+	//
+	// Untracked.
 	getPlaytime() {
-		return untrack(() => this.playtime)
+		return untrack(() => this._playtime)
 	}
 
-	// getSeektime returns the seektime field without
-	// tracking.
+	// seektime is the current seek time which is only
+	// updated when seeking is true.
+	//
+	// Tracked.
+	_seektime = $state(0)
+	get seektime() {
+		return this._seektime
+	}
+
+	// getSeektime returns the untracked value of the
+	// seektime property.
+	//
+	// Untracked.
 	getSeektime() {
-		return untrack(() => this.seektime)
+		return untrack(() => this._seektime)
 	}
 
-	// getRemainingTime returns the remaining field without
-	// tracking.
+	// remainingTime is the amount of time remaining in
+	// playback based on the playtime, thus updates inline
+	// with the playtime field.
+	//
+	// Tracked.
+	_remainingTime = $derived(this._duration - this._playtime)
+	get remainingTime() {
+		return this._remainingTime
+	}
+
+	// getRemainingTime returns the untracked value of the
+	// getRemainingTime property.
+	//
+	// Untracked.
 	getRemainingTime() {
-		return untrack(() => this.remainingTime)
+		return untrack(() => this._remainingTime)
 	}
 
 	// reload reloads the media. Load related functions will
 	// fire as if the load function was called with the
-	// current source. Tracking is prevented.
+	// current source.
+	//
+	// Untracked.
 	reload() {
-		untrack(() => this.element.load())
+		untrack(() => this._element.load())
 	}
 
 	// play begins playing the media if it has loaded and is
-	// not currently playing. Tracking is prevented.
+	// not currently playing.
+	//
+	// Untracked.
 	play() {
-		untrack(() => this.element?.play())
+		untrack(() => this._element?.play())
 	}
 
 	// pause stops playing the media if is currently playing.
-	// Tracking is prevented.
+	//
+	// Untracked.
 	pause() {
-		untrack(() => this.element?.pause())
+		untrack(() => this._element?.pause())
 	}
 
-	// playPause begins playing the media if it is not
-	// playing and stops playing if it is.
+	// playPause begins playing the media if it is paused or
+	// pauses if it is running.
+	//
+	// Untracked.
 	playPause() {
 		untrack(() => {
-			return this.paused ? this.play() : this.pause()
+			this._paused ? this.play() : this.pause()
 		})
 	}
 
 	// restart sets the playback time to 0. Unlike the reload
 	// function, restart does not reload the media so load
-	// related events are not fired.
+	// related events are not fired. Because it's a seek,
+	// seek related events will fire.
+	//
+	// Untracked.
 	restart() {
 		untrack(() => {
-			if (this.element) {
-				this.element.currentTime = 0
+			if (this._element) {
+				this._element.currentTime = 0
 			}
+		})
+	}
+
+	// on registers an event listener that is added to the
+	// underlying HTMLMediaElement when set and removed when
+	// unest. The listener is called when the eventType
+	// occurs. All standard HTMLMediaElement event types are
+	// supported along with additional ones: 'elementset',
+	// 'elementunset', 'loaded', 'running', and 'paused'.
+	//
+	// Returns true if the eventType and callback pair were
+	// added, false if the pair already existed. Tracking is
+	// prevented.
+	//
+	// Untracked.
+	//
+	// TODO: Support options starting with { once: bool }
+	on(eventType, callback) {
+		return untrack(() => {
+			if (!EVENT_TYPES.includes(eventType)) {
+				throw new Error(`Unknown event type: '${eventType}'`)
+			}
+
+			const callbackType = typeof callback
+			if (!callback || callbackType !== 'function') {
+				throw new Error(
+					`Callback must be a non-null function, not '${callbackType}'`
+				)
+			}
+
+			return this._registerUserCallback(
+				eventType, //
+				callback
+			)
+		})
+	}
+
+	// off unregisters an event handler registered through
+	// the on function.
+	//
+	// Untracked.
+	off(eventType, callback) {
+		return untrack(() => {
+			return this._unregisterUserCallback(
+				eventType, //
+				callback
+			)
 		})
 	}
 
 	// _resetStates resets all fields to their preload
 	// defaults. This should only be called when media load
 	// starts or after unloading the media.
+	//
+	// Tracked.
 	_resetStates() {
-		this.playing = false
-		this.paused = true
-		this.seeking = false
+		this._playing = false
+		this._paused = true
+		this._seeking = false
 
-		this.duration = 0
-		this.currentTime = 0
-		this.playtime = 0
+		this._duration = 0
+		this._currentTime = 0
+		this._playtime = 0
 
-		this.playable = false
-		this.seekable = false
-		this.loaded = false
+		this._playable = false
+		this._seekable = false
+		this._loaded = false
 	}
 
-	// _addMuxListeners adds all middleware listeners to the
-	// current MediaElement.
-	_addMuxListeners() {
-		for (const eventType in this._muxListeners) {
-			const listener = this._muxListeners[eventType]
-			this.element.addEventListener(eventType, listener)
+	// _addMuxCallbacks adds all middleware listeners to the
+	// current HTMLMediaElement.
+	//
+	// Tracked.
+	_addMuxCallbacks() {
+		for (const eventType in this._muxCallbacks) {
+			const callback = this._muxCallbacks[eventType]
+			this._element.addEventListener(eventType, callback)
 		}
 	}
 
-	// _removeMuxListeners removes all middleware listeners
-	// from the current MediaElement.
-	_removeMuxListeners() {
-		for (const eventType in this._muxListeners) {
-			const listener = this._muxListeners[eventType]
-			this.element.removeEventListener(eventType, listener)
+	// _removeMuxCallbacks removes all middleware listeners
+	// from the current HTMLMediaElement.
+	//
+	// Tracked.
+	_removeMuxCallbacks() {
+		for (const eventType in this._muxCallbacks) {
+			const callback = this._muxCallbacks[eventType]
+			this._element.removeEventListener(eventType, callback)
 		}
 	}
 
-	/*
+	// _registerUserCallback registers the callback to a
+	// specific event type. True is returned if the callback
+	// was registered and false returned if the unique pair
+	// of eventType and callback already exists.
+	//
+	// Untracked.
+	_registerUserCallback(eventType, callback) {
+		let callbackSet = this._userCallbacks[eventType]
 
-	_registerUserListener(eventType, callback) {
-		let listeners = this._userListeners[eventType]
-
-		if (!listeners) {
-			listeners = []
-			this._userListeners[eventType] = 	listeners
+		if (!callbackSet) {
+			callbackSet = []
+			this._userCallbacks[eventType] = callbackSet
 		}
 
-		if (listeners.includes(callback)) {
+		if (callbackSet.includes(callback)) {
+			return false
+		}
+
+		callbackSet.push(callback)
+		return true
+	}
+
+	// _unregisterUserCallback unregisters a callback
+	// registered through _registerUserCallback. True is
+	// returned if the callback was unregistered and false
+	// returned if the unique pair of eventType and callback
+	// didn't exist.
+	//
+	// Untracked.
+	_unregisterUserCallback(eventType, callback) {
+		const callbackSet = this._userCallbacks[eventType]
+
+		if (!callbackSet) {
+			return false
+		}
+
+		if (callbackSet.includes(callback)) {
+			return false
+		}
+
+		ArrayUtil.remove(callbackSet, callback)
+
+		if (callbackSet.length === 0) {
+			delete this._userCallbacks[eventType]
+		}
+
+		return true
+	}
+
+	_fireEvent(eventType, event = null) {
+		const callbackSet = this._userCallbacks[eventType]
+
+		if (!callbackSet) {
 			return
 		}
 
-		listeners.push(callback)
-	}
-
-	_unregisterUserListener(eventType, callback) {
-		const listeners = this._userListeners[eventType]
-
-		if (!listeners) {
-			return
-		}
-
-		removeFromArray(listeners, callback)
-
-		if (listeners.length === 0) {
-			delete this._userListeners[eventType]
+		for (const callback of callbackSet) {
+			callback(this, event)
 		}
 	}
-	*/
 
-	_callUserListeners(eventType, event = null) {
-		const listeners = this._userListeners[eventType]
+	_fireCallback(callback, event = null) {
+		callback(this, event)
+	}
 
-		if (!listeners) {
-			return
-		}
-
-		for (const func of listeners) {
-			func(this, event)
+	_firePremisedCallback(callback, event, ...premises) {
+		if (premises.find((p) => p === true)) {
+			this._fireCallback(callback, event)
 		}
 	}
 }
 
-function generateMuxListeners(mc) {
+function generateMuxCallbacks(mc) {
 	function updateMetadata() {
-		mc.seekable = mc.element.seekable
-		mc.duration = mc.element.duration
-		mc.currentTime = mc.currentTime
+		mc._seekable = mc._element.seekable
+		mc._duration = mc._element.duration
+		mc._currentTime = mc._element.currentTime
 		updateLoadStates()
 	}
 
-	function updateLoadStates() {
+	function updateLoadStates(event) {
+		// TODO: Clean up and maybe split up concerns of
+		//       data from metadata.
+		const wasLoaded = mc._loaded
+
 		const METADATA_READY = HTMLMediaElement.HAVE_METADATA
-		mc.loaded = mc.element.readyState >= METADATA_READY
+		mc._loaded = mc._element.readyState >= METADATA_READY
 
 		const DATA_READY = HTMLMediaElement.HAVE_FUTURE_DATA
-		mc.playable = mc.element.readyState >= DATA_READY
+		mc._playable = mc._element.readyState >= DATA_READY
+
+		if (!wasLoaded && mc._loaded) {
+			mc._fireEvent('loaded', event)
+		}
 	}
 
-	function abort() {
-		updateLoadStates()
-		mc._callUserListeners('abort', event)
+	function abort(event) {
+		updateLoadStates(event)
+		mc._fireEvent('abort', event)
 	}
 
 	function canplay(event) {
-		updateLoadStates()
-		mc._callUserListeners('canplay', event)
+		updateLoadStates(event)
+		mc._fireEvent('canplay', event)
 	}
 
 	function canplaythrough(event) {
-		updateLoadStates()
-		mc._callUserListeners('canplaythrough', event)
+		updateLoadStates(event)
+		mc._fireEvent('canplaythrough', event)
 	}
 
 	function durationchange(event) {
-		mc.duration = mc.element.duration
-		mc._callUserListeners('durationchange', event)
+		mc._duration = mc._element.duration
+		mc._fireEvent('durationchange', event)
 	}
 
 	function emptied(event) {
 		mc._resetStates()
-		mc._callUserListeners('emptied', event)
+		mc._fireEvent('emptied', event)
 	}
 
 	function ended(event) {
-		mc.playing = false
-		mc.paused = mc.element.paused
-		mc._callUserListeners('ended', event)
+		mc._playing = false
+		mc._paused = true
+
+		mc._fireEvent('paused', event)
+		mc._fireEvent('ended', event)
 	}
 
 	function error(event) {
 		updateLoadStates()
-		mc._callUserListeners('error', event)
+		mc._fireEvent('error', event)
 	}
 
 	function loadeddata(event) {
 		updateLoadStates()
-		mc._callUserListeners('loadeddata', event)
+		mc._fireEvent('loadeddata', event)
 	}
 
 	function loadedmetadata(event) {
 		updateLoadStates()
-		mc._callUserListeners('loadedmetadata', event)
+		mc._fireEvent('loadedmetadata', event)
 	}
 
 	function loadstart(event) {
 		mc._resetStates()
 		updateLoadStates()
-		mc._callUserListeners('loadstart', event)
+		mc._fireEvent('loadstart', event)
 	}
 
 	function pause(event) {
-		mc.paused = true
-		mc.playing = false
-		mc._callUserListeners('pause', event)
+		mc._playing = false
+		mc._paused = true
+		mc._fireEvent('pause', event)
+		mc._fireEvent('paused', event)
 	}
 
 	function play(event) {
-		mc.paused = false
-		mc._callUserListeners('play', event)
+		mc._paused = false
+		mc._fireEvent('running', event)
+		mc._fireEvent('play', event)
 	}
 
 	function playing(event) {
-		mc.playing = true
-		mc._callUserListeners('playing', event)
+		mc._playing = true
+		mc._fireEvent('playing', event)
 	}
 
 	function progress(event) {
 		updateLoadStates()
-		mc._callUserListeners('progress', event)
+		mc._fireEvent('progress', event)
 	}
 
 	function ratechange(event) {
-		mc._callUserListeners('ratechange', event)
+		mc._fireEvent('ratechange', event)
 	}
 
 	function seeked(event) {
-		mc.seeking = false
-		mc._callUserListeners('seeked', event)
+		mc._seeking = false
+		mc._fireEvent('seeked', event)
 	}
 
 	function seeking(event) {
-		mc.seeking = true
-		mc._callUserListeners('seeking', event)
+		mc._seeking = true
+		mc._fireEvent('seeking', event)
 	}
 
 	function stalled(event) {
-		mc._callUserListeners('stalled', event)
+		mc._fireEvent('stalled', event)
 	}
 
 	function suspend(event) {
-		mc._callUserListeners('suspend', event)
+		mc._fireEvent('suspend', event)
 	}
 
 	function timeupdate(event) {
-		mc.currentTime = mc.element.currentTime
-		mc._callUserListeners('timeupdate', event)
+		mc._currentTime = mc._element.currentTime
 
 		if (mc.seeking) {
-			mc.seektime = mc.currentTime
-			mc._callUserListeners('seektimeupdate', event)
+			mc._seektime = mc._currentTime
 		} else {
-			mc.playtime = mc.currentTime
-			mc._callUserListeners('playtimeupdate', event)
+			mc._playtime = mc._currentTime
 		}
+
+		mc._fireEvent('timeupdate', event)
 	}
 
 	function volumechange(event) {
-		mc._callUserListeners('volumechange', event)
+		mc._fireEvent('volumechange', event)
 	}
 
 	function waiting(event) {
-		mc.playing = false
-		mc._callUserListeners('waiting', event)
+		mc._playing = false
+		mc._fireEvent('waiting', event)
 	}
 
 	function waitingforkey(event) {
-		mc._callUserListeners('waitingforkey', event)
+		mc._fireEvent('waitingforkey', event)
 	}
 
 	return {
