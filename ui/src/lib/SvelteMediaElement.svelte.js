@@ -5,7 +5,7 @@ import ArrayUtil from '$lib/ArrayUtil.js'
 // HTMLMediaELement event types that users can register
 // listeners for.
 const HTML_EVENT_TYPES = [
-	'abort',
+	'abort', //
 	'canplay',
 	'canplaythrough',
 	'durationchange',
@@ -34,11 +34,10 @@ const HTML_EVENT_TYPES = [
 // types fired by SvelteMediaElement, not by the
 // underlying HTMLMediaELement.
 const CUSTOM_EVENT_TYPES = [
-	'elementset',
+	'elementset', //
 	'elementunset',
-	'loaded',
+	'pausing',
 	'running',
-	'paused',
 ]
 
 const EVENT_TYPES = [
@@ -97,15 +96,11 @@ const EVENT_TYPES = [
 // with 'Tracked' if its use is tracked by Svelte, else it
 // will end with 'Untracked'. This allows user to quickly
 // see if use of a particular property or function will
-// trigger execution of $effect and $derived runes.
+// trigger execution of $effect runes.
 // Properties and their getters should be tracked while
 // public functions should be untracked. This makes it even
 // easier for readers to quickly understand the reactivity
 // of some code.
-//
-// TODO: replace all $derived with $state so users can
-//       access the updated values within the same tick,
-//       e.g. in events fired after root $state is updated.
 export default class SvelteMediaElement {
 	// _stateListeners are capturing event listeners that
 	// mutate the adpaters state. They are added first when
@@ -278,7 +273,7 @@ export default class SvelteMediaElement {
 	// right now but will continue when data arrives.
 	//
 	// Tracked.
-	_running = $derived(!this._paused)
+	_running = $state(false)
 	get running() {
 		return this._running
 	}
@@ -365,9 +360,7 @@ export default class SvelteMediaElement {
 	// with the currentTime field.
 	//
 	// Tracked.
-	_currentRemaining = $derived(
-		this._duration - this._currentTime //
-	)
+	_currentRemaining = $state(0)
 	get currentRemaining() {
 		return this._currentRemaining
 	}
@@ -420,7 +413,7 @@ export default class SvelteMediaElement {
 	// with the playtime field.
 	//
 	// Tracked.
-	_remainingTime = $derived(this._duration - this._playtime)
+	_remainingTime = $state(0)
 	get remainingTime() {
 		return this._remainingTime
 	}
@@ -491,7 +484,7 @@ export default class SvelteMediaElement {
 	//
 	// All standard HTMLMediaElement event types are
 	// supported along with additional ones: 'elementset',
-	// 'elementunset', 'loaded', 'running', and 'paused'.
+	// 'elementunset', 'running', and 'pausing'.
 	//
 	// Returns true if the unique combination of eventType,
 	// listener, and capturing phase were added, false if the
@@ -581,138 +574,186 @@ export default class SvelteMediaElement {
 		})
 	}
 
+	// _updateMetadata updates general metadata state such as
+	// duration and seekable states.
+	_updateMetadata() {
+		this._seekable = this._element.seekable.length > 0
+		this._duration = this._element.duration
+	}
+
+	// _updatePlayableState updates the playable state based
+	// upon the underlying HTMLMediaElement's readyState.
+	_updatePlayableState() {
+		const DATA_READY = HTMLMediaElement.HAVE_FUTURE_DATA
+		this._playable = this._element.readyState >= DATA_READY
+	}
+
+	// _setPausedState sets the state of the pause and
+	// running states together. If isPaused is true then
+	// the playing state is set to false.
+	//
+	// Tracked.
+	_setPausedState(pause) {
+		const wasPaused = this._paused
+
+		if (pause) {
+			this._playing = false
+		}
+
+		this._paused = pause
+		this._running = !pause
+
+		if (wasPaused && !pause) {
+			dispatchEvent(this._element, 'running')
+		} else if (!wasPaused && pause) {
+			dispatchEvent(this._element, 'pausing')
+		}
+	}
+
+	// _updateCurrentTime sets the currentTime and
+	// currentRemaining states based on the element's
+	// currentTime. Depending on the current seeking state it
+	// will update either the seekTime or playtime and
+	// remainingTime states.
+	//
+	// Tracked.
+	_updateCurrentTime() {
+		const time = this._element.currentTime
+
+		this._currentTime = time
+		this._currentRemaining = this._duration - time
+
+		if (this.seeking) {
+			this._seektime = time
+		} else {
+			this._playtime = time
+			this._remainingTime = this._duration - time
+		}
+	}
+
 	// _resetStates resets all properties to their preload
 	// defaults. This should only be called when media load
 	// starts or after unloading the media.
 	//
 	// Tracked.
 	_resetStates() {
-		this._playing = false
-		this._paused = true
+		this._setPausedState(true)
+
+		this._seekable = false
 		this._seeking = false
 
 		this._duration = 0
 		this._currentTime = 0
+		this._currentRemaining = 0
 		this._playtime = 0
+		this._remainingTime = 0
 
 		this._playable = false
-		this._seekable = false
 		this._loaded = false
 	}
 }
 
-function generateStateListeners(mc) {
-	function updatePlayable(event) {
-		const DATA_READY = HTMLMediaElement.HAVE_FUTURE_DATA
-		mc._playable = mc._element.readyState >= DATA_READY
+// generateStateListeners creates the set of
+// HTMLMediaElement listeners that manage the state of a
+// SvelteMediaElement. It returns an array of listener
+// entries.
+function generateStateListeners(sme) {
+	function abort() {
+		sme._updatePlayableState()
 	}
 
-	function abort(event) {
-		updatePlayable(event)
+	function canplay() {
+		sme._updatePlayableState()
 	}
 
-	function canplay(event) {
-		updatePlayable(event)
+	function canplaythrough() {
+		sme._updatePlayableState()
 	}
 
-	function canplaythrough(event) {
-		updatePlayable(event)
+	function durationchange() {
+		sme._updateMetadata()
 	}
 
-	function durationchange(event) {
-		mc._duration = mc._element.duration
+	function emptied() {
+		sme._resetStates()
 	}
 
-	function emptied(event) {
-		mc._resetStates()
+	function ended() {
+		sme._setPausedState(true)
 	}
 
-	function ended(event) {
-		mc._playing = false
-		mc._paused = true
-		dispatchEvent(mc._element, 'paused')
+	function error() {
+		sme._updatePlayableState()
 	}
 
-	function error(event) {
-		updatePlayable()
+	function loadeddata() {
+		sme._updateMetadata()
+		sme._updatePlayableState()
 	}
 
-	function loadeddata(event) {
-		updatePlayable()
+	function loadedmetadata() {
+		sme._loaded = true
+
+		sme._updateMetadata()
+		sme._updatePlayableState()
 	}
 
-	function loadedmetadata(event) {
-		mc._loaded = true
-		mc._seekable = mc._element.seekable
-		mc._duration = mc._element.duration
-		mc._currentTime = mc._element.currentTime
-		updatePlayable()
-		dispatchEvent(mc._element, 'loaded')
+	function loadstart() {
+		sme._resetStates()
+		sme._updatePlayableState()
 	}
 
-	function loadstart(event) {
-		mc._resetStates()
-		updatePlayable()
+	function pause() {
+		sme._setPausedState(true)
 	}
 
-	function pause(event) {
-		mc._playing = false
-		mc._paused = true
-		dispatchEvent(mc._element, 'paused')
+	function play() {
+		sme._setPausedState(false)
 	}
 
-	function play(event) {
-		mc._paused = false
-		dispatchEvent(mc._element, 'running')
+	function playing() {
+		sme._playing = true
 	}
 
-	function playing(event) {
-		mc._playing = true
+	function progress() {
+		sme._updatePlayableState()
 	}
 
-	function progress(event) {
-		updatePlayable()
-	}
-
-	function ratechange(event) {
+	function ratechange() {
 		// Do nothing.
 	}
 
-	function seeked(event) {
-		mc._seeking = false
+	function seeked() {
+		sme._seeking = false
+		sme._updateMetadata()
 	}
 
-	function seeking(event) {
-		mc._seeking = true
+	function seeking() {
+		sme._seeking = true
+		sme._updateMetadata()
 	}
 
-	function stalled(event) {
+	function stalled() {
 		// Do nothing.
 	}
 
-	function suspend(event) {
+	function suspend() {
 		// Do nothing.
 	}
 
-	function timeupdate(event) {
-		mc._currentTime = mc._element.currentTime
-
-		if (mc.seeking) {
-			mc._seektime = mc._currentTime
-		} else {
-			mc._playtime = mc._currentTime
-		}
+	function timeupdate() {
+		sme._updateCurrentTime()
 	}
 
-	function volumechange(event) {
+	function volumechange() {
 		// Do nothing.
 	}
 
-	function waiting(event) {
-		mc._playing = false
+	function waiting() {
+		sme._playing = false
 	}
 
-	function waitingforkey(event) {
+	function waitingforkey() {
 		// Do nothing.
 	}
 

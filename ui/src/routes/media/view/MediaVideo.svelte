@@ -32,9 +32,8 @@
 
 	logOnEvent('elementset')
 	logOnEvent('elementunset')
-	logOnEvent('loaded')
 	logOnEvent('running')
-	logOnEvent('paused')
+	logOnEvent('pausing')
 
 	function logReactor(name) {
 		return () => {
