@@ -33,11 +33,13 @@
 	logOnEvent('elementset')
 	logOnEvent('elementunset')
 	logOnEvent('running')
+	logOnEvent('continuing')
 	logOnEvent('pausing')
+	logOnEvent('buffering')
 
 	function logReactor(name) {
 		return () => {
-			console.log(name, svelteMediaElement[name])
+			//console.log(name, svelteMediaElement[name])
 		}
 	}
 
@@ -45,6 +47,7 @@
 	$effect(logReactor('loaded'))
 	$effect(logReactor('playable'))
 	$effect(logReactor('playing'))
+	$effect(logReactor('buffering'))
 	$effect(logReactor('paused'))
 	$effect(logReactor('running'))
 	$effect(logReactor('seekable'))

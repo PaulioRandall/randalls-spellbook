@@ -36,8 +36,10 @@ const HTML_EVENT_TYPES = [
 const CUSTOM_EVENT_TYPES = [
 	'elementset', //
 	'elementunset',
-	'pausing',
 	'running',
+	'continuing',
+	'buffering',
+	'pausing',
 ]
 
 const EVENT_TYPES = [
@@ -165,6 +167,7 @@ export default class SvelteMediaElement {
 			}
 
 			this._element = element
+			this._syncStates()
 
 			addListenersToElement(this._element, this._stateListeners)
 			addListenersToElement(this._element, this._userListeners)
@@ -228,10 +231,20 @@ export default class SvelteMediaElement {
 		return untrack(() => this._playable)
 	}
 
-	// playing is true when the media is playing. E.g.
-	// when the user is actively watching a video, but will
-	// change to false when playback stops to buffer the
-	// video. Thus, this is not quite the opposite of paused.
+	// playing is true when the media is not paused, not
+	// ended, not seeking, and has enough data to play some
+	// frames. When playing is true then the user is actively
+	// consuming the media, i.e. the video or audio are
+	// actively playing without buffering. When the media
+	// freezes to load more data the playing state will
+	// become false until data is available again.
+	//
+	// One can assume that the user's attention is on the
+	// media when playing is true (at least for video).
+	// However, the playing state is not enougth to determine
+	// if a buffering icon should be shown because it will
+	// also be false when the media is paused. Instead, the
+	// buffering state can be used.
 	//
 	// Tracked.
 	_playing = $state(false)
@@ -245,6 +258,34 @@ export default class SvelteMediaElement {
 	// Untracked.
 	isPlaying() {
 		return untrack(() => this._playing)
+	}
+
+	// buffering is true when the media is not paused, not
+	// ended, not seeking, but does not have enough data to
+	// continue playing frames. The media will appear frozen
+	// from the user's perspective.
+	//
+	// The freeze is likely to have broken the user's
+	// attention on the media (at least for video) so
+	// the buffering state can be used independently in a
+	// Svelte IF block to control the display of a buffering
+	// icon, e.g:
+	// {#if svelteMediaElement.buffering}
+	//   <img src="buffering.gif" />
+	// {/if}
+	//
+	// Tracked.
+	_buffering = $state(false)
+	get buffering() {
+		return this._buffering
+	}
+
+	// isBuffering returns the untracked value of the
+	// buffering property.
+	//
+	// Untracked.
+	isBuffering() {
+		return untrack(() => this._buffering)
 	}
 
 	// paused is true prior to loading, straight after
@@ -484,7 +525,8 @@ export default class SvelteMediaElement {
 	//
 	// All standard HTMLMediaElement event types are
 	// supported along with additional ones: 'elementset',
-	// 'elementunset', 'running', and 'pausing'.
+	// 'elementunset', 'running', 'playing', 'buffering',
+	// and 'pausing'.
 	//
 	// Returns true if the unique combination of eventType,
 	// listener, and capturing phase were added, false if the
@@ -574,40 +616,115 @@ export default class SvelteMediaElement {
 		})
 	}
 
+	// _syncStates sets all states based on the underlying
+	// HTMLMediaElement's state. If metadata has yet to be
+	// loaded then no state changes occur.
+	_syncStates() {
+		const elem = this._element
+
+		if (elem.readyState < HTMLMediaElement.HAVE_METADATA) {
+			return
+		}
+
+		this._updateMetadata()
+		this._updatePlayStatesWithoutDispatch()
+	}
+
 	// _updateMetadata updates general metadata state such as
 	// duration and seekable states.
 	_updateMetadata() {
+		// TODO: When does seekable need updating?
 		this._seekable = this._element.seekable.length > 0
 		this._duration = this._element.duration
 	}
 
-	// _updatePlayableState updates the playable state based
-	// upon the underlying HTMLMediaElement's readyState.
-	_updatePlayableState() {
-		const DATA_READY = HTMLMediaElement.HAVE_FUTURE_DATA
-		this._playable = this._element.readyState >= DATA_READY
+	// _updatePlayStates calls
+	// _updatePlayStatesWithoutDispatch then
+	// _dispatchContinueBufferingEvent since this is
+	// a common pattern. The operations were separated to
+	// allow the 'running' event to be fired before 'playing'
+	// or 'buffering' when the media is unpaused.
+	_updatePlayStates() {
+		const wasPlaying = this._playing
+		const wasBuffering = this._buffering
+		this._updatePlayStatesWithoutDispatch()
+		this._dispatchContinueBufferingEvent(wasPlaying, wasBuffering)
 	}
 
-	// _setPausedState sets the state of the pause and
-	// running states together. If isPaused is true then
-	// the playing state is set to false.
-	//
-	// Tracked.
-	_setPausedState(pause) {
-		const wasPaused = this._paused
+	// _updatePlayStatesWithoutDispatch updates the playable,
+	// playing, and buffering states based upon the
+	// underlying HTMLMediaElement's paused, ended, seeking,
+	// and readyState values.
+	_updatePlayStatesWithoutDispatch() {
+		this._playable = this._hasFutureData()
 
-		if (pause) {
+		if (this._couldBePlayingOrBuffering()) {
+			this._playing = this._playable
+			this._buffering = !this._playable
+		} else {
 			this._playing = false
+			this._buffering = false
+		}
+	}
+
+	// _couldBePlayingOrBuffering returns true if the media
+	// can be placed into the playing or buffering states.
+	_couldBePlayingOrBuffering() {
+		const media = this._element
+		return !media.paused && !media.ended && !media.seeking
+	}
+
+	// _dispatchContinueBufferingEvent will dispatch the
+	// 'playing' or 'buffering' events if either satisfy
+	// their dispatch conditions.
+	_dispatchContinueBufferingEvent(wasPlaying, wasBuffering) {
+		if (!wasPlaying && this._playing) {
+			dispatchEvent(this._element, 'continuing')
+			return
 		}
 
-		this._paused = pause
-		this._running = !pause
+		if (!wasBuffering && this._buffering) {
+			dispatchEvent(this._element, 'buffering')
+		}
+	}
 
-		if (wasPaused && !pause) {
+	// _hasFutureData returns true if enough data has loaded
+	// to allow playing without buffering for some time into
+	// the future.
+	_hasFutureData() {
+		const HAS_DATA = HTMLMediaElement.HAVE_FUTURE_DATA
+		return this._element.readyState >= HAS_DATA
+	}
+
+	// _updatePausedState sets the state of the pause and
+	// running states together. It also updates the play
+	// states. When unpausing, the 'running' event will be
+	// fired before the 'playing' or 'buffering' states.
+	_updatePausedState() {
+		const wasPaused = this._paused
+		const paused = this._element.paused
+		const wasPlaying = this._playing
+		const wasBuffering = this._buffering
+
+		this._paused = paused
+		this._running = !paused
+
+		this._updatePlayStatesWithoutDispatch()
+
+		if (wasPaused && !paused) {
 			dispatchEvent(this._element, 'running')
-		} else if (!wasPaused && pause) {
+		} else if (!wasPaused && paused) {
 			dispatchEvent(this._element, 'pausing')
 		}
+
+		this._dispatchContinueBufferingEvent(wasPlaying, wasBuffering)
+	}
+
+	// _updateSeekingState sets the state of seeking and
+	// aligns the playing states accordingly.
+	_updateSeekingState() {
+		this._seeking = this._element.seeking
+		this._updatePlayStates()
 	}
 
 	// _updateCurrentTime sets the currentTime and
@@ -615,8 +732,6 @@ export default class SvelteMediaElement {
 	// currentTime. Depending on the current seeking state it
 	// will update either the seekTime or playtime and
 	// remainingTime states.
-	//
-	// Tracked.
 	_updateCurrentTime() {
 		const time = this._element.currentTime
 
@@ -634,10 +749,8 @@ export default class SvelteMediaElement {
 	// _resetStates resets all properties to their preload
 	// defaults. This should only be called when media load
 	// starts or after unloading the media.
-	//
-	// Tracked.
 	_resetStates() {
-		this._setPausedState(true)
+		this._updatePausedState()
 
 		this._seekable = false
 		this._seeking = false
@@ -659,15 +772,15 @@ export default class SvelteMediaElement {
 // entries.
 function generateStateListeners(sme) {
 	function abort() {
-		sme._updatePlayableState()
+		sme._updatePlayStates()
 	}
 
 	function canplay() {
-		sme._updatePlayableState()
+		sme._updatePlayStates()
 	}
 
 	function canplaythrough() {
-		sme._updatePlayableState()
+		sme._updatePlayStates()
 	}
 
 	function durationchange() {
@@ -679,44 +792,44 @@ function generateStateListeners(sme) {
 	}
 
 	function ended() {
-		sme._setPausedState(true)
+		sme._updatePausedState()
 	}
 
 	function error() {
-		sme._updatePlayableState()
+		sme._updatePlayStates()
 	}
 
 	function loadeddata() {
 		sme._updateMetadata()
-		sme._updatePlayableState()
+		sme._updatePlayStates()
 	}
 
 	function loadedmetadata() {
 		sme._loaded = true
 
 		sme._updateMetadata()
-		sme._updatePlayableState()
+		sme._updatePlayStates()
 	}
 
 	function loadstart() {
 		sme._resetStates()
-		sme._updatePlayableState()
+		sme._updatePlayStates()
 	}
 
 	function pause() {
-		sme._setPausedState(true)
+		sme._updatePausedState()
 	}
 
 	function play() {
-		sme._setPausedState(false)
+		sme._updatePausedState()
 	}
 
 	function playing() {
-		sme._playing = true
+		sme._updatePlayStates()
 	}
 
 	function progress() {
-		sme._updatePlayableState()
+		sme._updatePlayStates()
 	}
 
 	function ratechange() {
@@ -724,13 +837,11 @@ function generateStateListeners(sme) {
 	}
 
 	function seeked() {
-		sme._seeking = false
-		sme._updateMetadata()
+		sme._updateSeekingState()
 	}
 
 	function seeking() {
-		sme._seeking = true
-		sme._updateMetadata()
+		sme._updateSeekingState()
 	}
 
 	function stalled() {
@@ -750,7 +861,7 @@ function generateStateListeners(sme) {
 	}
 
 	function waiting() {
-		sme._playing = false
+		sme._updatePlayStates()
 	}
 
 	function waitingforkey() {
