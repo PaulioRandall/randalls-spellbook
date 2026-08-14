@@ -1,10 +1,10 @@
 import { untrack } from 'svelte'
 import ArrayUtil from '$lib/ArrayUtil.js'
 
-// HTML_MEDIA_ELEMENT_EVENT_TYPES is an array of all
+// HTML_EVENT_TYPES is an array of all
 // HTMLMediaELement event types that users can register
 // listeners for.
-const HTML_MEDIA_ELEMENT_EVENT_TYPES = [
+const HTML_EVENT_TYPES = [
 	'abort',
 	'canplay',
 	'canplaythrough',
@@ -30,10 +30,10 @@ const HTML_MEDIA_ELEMENT_EVENT_TYPES = [
 	'waitingforkey',
 ]
 
-// SPECIAL_EVENT_TYPES is an array of all custom event
+// CUSTOM_EVENT_TYPES is an array of all custom event
 // types fired by SvelteMediaElement, not by the
 // underlying HTMLMediaELement.
-const SPECIAL_EVENT_TYPES = [
+const CUSTOM_EVENT_TYPES = [
 	'elementset',
 	'elementunset',
 	'loaded',
@@ -42,27 +42,42 @@ const SPECIAL_EVENT_TYPES = [
 ]
 
 const EVENT_TYPES = [
-	...HTML_MEDIA_ELEMENT_EVENT_TYPES, //
-	...SPECIAL_EVENT_TYPES,
+	...HTML_EVENT_TYPES, //
+	...CUSTOM_EVENT_TYPES,
 ]
 
-// SvelteMediaElement is a Svelte adapter for the built-in
-// HTMLMediaElement class that is allows some functionality
-// even when the underlying HTMLMediaElement is not set.
+// SvelteMediaElement is a Reactive Adapter Box (READOX)
+// for the standard HTMLMediaElement class.
 //
 // The original purpose was to decouple Svelte components
 // from the underlying HTMLMediaElement. Because the
 // HTMLMediaElement is set and unset separate to
-// instance construction, the SvelteMediaElement instance
-// passed to components can always be non-null. This
-// moves most existence checking from the components into
-// this class.
+// instance construction, the instance passed to components
+// can always be non-null. This moves most existence
+// checking from the components into the class, where it
+// can be better abstracted.
 //
-// The adapter stores listeners added by components so when
-// a HTMLMediaElement is set and unset the listeners will
-// automatically be added or remove from it. Most media
-// control and display related components don't need to do
-// anything when the underlying HTMLMediaElement changes.
+// The class stores listeners added by components and other
+// code so when a HTMLMediaElement is set and unset the
+// listeners will automatically be added and removed
+// respectively. Most media control and display related
+// components don't need to do anything when the underlying
+// HTMLMediaElement changes. They just register listeners
+// for the events they're interested in, including when the
+// element is set and unset.
+//
+// State is updated during the capturing phase of events
+// before user registered events so all user listeners
+// have access to fresh state through this class's
+// instances. Any capturing listeners added to the
+// HTMLMediaElement before it is set here will fire before
+// state is updated. Furthermore, if a listener is
+// registered through this class is unregistered manually
+// it will not prevent the listener from being added to the
+// next HTMLMediaElement. Unless you have a particualar
+// niche requirement, it is recommended that all listeners
+// are registered and unregistered through this class to
+// avoid nasty, hard to debug, errors.
 //
 // SvelteMediaElement exposes all fields as reactive state
 // so they can be used directly in components. However,
@@ -92,17 +107,28 @@ const EVENT_TYPES = [
 //       access the updated values within the same tick,
 //       e.g. in events fired after root $state is updated.
 export default class SvelteMediaElement {
-	// _muxCallbacks are middleware event listeners. Instead
-	// of passing the users event listeners directly to the
-	// underlying HTMLMediaElement, they are called through
-	// by these mux callbacks.
-	_muxCallbacks = generateMuxCallbacks(this)
+	// _stateListeners are capturing event listeners that
+	// mutate the adpaters state. They are added first when
+	// an element is set so they fire first.
+	// Format: [{ eventType, listener, options }]
+	_stateListeners = generateStateListeners(this)
 
-	// _userCallbacks are the user defined listeners. They
-	// include HTMLMediaElement event types and special
-	// custom types that are fired only by this class, e.g.
-	// 'elementset' and 'elementunset' event types.
-	_userCallbacks = {/* eventType: [callback] */}
+	// _userListeners are the user defined listeners. They
+	// include HTMLMediaElement event types along with
+	// special custom types that are fired by this class,
+	// e.g. 'elementset' and 'elementunset'.
+	_userListeners = [
+		/* {
+			eventType,
+			listener,
+			options,
+
+			// capture is true if options is true or
+			// { capture: true }. This value is only used within
+			// the class for ease of listener management.
+			capture,
+		} */
+	]
 
 	// element is the underlying HTMLMediaElement or null
 	// when no element is set.
@@ -144,8 +170,11 @@ export default class SvelteMediaElement {
 			}
 
 			this._element = element
-			this._addMuxCallbacks()
-			this._fireEvent('elementset')
+
+			addListenersToElement(this._element, this._stateListeners)
+			addListenersToElement(this._element, this._userListeners)
+
+			dispatchEvent(this._element, 'elementset')
 		})
 	}
 
@@ -160,11 +189,13 @@ export default class SvelteMediaElement {
 				return
 			}
 
-			this._removeMuxCallbacks()
+			removeListenersToElement(this._element, this._userListeners)
+			removeListenersToElement(this._element, this._stateListeners)
+
 			this._element = null
 			this._resetStates()
 
-			this._fireEvent('elementunset')
+			dispatchEvent(this._element, 'elementunset')
 		})
 	}
 
@@ -408,7 +439,7 @@ export default class SvelteMediaElement {
 	//
 	// Untracked.
 	reload() {
-		untrack(() => this._element.load())
+		untrack(() => this._element?.load())
 	}
 
 	// play begins playing the media if it has loaded and is
@@ -451,53 +482,106 @@ export default class SvelteMediaElement {
 	}
 
 	// on registers an event listener that is added to the
-	// underlying HTMLMediaElement when set and removed when
-	// unest. The listener is called when the eventType
-	// occurs. All standard HTMLMediaElement event types are
+	// underlying HTMLMediaElement when it is set and removed
+	// when it is unest. The listener is invoked when an
+	// event with the given eventType occurs. Note that most
+	// events fired on HTMLMediaElement are non-bubbling,
+	// non-cancelable, and non-composed. Custom events
+	// dispatched will always have those options.
+	//
+	// All standard HTMLMediaElement event types are
 	// supported along with additional ones: 'elementset',
 	// 'elementunset', 'loaded', 'running', and 'paused'.
 	//
-	// Returns true if the eventType and callback pair were
-	// added, false if the pair already existed. Tracking is
-	// prevented.
+	// Returns true if the unique combination of eventType,
+	// listener, and capturing phase were added, false if the
+	// combination already existed.
 	//
 	// Untracked.
-	//
-	// TODO: Support options starting with { once: bool }
-	on(eventType, callback) {
+	on(eventType, listener, options = undefined) {
 		return untrack(() => {
-			if (!EVENT_TYPES.includes(eventType)) {
-				throw new Error(`Unknown event type: '${eventType}'`)
-			}
-
-			const callbackType = typeof callback
-			if (!callback || callbackType !== 'function') {
-				throw new Error(
-					`Callback must be a non-null function, not '${callbackType}'`
-				)
-			}
-
-			return this._registerUserCallback(
+			const entry = createListenerEntry(
 				eventType, //
-				callback
+				listener,
+				options
+			)
+
+			const alreadyRegistered = containsListenerEntry(
+				this._userListeners, //
+				entry
+			)
+
+			if (alreadyRegistered) {
+				return false
+			}
+
+			this._userListeners.push(entry)
+
+			if (this._element) {
+				addListenerToElement(this._element, entry)
+			}
+
+			return true
+		})
+	}
+
+	// off unregisters an eventType, listener, and options
+	// combination registered through the on function. True
+	// is returned if the combination of eventType, listener,
+	// and capturing phase (determined by the options
+	// argument) was not registered.
+	//
+	// Untracked.
+	off(eventType, listener, options = undefined) {
+		return untrack(() => {
+			let entry = createListenerEntry(
+				eventType, //
+				listener,
+				options
+			)
+
+			const index = indexOfListenerEntry(
+				this._userListener, //
+				entry
+			)
+
+			if (index < 0) {
+				return false
+			}
+
+			// Use the original entry for sanity's sake.
+			entry = this._userListeners[index]
+			this._userListeners.splice(index, 1)
+
+			if (this._element) {
+				removeListenerFromElement(this._element, entry)
+			}
+
+			return true
+		})
+	}
+
+	// isOn returns true if the combination of eventType,
+	// listener, and capturing phase (determined by the
+	// options argument) is currently registered.
+	//
+	// Untracked.
+	isOn(eventType, listener, options = undefined) {
+		untrack(() => {
+			const entry = createListenerEntry(
+				eventType, //
+				listener,
+				options
+			)
+
+			return containsListenerEntry(
+				this._userListeners, //
+				entry
 			)
 		})
 	}
 
-	// off unregisters an event handler registered through
-	// the on function.
-	//
-	// Untracked.
-	off(eventType, callback) {
-		return untrack(() => {
-			return this._unregisterUserCallback(
-				eventType, //
-				callback
-			)
-		})
-	}
-
-	// _resetStates resets all fields to their preload
+	// _resetStates resets all properties to their preload
 	// defaults. This should only be called when media load
 	// starts or after unloading the media.
 	//
@@ -515,222 +599,99 @@ export default class SvelteMediaElement {
 		this._seekable = false
 		this._loaded = false
 	}
-
-	// _addMuxCallbacks adds all middleware listeners to the
-	// current HTMLMediaElement.
-	//
-	// Tracked.
-	_addMuxCallbacks() {
-		for (const eventType in this._muxCallbacks) {
-			const callback = this._muxCallbacks[eventType]
-			this._element.addEventListener(eventType, callback)
-		}
-	}
-
-	// _removeMuxCallbacks removes all middleware listeners
-	// from the current HTMLMediaElement.
-	//
-	// Tracked.
-	_removeMuxCallbacks() {
-		for (const eventType in this._muxCallbacks) {
-			const callback = this._muxCallbacks[eventType]
-			this._element.removeEventListener(eventType, callback)
-		}
-	}
-
-	// _registerUserCallback registers the callback to a
-	// specific event type. True is returned if the callback
-	// was registered and false returned if the unique pair
-	// of eventType and callback already exists.
-	//
-	// Untracked.
-	_registerUserCallback(eventType, callback) {
-		let callbackSet = this._userCallbacks[eventType]
-
-		if (!callbackSet) {
-			callbackSet = []
-			this._userCallbacks[eventType] = callbackSet
-		}
-
-		if (callbackSet.includes(callback)) {
-			return false
-		}
-
-		callbackSet.push(callback)
-		return true
-	}
-
-	// _unregisterUserCallback unregisters a callback
-	// registered through _registerUserCallback. True is
-	// returned if the callback was unregistered and false
-	// returned if the unique pair of eventType and callback
-	// didn't exist.
-	//
-	// Untracked.
-	_unregisterUserCallback(eventType, callback) {
-		const callbackSet = this._userCallbacks[eventType]
-
-		if (!callbackSet) {
-			return false
-		}
-
-		if (callbackSet.includes(callback)) {
-			return false
-		}
-
-		ArrayUtil.remove(callbackSet, callback)
-
-		if (callbackSet.length === 0) {
-			delete this._userCallbacks[eventType]
-		}
-
-		return true
-	}
-
-	_fireEvent(eventType, event = null) {
-		const callbackSet = this._userCallbacks[eventType]
-
-		if (!callbackSet) {
-			return
-		}
-
-		for (const callback of callbackSet) {
-			callback(this, event)
-		}
-	}
-
-	_fireCallback(callback, event = null) {
-		callback(this, event)
-	}
-
-	_firePremisedCallback(callback, event, ...premises) {
-		if (premises.find((p) => p === true)) {
-			this._fireCallback(callback, event)
-		}
-	}
 }
 
-function generateMuxCallbacks(mc) {
-	function updateMetadata() {
-		mc._seekable = mc._element.seekable
-		mc._duration = mc._element.duration
-		mc._currentTime = mc._element.currentTime
-		updateLoadStates()
-	}
-
-	function updateLoadStates(event) {
-		// TODO: Clean up and maybe split up concerns of
-		//       data from metadata.
-		const wasLoaded = mc._loaded
-
-		const METADATA_READY = HTMLMediaElement.HAVE_METADATA
-		mc._loaded = mc._element.readyState >= METADATA_READY
-
+function generateStateListeners(mc) {
+	function updatePlayable(event) {
 		const DATA_READY = HTMLMediaElement.HAVE_FUTURE_DATA
 		mc._playable = mc._element.readyState >= DATA_READY
-
-		if (!wasLoaded && mc._loaded) {
-			mc._fireEvent('loaded', event)
-		}
 	}
 
 	function abort(event) {
-		updateLoadStates(event)
-		mc._fireEvent('abort', event)
+		updatePlayable(event)
 	}
 
 	function canplay(event) {
-		updateLoadStates(event)
-		mc._fireEvent('canplay', event)
+		updatePlayable(event)
 	}
 
 	function canplaythrough(event) {
-		updateLoadStates(event)
-		mc._fireEvent('canplaythrough', event)
+		updatePlayable(event)
 	}
 
 	function durationchange(event) {
 		mc._duration = mc._element.duration
-		mc._fireEvent('durationchange', event)
 	}
 
 	function emptied(event) {
 		mc._resetStates()
-		mc._fireEvent('emptied', event)
 	}
 
 	function ended(event) {
 		mc._playing = false
 		mc._paused = true
-
-		mc._fireEvent('paused', event)
-		mc._fireEvent('ended', event)
+		dispatchEvent(mc._element, 'paused')
 	}
 
 	function error(event) {
-		updateLoadStates()
-		mc._fireEvent('error', event)
+		updatePlayable()
 	}
 
 	function loadeddata(event) {
-		updateLoadStates()
-		mc._fireEvent('loadeddata', event)
+		updatePlayable()
 	}
 
 	function loadedmetadata(event) {
-		updateLoadStates()
-		mc._fireEvent('loadedmetadata', event)
+		mc._loaded = true
+		mc._seekable = mc._element.seekable
+		mc._duration = mc._element.duration
+		mc._currentTime = mc._element.currentTime
+		updatePlayable()
+		dispatchEvent(mc._element, 'loaded')
 	}
 
 	function loadstart(event) {
 		mc._resetStates()
-		updateLoadStates()
-		mc._fireEvent('loadstart', event)
+		updatePlayable()
 	}
 
 	function pause(event) {
 		mc._playing = false
 		mc._paused = true
-		mc._fireEvent('pause', event)
-		mc._fireEvent('paused', event)
+		dispatchEvent(mc._element, 'paused')
 	}
 
 	function play(event) {
 		mc._paused = false
-		mc._fireEvent('running', event)
-		mc._fireEvent('play', event)
+		dispatchEvent(mc._element, 'running')
 	}
 
 	function playing(event) {
 		mc._playing = true
-		mc._fireEvent('playing', event)
 	}
 
 	function progress(event) {
-		updateLoadStates()
-		mc._fireEvent('progress', event)
+		updatePlayable()
 	}
 
 	function ratechange(event) {
-		mc._fireEvent('ratechange', event)
+		// Do nothing.
 	}
 
 	function seeked(event) {
 		mc._seeking = false
-		mc._fireEvent('seeked', event)
 	}
 
 	function seeking(event) {
 		mc._seeking = true
-		mc._fireEvent('seeking', event)
 	}
 
 	function stalled(event) {
-		mc._fireEvent('stalled', event)
+		// Do nothing.
 	}
 
 	function suspend(event) {
-		mc._fireEvent('suspend', event)
+		// Do nothing.
 	}
 
 	function timeupdate(event) {
@@ -741,25 +702,22 @@ function generateMuxCallbacks(mc) {
 		} else {
 			mc._playtime = mc._currentTime
 		}
-
-		mc._fireEvent('timeupdate', event)
 	}
 
 	function volumechange(event) {
-		mc._fireEvent('volumechange', event)
+		// Do nothing.
 	}
 
 	function waiting(event) {
 		mc._playing = false
-		mc._fireEvent('waiting', event)
 	}
 
 	function waitingforkey(event) {
-		mc._fireEvent('waitingforkey', event)
+		// Do nothing.
 	}
 
-	return {
-		abort,
+	const listeners = {
+		abort, //
 		canplay,
 		canplaythrough,
 		durationchange,
@@ -783,4 +741,143 @@ function generateMuxCallbacks(mc) {
 		waiting,
 		waitingforkey,
 	}
+
+	return Object.keys(listeners).map((eventType) => {
+		return createListenerEntry(
+			eventType, //
+			listeners[eventType],
+			true
+		)
+	})
+}
+
+// isObject returns true if v is a non-null plain object.
+function isObject(v) {
+	return (
+		typeof v === 'object' && //
+		!Array.isArray(v) &&
+		v !== null
+	)
+}
+
+// isCapturing returns true if the listener options denote
+// the listener will be called during the capturing phase
+// of an event.
+function isCapturing(options) {
+	if (options === true) {
+		return true
+	}
+
+	if (isObject(options)) {
+		return options.capture === true
+	}
+
+	return false
+}
+
+// createListenerEntry creates an object holding the
+// eventType, listener, options, and capture phase. The
+// object is easier to use and pass around than the
+// event listener parameters themselves.
+function createListenerEntry(eventType, listener, options) {
+	return {
+		eventType, //
+		listener,
+		options,
+		capture: isCapturing(options),
+	}
+}
+
+// containsListenerEntry returns true if the listener
+// entry is present within listeners.
+//
+// Untracked.
+function containsListenerEntry(listeners, entry) {
+	const index = indexOfListenerEntry(
+		listeners, //
+		entry
+	)
+
+	return index > -1
+}
+
+// indexOfListenerEntry returns the index of the listener
+// entry containing a unique combination of eventType,
+// listener, and capturing phase (determined by the options
+// argument) within listeners. -1 is returned if the
+// combination does not exist.
+//
+// Untracked.
+function indexOfListenerEntry(listeners, entry) {
+	for (let i = 0; i < listeners.length; i++) {
+		const currEntry = listeners[i]
+
+		const match =
+			currEntry.eventType === entry.eventType && //
+			currEntry.listener === entry.listener &&
+			currEntry.capture === entry.capture
+
+		if (match) {
+			return i
+		}
+	}
+
+	return -1
+}
+
+// addListenersToElement adds all listeners to the
+// element.
+//
+// Tracked.
+function addListenersToElement(element, listeners) {
+	for (const entry of listeners) {
+		addListenerToElement(element, entry)
+	}
+}
+
+// removeListenersFromElement removes all listeners from
+// the element.
+//
+// Tracked.
+function removeListenersFromElement(element, listeners) {
+	for (const entry of listeners) {
+		removeListenerFromElement(element, entry)
+	}
+}
+
+// addListenerToElement adds a listener to the element.
+//
+// Tracked.
+function addListenerToElement(element, entry) {
+	element.addEventListener(
+		entry.eventType, //
+		entry.listener,
+		entry.options
+	)
+}
+
+// removeListenerFromElement removes a listener from the
+// element.
+//
+// Tracked.
+function removeListenerFromElement(element, entry) {
+	element.removeEventListener(
+		entry.eventType, //
+		entry.listener,
+		entry.options
+	)
+}
+
+// dispatchEvent dispatches an event on the element
+// with bubbling, cancelable, composed options all false.
+//
+// Tracked.
+function dispatchEvent(element, eventType) {
+	const event = new Event(eventType, {
+		bubbles: false, //
+		cancelable: false,
+		composed: false,
+	})
+
+	element.dispatchEvent(event)
 }
