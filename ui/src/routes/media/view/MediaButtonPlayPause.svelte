@@ -6,10 +6,17 @@
 	let label = $derived(
 		svelteMediaElement.paused ? 'Play' : 'Pause' //
 	)
+
+	let disabled = $derived(
+		!svelteMediaElement.running && //
+			!svelteMediaElement.playable
+	)
+
+	function onclick() {
+		svelteMediaElement.playPause()
+	}
 </script>
 
-<MediaButton
-	disabled={!svelteMediaElement.playable}
-	onclick={() => svelteMediaElement.playPause()}>
+<MediaButton {disabled} {onclick}>
 	{label}
 </MediaButton>
