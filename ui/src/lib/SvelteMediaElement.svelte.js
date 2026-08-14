@@ -37,7 +37,7 @@ const CUSTOM_EVENT_TYPES = [
 	'elementset', //
 	'elementunset',
 	'running',
-	'continuing',
+	'flowing',
 	'buffering',
 	'pausing',
 ]
@@ -50,7 +50,7 @@ const EVENT_TYPES = [
 // SvelteMediaElement is a Reactive Adapter Box (READOX)
 // for the standard HTMLMediaElement class.
 //
-// The original purpose was to decouple Svelte components
+// The primary purpose was to decouple Svelte components
 // from the underlying HTMLMediaElement. Because the
 // HTMLMediaElement is set and unset separate to
 // instance construction, the instance passed to components
@@ -61,38 +61,51 @@ const EVENT_TYPES = [
 // The class stores listeners added by components and other
 // code so when a HTMLMediaElement is set and unset the
 // listeners will automatically be added and removed
-// respectively. Most media control and display related
-// components don't need to do anything when the underlying
-// HTMLMediaElement changes. They just register listeners
-// for the events they're interested in, including when the
-// element is set and unset.
+// respectively. Components using this class can register
+// 'elementset' and 'elementunset' listeners so they know
+// when the underlying HTMLMediaElement is set and unset.
 //
 // State is updated during the capturing phase of events
 // before user registered events so all user listeners
-// have access to fresh state through this class's
-// instances. Any capturing listeners added to the
-// HTMLMediaElement before it is set here will fire before
-// state is updated. Furthermore, if a listener is
-// registered through this class is unregistered manually
-// it will not prevent the listener from being added to the
-// next HTMLMediaElement. Unless you have a particualar
-// niche requirement, it is recommended that all listeners
-// are registered and unregistered through this class to
-// avoid nasty, hard to debug, errors.
+// have access to fresh state through this class. Any
+// capturing listeners added to the HTMLMediaElement before
+// them will fire before state is updated. Furthermore, if
+// a listener i registered through this class is
+// unregistered manually it will not prevent the listener
+// from being added next time a HTMLMediaElement is set.
+// Unless you have a particualar niche requirement, it is
+// recommended that all listeners are registered and
+// unregistered through this class to avoid nasty, hard to
+// debug, errors.
 //
-// SvelteMediaElement exposes all fields as reactive state
-// so they can be used directly in components. However,
-// untracked values can sometimes be useful within the
-// $effect rune so functions are provided that return
-// untracked raw values. In fact, none of the public class
-// functions will be tracked.
+// All properties are exposed as reactive state so they can
+// be used directly in components. However, untracked
+// values can sometimes be useful within the $effect rune
+// so a full set of untracked 'get' and 'is' functions are
+// provided. All public functions are untracked.
 //
 // This adapter has a number of additional fields and
-// functions for common use cases. For instance, playtime
-// and remaining fields provide the currentTime and
-// remaining time (duration - playtime) that are only
-// updated when the video is actually playing, i.e. not
-// during seeking.
+// functions for common use cases. For instance,
+// currentRemaining (duration - currentTime) is updated
+// along with currentTime. Either the flowing or buffering
+// property will be true when the media is not paused.
+// The media is flowing when there some data is loaded,
+// i.e. the user perceives the media to be playing. Where
+// as the buffering property is true when waiting for data.
+//
+// 1. Straight after the metadata has loaded:
+//    + loaded, paused, seekable (unless live stream)
+//    - seeking, playable, running, flowing, buffering
+//
+// 2. Once data has loaded, the user has pressed play and
+//    the media playing without needing to wait for data:
+//    + loaded, seekable, playable, running, flowing
+//    - paused, seeking, buffering
+//
+// 3. When the user is seeking far into the future during
+//    the middle of playback:
+//    + loaded, seekable, playable, running, seeking
+//    - paused, buffering, flowing
 //
 // Documentation for each property and function will end
 // with 'Tracked' if its use is tracked by Svelte, else it
@@ -231,48 +244,68 @@ export default class SvelteMediaElement {
 		return untrack(() => this._playable)
 	}
 
-	// playing is true when the media is not paused, not
-	// ended, not seeking, and has enough data to play some
-	// frames. When playing is true then the user is actively
-	// consuming the media, i.e. the video or audio are
-	// actively playing without buffering. When the media
-	// freezes to load more data the playing state will
-	// become false until data is available again.
+	// running is true when paused is false.
 	//
-	// One can assume that the user's attention is on the
-	// media when playing is true (at least for video).
-	// However, the playing state is not enougth to determine
-	// if a buffering icon should be shown because it will
-	// also be false when the media is paused. Instead, the
-	// buffering state can be used.
+	// A media can be both running and not flowing which
+	// almost always means the media doesn't have enough data
+	// to continue playback right now but will continue when
+	// data arrives.
 	//
 	// Tracked.
-	_playing = $state(false)
-	get playing() {
-		return this._playing
+	_running = $state(false)
+	get running() {
+		return this._running
 	}
 
-	// isPlaying returns the untracked value of the playing
+	// isRunning returns the untracked value of the running
 	// property.
 	//
 	// Untracked.
-	isPlaying() {
-		return untrack(() => this._playing)
+	isRunning() {
+		return untrack(() => this._running)
+	}
+
+	// flowing is true when the media is not paused, not
+	// ended, not seeking, and has enough data to play some
+	// frames. When flowing is true then the user is actively
+	// consuming the media, i.e. the video or audio are
+	// playing without buffering. When the media freezes to
+	// load more data the flowing state becomes false until
+	// data is available.
+	//
+	// One can assume that the user's attention is on the
+	// media when flowing is true (at least for video).
+	// However, the flowing state is not enougth to determine
+	// if a buffering icon should be shown because it will
+	// also be false when the media is paused or not loaded.
+	// Instead, the buffering state can be used.
+	//
+	// Tracked.
+	_flowing = $state(false)
+	get flowing() {
+		return this._flowing
+	}
+
+	// isFlowing returns the untracked value of the flowing
+	// property.
+	//
+	// Untracked.
+	isFlowing() {
+		return untrack(() => this._flowing)
 	}
 
 	// buffering is true when the media is not paused, not
 	// ended, not seeking, but does not have enough data to
-	// continue playing frames. The media will appear frozen
-	// from the user's perspective.
+	// continue playing frames. The buffering state cannot be
+	// true whilst the flowing state is true but both can be
+	// false at once, such as when the media is paused.
 	//
-	// The freeze is likely to have broken the user's
-	// attention on the media (at least for video) so
-	// the buffering state can be used independently in a
-	// Svelte IF block to control the display of a buffering
-	// icon, e.g:
-	// {#if svelteMediaElement.buffering}
-	//   <img src="buffering.gif" />
-	// {/if}
+	// When buffering the media will appear frozen from the
+	// user's perspective. The freeze is likely to have
+	// broken the user's attention on the media (at least for
+	// video) so the buffering state can be used
+	// independently in a Svelte {#if} block to control the
+	// display of a buffering icon.
 	//
 	// Tracked.
 	_buffering = $state(false)
@@ -292,7 +325,7 @@ export default class SvelteMediaElement {
 	// loading, before autoplay begins (if enabled), and when
 	// the user has paused the media. It will still be false
 	// when the media has stopped playing due to needing more
-	// data, unlike the playing field..
+	// data, unlike the flowing field..
 	//
 	// Tracked.
 	_paused = $state(true)
@@ -306,25 +339,6 @@ export default class SvelteMediaElement {
 	// Untracked.
 	isPaused() {
 		return untrack(() => this._paused)
-	}
-
-	// running is true when paused is false. A media can be
-	// both running and not playing, usually indicating the
-	// media doesn't have enough data to continue playback
-	// right now but will continue when data arrives.
-	//
-	// Tracked.
-	_running = $state(false)
-	get running() {
-		return this._running
-	}
-
-	// isRunning returns the untracked value of the running
-	// property.
-	//
-	// Untracked.
-	isRunning() {
-		return untrack(() => this._running)
 	}
 
 	// seekable is true when the underlying HTMLMediaElement
@@ -477,14 +491,16 @@ export default class SvelteMediaElement {
 	}
 
 	// play begins playing the media if it has loaded and is
-	// not currently playing.
+	// not currently playing, i.e. media enters the running
+	// state.
 	//
 	// Untracked.
 	play() {
 		untrack(() => this._element?.play())
 	}
 
-	// pause stops playing the media if is currently playing.
+	// pause stops playing the media if is currently playing,
+	// i.e. media enters the paused state.
 	//
 	// Untracked.
 	pause() {
@@ -501,10 +517,11 @@ export default class SvelteMediaElement {
 		})
 	}
 
-	// restart sets the playback time to 0. Unlike the reload
-	// function, restart does not reload the media so load
-	// related events are not fired. Because it's a seek,
-	// seek related events will fire.
+	// restart sets the playback time to the start of the
+	// video. It's a seek operation to time 0. Unlike the
+	// reload function, restart does not reload the media so
+	// load related events are not fired, but seek operations
+	// will.
 	//
 	// Untracked.
 	restart() {
@@ -524,9 +541,8 @@ export default class SvelteMediaElement {
 	// dispatched will always have those options.
 	//
 	// All standard HTMLMediaElement event types are
-	// supported along with additional ones: 'elementset',
-	// 'elementunset', 'running', 'playing', 'buffering',
-	// and 'pausing'.
+	// supported along with the custom ones: 'elementset'
+	// and 'elementunset'.
 	//
 	// Returns true if the unique combination of eventType,
 	// listener, and capturing phase were added, false if the
@@ -642,44 +658,44 @@ export default class SvelteMediaElement {
 	// _updatePlayStatesWithoutDispatch then
 	// _dispatchContinueBufferingEvent since this is
 	// a common pattern. The operations were separated to
-	// allow the 'running' event to be fired before 'playing'
+	// allow the 'running' event to be fired before 'flowing'
 	// or 'buffering' when the media is unpaused.
 	_updatePlayStates() {
-		const wasPlaying = this._playing
+		const wasFlowing = this._flowing
 		const wasBuffering = this._buffering
 		this._updatePlayStatesWithoutDispatch()
-		this._dispatchContinueBufferingEvent(wasPlaying, wasBuffering)
+		this._dispatchContinueBufferingEvent(wasFlowing, wasBuffering)
 	}
 
 	// _updatePlayStatesWithoutDispatch updates the playable,
-	// playing, and buffering states based upon the
+	// flowing, and buffering states based upon the
 	// underlying HTMLMediaElement's paused, ended, seeking,
 	// and readyState values.
 	_updatePlayStatesWithoutDispatch() {
 		this._playable = this._hasFutureData()
 
-		if (this._couldBePlayingOrBuffering()) {
-			this._playing = this._playable
+		if (this._couldBeFlowingOrBuffering()) {
+			this._flowing = this._playable
 			this._buffering = !this._playable
 		} else {
-			this._playing = false
+			this._flowing = false
 			this._buffering = false
 		}
 	}
 
-	// _couldBePlayingOrBuffering returns true if the media
-	// can be placed into the playing or buffering states.
-	_couldBePlayingOrBuffering() {
+	// _couldBeFlowingOrBuffering returns true if the media
+	// can be placed into the flowing or buffering states.
+	_couldBeFlowingOrBuffering() {
 		const media = this._element
-		return !media.paused && !media.ended && !media.seeking
+		return !media.paused && !media.seeking && !media.ended
 	}
 
 	// _dispatchContinueBufferingEvent will dispatch the
-	// 'playing' or 'buffering' events if either satisfy
+	// 'flowing' or 'buffering' events if either satisfy
 	// their dispatch conditions.
-	_dispatchContinueBufferingEvent(wasPlaying, wasBuffering) {
-		if (!wasPlaying && this._playing) {
-			dispatchEvent(this._element, 'continuing')
+	_dispatchContinueBufferingEvent(wasFlowing, wasBuffering) {
+		if (!wasFlowing && this._flowing) {
+			dispatchEvent(this._element, 'flowing')
 			return
 		}
 
@@ -699,13 +715,13 @@ export default class SvelteMediaElement {
 	// _updatePausedState sets the state of the pause and
 	// running states together. It also updates the play
 	// states. When unpausing, the 'running' event will be
-	// fired before the 'playing' or 'buffering' states.
+	// fired before the 'flowing' or 'buffering' states.
 	_updatePausedState() {
 		const wasPaused = this._paused
-		const paused = this._element.paused
-		const wasPlaying = this._playing
+		const wasFlowing = this._flowing
 		const wasBuffering = this._buffering
 
+		const paused = this._element.paused
 		this._paused = paused
 		this._running = !paused
 
@@ -717,7 +733,10 @@ export default class SvelteMediaElement {
 			dispatchEvent(this._element, 'pausing')
 		}
 
-		this._dispatchContinueBufferingEvent(wasPlaying, wasBuffering)
+		this._dispatchContinueBufferingEvent(
+			wasFlowing, //
+			wasBuffering,
+		)
 	}
 
 	// _updateSeekingState sets the state of seeking and

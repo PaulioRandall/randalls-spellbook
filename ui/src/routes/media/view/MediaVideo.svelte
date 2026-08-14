@@ -33,13 +33,13 @@
 	logOnEvent('elementset')
 	logOnEvent('elementunset')
 	logOnEvent('running')
-	logOnEvent('continuing')
+	logOnEvent('flowing')
 	logOnEvent('pausing')
 	logOnEvent('buffering')
 
 	function logReactor(name) {
 		return () => {
-			//console.log(name, svelteMediaElement[name])
+			console.log('STATE', name, svelteMediaElement[name])
 		}
 	}
 
