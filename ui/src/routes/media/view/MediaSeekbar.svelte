@@ -1,99 +1,50 @@
 <script>
-	import { onMount } from 'svelte'
+	import { onMount, onDestroy } from 'svelte'
 	import eventUtil from '$lib/eventUtil.js'
 
-	let {
-		mediaElement, //
-		name,
-		initValue,
-		onseekstart,
-		onseekvalue,
-		onseekend,
-		...attrs
-	} = $props()
+	let { svelteMediaElement, ...attrs } = $props()
+	let value = $state(0)
 
-	let input = null
-	let trackingMediaTime = false
-	let value = $state(initValue)
+	onMount(() => {
+		value = svelteMediaElement.currentTime
+		svelteMediaElement.on('timeupdate', timeupdate)
+	})
+
+	onDestroy(() => {
+		svelteMediaElement.off('timeupdate', timeupdate)
+	})
 
 	function onpointerdown(event) {
 		if (eventUtil.isPrimaryButton(event)) {
-			stopTrackingMediaTime()
-			onseekstart?.(name)
-		}
-	}
-
-	function oninput(event) {
-		if (!trackingMediaTime) {
-			onseekvalue?.(name, value)
+			svelteMediaElement.off('timeupdate', timeupdate)
 		}
 	}
 
 	function onpointerup(event) {
-		if (!trackingMediaTime && eventUtil.isPrimaryButton(event)) {
-			startTrackingMediaTime()
-			onseekend?.(name)
+		if (eventUtil.isPrimaryButton(event)) {
+			svelteMediaElement.on('timeupdate', timeupdate)
 		}
 	}
 
-	function trackMediaTime() {
-		value = mediaElement.currentTime
+	function timeupdate() {
+		value = svelteMediaElement.currentTime
 	}
 
-	function startTrackingMediaTime() {
-		if (mediaElement) {
-			mediaElement.addEventListener('timeupdate', trackMediaTime)
-			trackingMediaTime = true
-		}
+	function oninput() {
+		svelteMediaElement.seekTo(value)
 	}
-
-	function stopTrackingMediaTime() {
-		if (mediaElement) {
-			mediaElement.removeEventListener('timeupdate', trackMediaTime)
-			trackingMediaTime = false
-		}
-	}
-
-	function durationChanged() {
-		input.max = mediaElement.duration
-	}
-
-	function startTrackingDurationChanges() {
-		if (mediaElement) {
-			mediaElement.addEventListener('durationchange', durationChanged)
-		}
-	}
-
-	function stopTrackingDurationChanges() {
-		if (mediaElement) {
-			mediaElement.removeEventListener('durationchange', durationChanged)
-		}
-	}
-
-	onMount(() => {
-		input.disabled = !mediaElement.seekable
-		startTrackingDurationChanges()
-		startTrackingMediaTime()
-
-		return () => {
-			stopTrackingDurationChanges()
-			stopTrackingMediaTime()
-		}
-	})
 </script>
 
 <svelte:window {onpointerup} />
 
 <input
 	{...attrs}
-	bind:this={input}
 	bind:value
 	class:media-seekbar={true}
-	{name}
-	disabled={!mediaElement}
+	disabled={!svelteMediaElement.seekable}
 	type="range"
 	min="0"
-	step="1"
+	max={svelteMediaElement.duration}
 	{onpointerdown}
 	{oninput} />
 

@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte'
 
 	import backend from '$lib/backend.js'
-	import SvelteMediaElement from '$lib/svelteMediaElement.svelte.js'
+	import SvelteMediaElement from '$lib/SvelteMediaElement.svelte.js'
 
 	import MediaSeekbar from './MediaSeekbar.svelte'
 	import MediaButton from './MediaButton.svelte'
@@ -13,11 +13,7 @@
 	let { entityId } = $props()
 
 	let media = $state(null)
-	let mediaElement = $state(null)
-
-	function onseekvalue(_, seekTime) {
-		mediaElement.currentTime = seekTime
-	}
+	let mediaElement = null
 
 	onMount(async () => {
 		media = await backend.getMediaById(entityId)
@@ -75,7 +71,7 @@
 
 	<div class="media-video-controls">
 		<div class="media-video-seekbar">
-			<MediaSeekbar {mediaElement} {onseekvalue} />
+			<MediaSeekbar {svelteMediaElement} />
 		</div>
 		<div class="media-video-control-buttons">
 			<MediaButtonPlayPause {svelteMediaElement} />

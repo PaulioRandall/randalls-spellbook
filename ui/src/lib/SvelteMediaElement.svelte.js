@@ -1,6 +1,6 @@
 import { untrack } from 'svelte'
 
-// TODO: Create test suite!! Good luck :)git status
+// TODO: Create test suite!! Good luck :)
 
 // HTML_EVENT_TYPES is an array of all
 // HTMLMediaELement event types that users can register
@@ -518,6 +518,25 @@ export default class SvelteMediaElement {
 		})
 	}
 
+	// seekTo seeks to the specified time. If the time is
+	// greater than the duration then the duration is used
+	// instead, i.e. seeks to the end of the media.
+	//
+	// Untracked.
+	seekTo(time) {
+		untrack(() => {
+			if (!this._element) {
+				return
+			}
+
+			if (time > this._duration) {
+				time = this._duration
+			}
+
+			this._element.currentTime = time
+		})
+	}
+
 	// restart sets the playback time to the start of the
 	// video. It's a seek operation to time 0. Unlike the
 	// reload function, restart does not reload the media so
@@ -526,11 +545,7 @@ export default class SvelteMediaElement {
 	//
 	// Untracked.
 	restart() {
-		untrack(() => {
-			if (this._element) {
-				this._element.currentTime = 0
-			}
-		})
+		this.seekTo(0)
 	}
 
 	// on registers an event listener that is added to the
@@ -593,7 +608,7 @@ export default class SvelteMediaElement {
 			)
 
 			const index = indexOfListenerEntry(
-				this._userListener, //
+				this._userListeners, //
 				entry
 			)
 
