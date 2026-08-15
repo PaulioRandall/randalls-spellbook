@@ -1,5 +1,5 @@
 <script>
-	import { onMount, onDestroy } from 'svelte'
+	import { onMount } from 'svelte'
 	import eventUtil from '$lib/eventUtil.js'
 
 	let { svelteMediaElement, ...attrs } = $props()
@@ -7,11 +7,7 @@
 
 	onMount(() => {
 		value = svelteMediaElement.currentTime
-		svelteMediaElement.on('timeupdate', timeupdate)
-	})
-
-	onDestroy(() => {
-		svelteMediaElement.off('timeupdate', timeupdate)
+		return svelteMediaElement.onAll({ timeupdate })
 	})
 
 	function onpointerdown(event) {

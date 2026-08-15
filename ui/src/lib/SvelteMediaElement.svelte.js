@@ -628,6 +628,58 @@ export default class SvelteMediaElement {
 		})
 	}
 
+	// onAll registers a set of listeners at once. It accepts
+	// a plain object with property names as event types and
+	// values as either a listener or a plain object
+	// containing a listener and options. It returns an off
+	// function that unregisters all the listeners when
+	// called.
+	//
+	// Untracked.
+	onAll(listenerSet) {
+		return untrack(() => {
+			const listeners = this._listenerSetToArray(listenerSet)
+
+			listeners.forEach((l) => {
+				this.on(
+					l.eventType, //
+					l.listener,
+					l.options
+				)
+			})
+
+			return () => {
+				listeners.forEach((l) => {
+					this.off(
+						l.eventType, //
+						l.listener,
+						l.options
+					)
+				})
+			}
+		})
+	}
+
+	// offAll unregisters a set of listeners at once. It
+	// accepts a plain object with property names as event
+	// types and values as either a listener or a plain
+	// object containing a listener and options.
+	//
+	// Untracked.
+	offAll(listenerSet) {
+		untrack(() => {
+			const listeners = this._listenerSetToArray(listenerSet)
+
+			listeners.forEach((l) => {
+				this.off(
+					l.eventType, //
+					l.listener,
+					l.options
+				)
+			})
+		})
+	}
+
 	// isOn returns true if the combination of eventType,
 	// listener, and capturing phase (determined by the
 	// options argument) is currently registered.
@@ -646,6 +698,32 @@ export default class SvelteMediaElement {
 				entry
 			)
 		})
+	}
+
+	// _listenerSetToArray converts an object with eventTypes
+	// as property names and either a listener, or object
+	// containing a listener and options, as values into
+	// an array of uniform plain objects.
+	_listenerSetToArray(listenerSet) {
+		const eventTypes = Object.getOwnPropertyNames(listenerSet)
+		const result = []
+
+		for (const eventType of eventTypes) {
+			const entry = { eventType }
+			const value = listenerSet[eventType]
+
+			if (isObject(value)) {
+				entry.listener = value.listener
+				entry.options = value.options
+			} else {
+				entry.listener = value
+				entry.options = {}
+			}
+
+			result.push(entry)
+		}
+
+		return result
 	}
 
 	// _syncStatesInit performs an initial state syncing
