@@ -57,13 +57,16 @@ godoVet() {
 	runCmd "go vet ./..."
 }
 
-
 godoRun() {
 	runCmd "go run ./main.go"
 }
 
 godoUiBuild() {
 	runCmd "npm --prefix ./ui/ run build"
+}
+
+godoUiTest() {
+	runCmd "npm --prefix ./ui/ run test"
 }
 
 godoUiBuildlessAudit() {
@@ -93,6 +96,7 @@ fi
 if [[ "$1" == "test" ]]; then
 	godoTidy
 	godoFormat
+	godoUiTest
 	godoTest
 	godoVet
 	exit 0
@@ -103,6 +107,7 @@ if [[ "$1" == "audit" ]]; then
 	godoClean
 	godoTidy
 	godoFormat
+	godoUiTest
 	godoTest
 	godoVet
 	godoUiBuildlessAudit

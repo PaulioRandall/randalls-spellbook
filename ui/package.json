@@ -14,6 +14,7 @@
 		"clean": "rm -rf .svelte-kit",
 		"fmt": "prettier --log-level warn --write .",
 		"build": "npm run fmt && vite build",
+		"test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests --testPathPatterns ./src/",
 		"dev": "npm run fmt && vite dev --port 3000",
 		"preview": "npm run build && vite preview --port 4000",
 		"audit": "npm run build && cat ./ready-to-integrate.txt",
@@ -22,9 +23,10 @@
 	"devDependencies": {
 		"@sveltejs/adapter-static": "3.0.10",
 		"@sveltejs/kit": "2.70.2",
+		"jest": "30.4.2",
 		"prettier": "3.9.6",
 		"prettier-plugin-svelte": "4.1.1",
-		"svelte": "5.56.8",
-		"vite": "8.2.0"
+		"svelte": "5.56.9",
+		"vite": "8.2.1"
 	}
 }

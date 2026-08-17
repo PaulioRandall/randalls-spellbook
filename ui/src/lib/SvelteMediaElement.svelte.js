@@ -1,70 +1,40 @@
 import { untrack } from 'svelte'
+import ElementalSvox from './ElementalSvox.svelte.js'
+import Eventor from './Eventor.js'
 
-// TODO: Create test suite!! Good luck :)
-
-// HTML_EVENT_TYPES is an array of all
-// HTMLMediaELement event types that users can register
-// listeners for.
-const HTML_EVENT_TYPES = [
-	'abort', //
-	'canplay',
-	'canplaythrough',
-	'durationchange',
-	'emptied',
-	'ended',
-	'error',
-	'loadeddata',
-	'loadedmetadata',
-	'loadstart',
-	'pause',
-	'play',
-	'playing',
-	'progress',
-	'ratechange',
-	'seeked',
-	'seeking',
-	'stalled',
-	'suspend',
-	'timeupdate',
-	'volumechange',
-	'waiting',
-	'waitingforkey',
-]
-
-// CUSTOM_EVENT_TYPES is an array of all custom event
-// types fired by SvelteMediaElement, not by the
-// underlying HTMLMediaELement.
-const CUSTOM_EVENT_TYPES = [
-	'elementset', //
-	'elementunset',
-	'running',
-	'flowing',
-	'buffering',
-	'pausing',
-]
-
-const EVENT_TYPES = [
-	...HTML_EVENT_TYPES, //
-	...CUSTOM_EVENT_TYPES,
-]
-
-// SvelteMediaElement is a Reactive Adapter Box (READOX)
+// SvelteMediaElement is a Reactive Element Adapter Box
 // for the standard HTMLMediaElement class.
+//
+// READOX classes follow a set of rules aimed at providing
+// clarity for programmers and minimising reactivity issues
+// that can be hard to debug:
+// 1. All public properties are readonly, i.e. they can
+//    only be set internally or through public functions.
+// 2. All public properties are reactive and tracked,
+//    i.e. they are created through runes such as $state
+//    and $derived, and trigger $effect and $derived runes.
+// 3. All public functions are non-reactive and untracked,
+//    i.e. they do not trigger $effect or $derived runes.
+//    Use common and iconic verbs for functions that get or
+//    set properties: e.g. get, is, has, set, put, update.
+// 4. Instances of the class must never be null. The
+//    purpose of being a box is to minimise the need for
+//    existence checking.
 //
 // The primary purpose was to decouple Svelte components
 // from the underlying HTMLMediaElement. Because the
 // HTMLMediaElement is set and unset separate to
 // instance construction, the instance passed to components
-// can always be non-null. This moves most existence
-// checking from the components into the class, where it
-// can be better abstracted.
+// can always be non-null.
 //
-// The class stores listeners added by components and other
-// code so when a HTMLMediaElement is set and unset the
+// The class uses an Eventor to manage state and user
+// listeners. When a HTMLMediaElement is set and unset the
 // listeners will automatically be added and removed
-// respectively. Components using this class can register
-// 'elementset' and 'elementunset' listeners so they know
-// when the underlying HTMLMediaElement is set and unset.
+// respectively. Components using this class can use the
+// onElement function to register callbacks that are called
+// when the underlying HTMLMediaElement is set and unset
+// (these are callbacks, not events, so accept an instance
+// of this class instead of an event object).
 //
 // State is updated during the capturing phase of events
 // before user registered events so all user listeners
@@ -95,17 +65,17 @@ const EVENT_TYPES = [
 // as the buffering property is true when waiting for data.
 //
 // 1. Straight after the metadata has loaded:
-//    + loaded, paused, seekable (unless live stream)
+//    + loaded, paused
 //    - seeking, playable, running, flowing, buffering
 //
 // 2. Once data has loaded, the user has pressed play and
 //    the media playing without needing to wait for data:
-//    + loaded, seekable, playable, running, flowing
+//    + loaded, playable, running, flowing
 //    - paused, seeking, buffering
 //
 // 3. When the user is seeking far into the future during
 //    the middle of playback:
-//    + loaded, seekable, playable, running, seeking
+//    + loaded, playable, running, seeking
 //    - paused, buffering, flowing
 //
 // Documentation for each property and function will end
@@ -117,98 +87,32 @@ const EVENT_TYPES = [
 // public functions should be untracked. This makes it even
 // easier for readers to quickly understand the reactivity
 // of some code.
-export default class SvelteMediaElement {
-	// _stateListeners are capturing event listeners that
+export default class SvelteMediaElement extends ElementalSvox {
+	// _stateEventor are capturing event listeners that
 	// mutate the adpaters state. They are added first when
 	// an element is set so they fire first.
-	// Format: [{ eventType, listener, options }]
-	_stateListeners = generateStateListeners(this)
+	_stateEventor = generateStateEventor(this)
 
-	// _userListeners are the user defined listeners. They
-	// include HTMLMediaElement event types along with
-	// special custom types that are fired by this class,
-	// e.g. 'elementset' and 'elementunset'.
-	_userListeners = [
-		/* {
-			eventType,
-			listener,
-			options,
-
-			// capture is true if options is true or
-			// { capture: true }. This value is only used within
-			// the class for ease of listener management.
-			capture,
-		} */
-	]
-
-	// element is the underlying HTMLMediaElement or null
-	// when no element is set.
-	//
-	// Tracked.
-	_element = $state(null)
-	get element() {
-		return this._element
-	}
-
-	// hasElement returns true if the element property is
-	// set, i.e. not null.
+	// isValidElement override to constrain elements to
+	// HTMLMediaElements only.
 	//
 	// Untracked.
-	hasElement() {
-		return untrack(() => this._element === null)
+	isValidElement(element) {
+		return element instanceof HTMLMediaElement
 	}
 
-	// getElement returns the untracked value of the element
-	// property.
+	// afterSet override to add state listeners.
 	//
 	// Untracked.
-	getElement() {
-		return untrack(() => this._element)
+	afterSet() {
+		this._stateEventor.addTo(this.getElement())
 	}
 
-	// setElement sets the underlying HTMLMediaElement. If
-	// one is already set then unsetElement is called first
-	// causing relevant events to fire.
+	// beforeUnset override to remove state listeners.
 	//
 	// Untracked.
-	setElement(element) {
-		untrack(() => {
-			this.unsetElement()
-
-			const validType = element instanceof HTMLMediaElement
-			if (!element || !validType) {
-				throw new Error('Not a HTMLMediaElement')
-			}
-
-			this._element = element
-			this._syncStatesInit()
-
-			addListenersToElement(this._element, this._stateListeners)
-			addListenersToElement(this._element, this._userListeners)
-
-			dispatchEvent(this._element, 'elementset')
-		})
-	}
-
-	// unsetElement sets the underlying HTMLMediaElement
-	// to null. It will reset all state then fire the
-	// 'elementunset' event.
-	//
-	// Untracked.
-	unsetElement() {
-		untrack(() => {
-			if (this._element === null) {
-				return
-			}
-
-			removeListenersToElement(this._element, this._userListeners)
-			removeListenersToElement(this._element, this._stateListeners)
-
-			this._element = null
-			this._resetStates()
-
-			dispatchEvent(this._element, 'elementunset')
-		})
+	beforeUnset() {
+		this._stateEventor.removeFrom(this.getElement())
 	}
 
 	// loaded is true when the media metadata has loaded.
@@ -488,7 +392,7 @@ export default class SvelteMediaElement {
 	//
 	// Untracked.
 	reload() {
-		untrack(() => this._element?.load())
+		untrack(() => this.element?.load())
 	}
 
 	// play begins playing the media if it has loaded and is
@@ -497,7 +401,7 @@ export default class SvelteMediaElement {
 	//
 	// Untracked.
 	play() {
-		untrack(() => this._element?.play())
+		untrack(() => this.element?.play())
 	}
 
 	// pause stops playing the media if is currently playing,
@@ -505,7 +409,7 @@ export default class SvelteMediaElement {
 	//
 	// Untracked.
 	pause() {
-		untrack(() => this._element?.pause())
+		untrack(() => this.element?.pause())
 	}
 
 	// playPause begins playing the media if it is paused or
@@ -525,7 +429,7 @@ export default class SvelteMediaElement {
 	// Untracked.
 	seekTo(time) {
 		untrack(() => {
-			if (!this._element) {
+			if (!this.element) {
 				return
 			}
 
@@ -533,7 +437,7 @@ export default class SvelteMediaElement {
 				time = this._duration
 			}
 
-			this._element.currentTime = time
+			this.element.currentTime = time
 		})
 	}
 
@@ -548,260 +452,63 @@ export default class SvelteMediaElement {
 		this.seekTo(0)
 	}
 
-	// on registers an event listener that is added to the
-	// underlying HTMLMediaElement when it is set and removed
-	// when it is unest. The listener is invoked when an
-	// event with the given eventType occurs. Note that most
-	// events fired on HTMLMediaElement are non-bubbling,
-	// non-cancelable, and non-composed. Custom events
-	// dispatched will always have those options.
-	//
-	// All standard HTMLMediaElement event types are
-	// supported along with the custom ones: 'elementset'
-	// and 'elementunset'.
-	//
-	// Returns true if the unique combination of eventType,
-	// listener, and capturing phase were added, false if the
-	// combination already existed.
-	//
-	// Untracked.
-	on(eventType, listener, options = undefined) {
-		return untrack(() => {
-			const entry = createListenerEntry(
-				eventType, //
-				listener,
-				options
-			)
+	// syncStates performs a state syncing with the current
+	// set HTMLMediaElement.
+	syncStates() {
+		const media = this.getElement()
 
-			const alreadyRegistered = containsListenerEntry(
-				this._userListeners, //
-				entry
-			)
-
-			if (alreadyRegistered) {
-				return false
-			}
-
-			this._userListeners.push(entry)
-
-			if (this._element) {
-				addListenerToElement(this._element, entry)
-			}
-
-			return true
-		})
-	}
-
-	// off unregisters an eventType, listener, and options
-	// combination registered through the on function. True
-	// is returned if the combination of eventType, listener,
-	// and capturing phase (determined by the options
-	// argument) was not registered.
-	//
-	// Untracked.
-	off(eventType, listener, options = undefined) {
-		return untrack(() => {
-			let entry = createListenerEntry(
-				eventType, //
-				listener,
-				options
-			)
-
-			const index = indexOfListenerEntry(
-				this._userListeners, //
-				entry
-			)
-
-			if (index < 0) {
-				return false
-			}
-
-			// Use the original entry for sanity's sake.
-			entry = this._userListeners[index]
-			this._userListeners.splice(index, 1)
-
-			if (this._element) {
-				removeListenerFromElement(this._element, entry)
-			}
-
-			return true
-		})
-	}
-
-	// onAll registers a set of listeners at once. It accepts
-	// a plain object with property names as event types and
-	// values as either a listener or a plain object
-	// containing a listener and options. It returns an off
-	// function that unregisters all the listeners when
-	// called.
-	//
-	// Untracked.
-	onAll(listenerSet) {
-		return untrack(() => {
-			const listeners = this._listenerSetToArray(listenerSet)
-
-			listeners.forEach((l) => {
-				this.on(
-					l.eventType, //
-					l.listener,
-					l.options
-				)
-			})
-
-			return () => {
-				listeners.forEach((l) => {
-					this.off(
-						l.eventType, //
-						l.listener,
-						l.options
-					)
-				})
-			}
-		})
-	}
-
-	// offAll unregisters a set of listeners at once. It
-	// accepts a plain object with property names as event
-	// types and values as either a listener or a plain
-	// object containing a listener and options.
-	//
-	// Untracked.
-	offAll(listenerSet) {
-		untrack(() => {
-			const listeners = this._listenerSetToArray(listenerSet)
-
-			listeners.forEach((l) => {
-				this.off(
-					l.eventType, //
-					l.listener,
-					l.options
-				)
-			})
-		})
-	}
-
-	// isOn returns true if the combination of eventType,
-	// listener, and capturing phase (determined by the
-	// options argument) is currently registered.
-	//
-	// Untracked.
-	isOn(eventType, listener, options = undefined) {
-		untrack(() => {
-			const entry = createListenerEntry(
-				eventType, //
-				listener,
-				options
-			)
-
-			return containsListenerEntry(
-				this._userListeners, //
-				entry
-			)
-		})
-	}
-
-	// _listenerSetToArray converts an object with eventTypes
-	// as property names and either a listener, or object
-	// containing a listener and options, as values into
-	// an array of uniform plain objects.
-	_listenerSetToArray(listenerSet) {
-		const eventTypes = Object.getOwnPropertyNames(listenerSet)
-		const result = []
-
-		for (const eventType of eventTypes) {
-			const entry = { eventType }
-			const value = listenerSet[eventType]
-
-			if (isObject(value)) {
-				entry.listener = value.listener
-				entry.options = value.options
-			} else {
-				entry.listener = value
-				entry.options = {}
-			}
-
-			result.push(entry)
-		}
-
-		return result
-	}
-
-	// _syncStatesInit performs an initial state syncing
-	// with a newly set HTMLMediaElement. This includes
-	// syncing metadata.
-	_syncStatesInit() {
-		const elem = this._element
-
-		if (elem.readyState < HTMLMediaElement.HAVE_METADATA) {
+		if (!media) {
+			this._resetStates()
 			return
 		}
 
-		this._updateMetadata()
-		this._syncStates()
+		if (!this._loaded) {
+			if (media.readyState < HTMLMediaElement.HAVE_METADATA) {
+				return
+			}
+
+			this._loaded = true
+			this._syncMetadataStates()
+		}
+
+		this._syncMediaStates()
 	}
 
-	// _updateMetadata updates general metadata state
+	// _syncMetadataStates updates general metadata state
 	// including any state that may be available straight
 	// after metadata has loaded.
-	_updateMetadata() {
-		this._duration = this._element.duration
-		this._seekable = this._element.seekable.length > 0
+	_syncMetadataStates() {
+		this._duration = this.getElement().duration
+		this._seekable = this.getElement().seekable.length > 0
 	}
 
-	// _syncStates performs a state syncing with the current
-	// set HTMLMediaElement. It assumes metadata is already
-	// synced.
-	_syncStates() {
+	// _syncMediaStates updates general states such as
+	// playable, paused, flowing, etc.
+	_syncMediaStates() {
 		const wasPaused = this._paused
 		const wasFlowing = this._flowing
 		const wasBuffering = this._buffering
 
-		this._updateSeekStates()
-		this._updateRunningPausedStates()
-		this._updatePlayableState()
-		this._updateFlowingBufferingStates()
+		this._updateStates()
 
-		this._dispatchRunningPausingEvent(
-			wasPaused //
-		)
-
-		this._dispatchFlowingBufferingEvent(
-			wasFlowing, //
+		this._dispatchStateChanges(
+			wasPaused, //
+			wasFlowing,
 			wasBuffering
 		)
 	}
 
-	// _updateSeekStates syncs the seekable and seeking
-	// states to match the current HTMLMediaElement's state.
-	_updateSeekStates() {
-		this._seekable = this._element.seekable.length > 0
-		this._seeking = this._element.seeking
-	}
+	// _updateStates updates states to match the current
+	// HTMLMediaElement's state.
+	_updateStates() {
+		this._seekable = this.getElement().seekable.length > 0
 
-	// _updateRunningPausedStates sets the state of the
-	// playable, running, flowing, buffering, and paused
-	// states together. When unpausing, the 'running' event
-	// will be fired before the 'flowing' or 'buffering'
-	// events.
-	_updateRunningPausedStates() {
+		this._seeking = this._element.seeking
 		this._paused = this._element.paused
 		this._running = !this._paused
-	}
 
-	// _updatePlayableState sets the playable set dependent
-	// on not currently seeking and some future data being
-	// loaded to play.
-	_updatePlayableState() {
-		this._playable =
-			!this._element.seeking && //
-			this._hasFutureData()
-	}
+		this._playable = !this._seeking && this._hasFutureData()
 
-	// _updateFlowingBufferingStates updates the playable,
-	// flowing, and buffering states based upon the
-	// underlying HTMLMediaElement's paused, ended, seeking,
-	// and readyState values.
-	_updateFlowingBufferingStates() {
 		if (this._couldBeFlowingOrBuffering()) {
 			this._flowing = this._playable
 			this._buffering = !this._playable
@@ -811,41 +518,35 @@ export default class SvelteMediaElement {
 		}
 	}
 
-	// _couldBeFlowingOrBuffering returns true if the media
-	// can be placed into the flowing or buffering states.
-	_couldBeFlowingOrBuffering() {
-		const media = this._element
-		return !media.paused && !media.seeking && !media.ended
-	}
-
-	// _dispatchRunningPausingEvent will dispatch the
-	// 'running' or 'pausing' events if either satisfy
-	// their dispatch conditions.
-	_dispatchRunningPausingEvent(wasPaused) {
-		if (wasPaused && !this._paused) {
-			dispatchEvent(this._element, 'running')
-		} else if (!wasPaused && this._paused) {
-			dispatchEvent(this._element, 'pausing')
-		}
-	}
-
-	// _dispatchFlowingBufferingEvent will dispatch the
-	// 'flowing' or 'buffering' events if either satisfy
-	// their dispatch conditions.
-	_dispatchFlowingBufferingEvent(wasFlowing, wasBuffering) {
-		if (!wasFlowing && this._flowing) {
-			dispatchEvent(this._element, 'flowing')
-		} else if (!wasBuffering && this._buffering) {
-			dispatchEvent(this._element, 'buffering')
-		}
-	}
-
 	// _hasFutureData returns true if enough data has loaded
 	// to allow playing without buffering for some time into
 	// the future.
 	_hasFutureData() {
 		const HAS_DATA = HTMLMediaElement.HAVE_FUTURE_DATA
-		return this._element.readyState >= HAS_DATA
+		return this.getElement().readyState >= HAS_DATA
+	}
+
+	// _couldBeFlowingOrBuffering returns true if the media
+	// can be placed into the flowing or buffering states.
+	_couldBeFlowingOrBuffering() {
+		const media = this.getElement()
+		return !media.paused && !media.seeking && !media.ended
+	}
+
+	// _dispatchStateChanges dispatches custom events after
+	// state syncing.
+	_dispatchStateChanges(wasPaused, wasFlowing, wasBuffering) {
+		if (wasPaused && !this._paused) {
+			this.dispatchEvent('running')
+		} else if (!wasPaused && this._paused) {
+			this.dispatchEvent('pausing')
+		}
+
+		if (!wasFlowing && this._flowing) {
+			this.dispatchEvent('flowing')
+		} else if (!wasBuffering && this._buffering) {
+			this.dispatchEvent('buffering')
+		}
 	}
 
 	// _updateCurrentTime sets the currentTime and
@@ -854,7 +555,7 @@ export default class SvelteMediaElement {
 	// will update either the seekTime or playtime and
 	// remainingTime states.
 	_updateCurrentTime() {
-		const time = this._element.currentTime
+		const time = this.getElement().currentTime
 
 		this._currentTime = time
 		this._currentRemaining = this._duration - time
@@ -894,22 +595,22 @@ export default class SvelteMediaElement {
 // HTMLMediaElement listeners that manage the state of a
 // SvelteMediaElement. It returns an array of listener
 // entries.
-function generateStateListeners(sme) {
+function generateStateEventor(sme) {
 	function abort() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function canplay() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function canplaythrough() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function durationchange() {
-		sme._updateMetadata()
-		sme._syncStates()
+		sme._syncMetadataStates()
+		sme._syncMediaStates()
 	}
 
 	function emptied() {
@@ -917,44 +618,41 @@ function generateStateListeners(sme) {
 	}
 
 	function ended() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function error() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function loadeddata() {
-		sme._updateMetadata()
-		sme._syncStates()
+		sme._syncMetadataStates()
+		sme._syncMediaStates()
 	}
 
 	function loadedmetadata() {
-		sme._loaded = true
-
-		sme._updateMetadata()
-		sme._syncStates()
+		sme.syncStates()
 	}
 
 	function loadstart() {
 		sme._resetStates()
-		sme._syncStates()
+		sme.syncStates()
 	}
 
 	function pause() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function play() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function playing() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function progress() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function ratechange() {
@@ -962,19 +660,19 @@ function generateStateListeners(sme) {
 	}
 
 	function seeked() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function seeking() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function stalled() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function suspend() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function timeupdate() {
@@ -986,7 +684,7 @@ function generateStateListeners(sme) {
 	}
 
 	function waiting() {
-		sme._syncStates()
+		sme._syncMediaStates()
 	}
 
 	function waitingforkey() {
@@ -1019,142 +717,16 @@ function generateStateListeners(sme) {
 		waitingforkey,
 	}
 
-	return Object.keys(listeners).map((eventType) => {
-		return createListenerEntry(
-			eventType, //
-			listeners[eventType],
-			true
-		)
-	})
-}
-
-// isObject returns true if v is a non-null plain object.
-function isObject(v) {
-	return (
-		typeof v === 'object' && //
-		!Array.isArray(v) &&
-		v !== null
-	)
-}
-
-// isCapturing returns true if the listener options denote
-// the listener will be called during the capturing phase
-// of an event.
-function isCapturing(options) {
-	if (options === true) {
-		return true
-	}
-
-	if (isObject(options)) {
-		return options.capture === true
-	}
-
-	return false
-}
-
-// createListenerEntry creates an object holding the
-// eventType, listener, options, and capture phase. The
-// object is easier to use and pass around than the
-// event listener parameters themselves.
-function createListenerEntry(eventType, listener, options) {
-	return {
-		eventType, //
-		listener,
-		options,
-		capture: isCapturing(options),
-	}
-}
-
-// containsListenerEntry returns true if the listener
-// entry is present within listeners.
-//
-// Untracked.
-function containsListenerEntry(listeners, entry) {
-	const index = indexOfListenerEntry(
-		listeners, //
-		entry
-	)
-
-	return index > -1
-}
-
-// indexOfListenerEntry returns the index of the listener
-// entry containing a unique combination of eventType,
-// listener, and capturing phase (determined by the options
-// argument) within listeners. -1 is returned if the
-// combination does not exist.
-//
-// Untracked.
-function indexOfListenerEntry(listeners, entry) {
-	for (let i = 0; i < listeners.length; i++) {
-		const currEntry = listeners[i]
-
-		const match =
-			currEntry.eventType === entry.eventType && //
-			currEntry.listener === entry.listener &&
-			currEntry.capture === entry.capture
-
-		if (match) {
-			return i
+	// Transform to enable capture.
+	for (const eventType in listeners) {
+		listeners[eventType] = {
+			listener: listeners[eventType], //
+			options: { capture: true },
 		}
 	}
 
-	return -1
-}
-
-// addListenersToElement adds all listeners to the
-// element.
-//
-// Tracked.
-function addListenersToElement(element, listeners) {
-	for (const entry of listeners) {
-		addListenerToElement(element, entry)
-	}
-}
-
-// removeListenersFromElement removes all listeners from
-// the element.
-//
-// Tracked.
-function removeListenersFromElement(element, listeners) {
-	for (const entry of listeners) {
-		removeListenerFromElement(element, entry)
-	}
-}
-
-// addListenerToElement adds a listener to the element.
-//
-// Tracked.
-function addListenerToElement(element, entry) {
-	element.addEventListener(
-		entry.eventType, //
-		entry.listener,
-		entry.options
-	)
-}
-
-// removeListenerFromElement removes a listener from the
-// element.
-//
-// Tracked.
-function removeListenerFromElement(element, entry) {
-	element.removeEventListener(
-		entry.eventType, //
-		entry.listener,
-		entry.options
-	)
-}
-
-// dispatchEvent dispatches an event on the element
-// with bubbling, cancelable, composed options all false.
-//
-// Tracked.
-function dispatchEvent(element, eventType) {
-	const event = new Event(eventType, {
-		bubbles: false, //
-		cancelable: false,
-		composed: false,
-	})
-
-	element.dispatchEvent(event)
+	const eventor = new Eventor()
+	eventor.on(listeners)
+	console.log(eventor._entries)
+	return eventor
 }

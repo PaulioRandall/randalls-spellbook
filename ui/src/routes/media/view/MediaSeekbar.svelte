@@ -7,7 +7,7 @@
 
 	onMount(() => {
 		value = svelteMediaElement.currentTime
-		return svelteMediaElement.onAll({ timeupdate })
+		return svelteMediaElement.on({ timeupdate })
 	})
 
 	function onpointerdown(event) {
