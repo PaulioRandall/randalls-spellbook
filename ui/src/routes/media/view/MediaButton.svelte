@@ -9,5 +9,9 @@
 <style>
 	button {
 		cursor: pointer;
+
+		&:disabled {
+			cursor: not-allowed;
+		}
 	}
 </style>

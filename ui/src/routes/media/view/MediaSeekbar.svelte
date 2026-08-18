@@ -2,32 +2,35 @@
 	import { onMount } from 'svelte'
 	import eventUtil from '$lib/eventUtil.js'
 
-	let { svelteMediaElement, ...attrs } = $props()
+	let { mediaSvox, ...attrs } = $props()
+
+	let disabled = $derived(!mediaSvox.seekable)
+	let max = $derived(mediaSvox.duration)
 	let value = $state(0)
 
 	onMount(() => {
-		value = svelteMediaElement.currentTime
-		return svelteMediaElement.on({ timeupdate })
+		value = mediaSvox.currentTime
+		return mediaSvox.on({ timeupdate })
 	})
 
 	function onpointerdown(event) {
 		if (eventUtil.isPrimaryButton(event)) {
-			svelteMediaElement.off('timeupdate', timeupdate)
+			mediaSvox.off('timeupdate', timeupdate)
 		}
 	}
 
 	function onpointerup(event) {
 		if (eventUtil.isPrimaryButton(event)) {
-			svelteMediaElement.on('timeupdate', timeupdate)
+			mediaSvox.on('timeupdate', timeupdate)
 		}
 	}
 
 	function timeupdate() {
-		value = svelteMediaElement.currentTime
+		value = mediaSvox.currentTime
 	}
 
 	function oninput() {
-		svelteMediaElement.seekTo(value)
+		mediaSvox.seekTo(value)
 	}
 </script>
 
@@ -37,15 +40,19 @@
 	{...attrs}
 	bind:value
 	class:media-seekbar={true}
-	disabled={!svelteMediaElement.seekable}
 	type="range"
 	min="0"
-	max={svelteMediaElement.duration}
+	{max}
+	{disabled}
 	{onpointerdown}
 	{oninput} />
 
 <style>
 	.media-seekbar {
 		width: 99%;
+
+		&:disabled {
+			cursor: not-allowed;
+		}
 	}
 </style>

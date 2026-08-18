@@ -1,25 +1,9 @@
 import { untrack } from 'svelte'
-import ElementalSvox from './ElementalSvox.svelte.js'
+import ElementSvox from './ElementSvox.svelte.js'
 import Eventor from './Eventor.js'
 
-// SvelteMediaElement is a Reactive Element Adapter Box
-// for the standard HTMLMediaElement class.
-//
-// READOX classes follow a set of rules aimed at providing
-// clarity for programmers and minimising reactivity issues
-// that can be hard to debug:
-// 1. All public properties are readonly, i.e. they can
-//    only be set internally or through public functions.
-// 2. All public properties are reactive and tracked,
-//    i.e. they are created through runes such as $state
-//    and $derived, and trigger $effect and $derived runes.
-// 3. All public functions are non-reactive and untracked,
-//    i.e. they do not trigger $effect or $derived runes.
-//    Use common and iconic verbs for functions that get or
-//    set properties: e.g. get, is, has, set, put, update.
-// 4. Instances of the class must never be null. The
-//    purpose of being a box is to minimise the need for
-//    existence checking.
+// HTMLMediaElementSvox is a ElementSvox specific for the
+// standard HTMLMediaElement class.
 //
 // The primary purpose was to decouple Svelte components
 // from the underlying HTMLMediaElement. Because the
@@ -87,7 +71,7 @@ import Eventor from './Eventor.js'
 // public functions should be untracked. This makes it even
 // easier for readers to quickly understand the reactivity
 // of some code.
-export default class SvelteMediaElement extends ElementalSvox {
+export default class HTMLMediaElementSvox extends ElementSvox {
 	// _stateEventor are capturing event listeners that
 	// mutate the adpaters state. They are added first when
 	// an element is set so they fire first.
@@ -593,8 +577,7 @@ export default class SvelteMediaElement extends ElementalSvox {
 
 // generateStateListeners creates the set of
 // HTMLMediaElement listeners that manage the state of a
-// SvelteMediaElement. It returns an array of listener
-// entries.
+// HTMLMediaElementSvox. It returns an array of listener entries.
 function generateStateEventor(sme) {
 	function abort() {
 		sme._syncMediaStates()
@@ -727,6 +710,5 @@ function generateStateEventor(sme) {
 
 	const eventor = new Eventor()
 	eventor.on(listeners)
-	console.log(eventor._entries)
 	return eventor
 }

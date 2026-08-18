@@ -1,7 +1,7 @@
 import { untrack } from 'svelte'
 import Eventor from './Eventor.js'
 
-// ElementalSvox is a generic SVOX for standard web
+// ElementSvox is a generic SVOX for standard web
 // Elements. It is intended for extension.
 //
 // SVOX (Svelte Adapter Box) classes follow a set of
@@ -19,7 +19,7 @@ import Eventor from './Eventor.js'
 // 4. Instances of the class must never be null. The
 //    purpose of being a box is to minimise the need for
 //    existence checking.
-export default class ElementalSvox {
+export default class ElementSvox {
 	_eventor = new Eventor()
 
 	// _element is the boxed HTMLElement, which may be null.

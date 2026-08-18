@@ -212,6 +212,25 @@ class ListenerEntry {
 
 		return true
 	}
+
+	// addTo adds the listener to the passed eventTarget.
+	addTo(eventTarget) {
+		eventTarget.addEventListener(
+			this._eventType, //
+			this._listener,
+			this._options
+		)
+	}
+
+	// removeFrom removes the listener from the passed
+	// eventTarget.
+	removeFrom(eventTarget) {
+		eventTarget.removeEventListener(
+			this._eventType, //
+			this._listener,
+			this._options
+		)
+	}
 }
 
 // Eventor is a store of event lsiteners that can be added
@@ -337,11 +356,7 @@ export default class Eventor {
 	// eventTarget.
 	addTo(eventTarget) {
 		for (const entry of this._entries) {
-			eventTarget.addEventListener(
-				entry.eventType, //
-				entry.listener,
-				entry.options
-			)
+			entry.addTo(eventTarget)
 		}
 	}
 
@@ -349,11 +364,7 @@ export default class Eventor {
 	// passed eventTarget.
 	removeFrom(eventTarget) {
 		for (const entry of this._entries) {
-			eventTarget.removeEventListener(
-				entry.eventType, //
-				entry.listener,
-				entry.options
-			)
+			entry.removeFrom(eventTarget)
 		}
 	}
 

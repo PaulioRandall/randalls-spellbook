@@ -1,14 +1,14 @@
 <script>
 	import MediaButton from './MediaButton.svelte'
 
-	const title = 'Quick jump back to the beginning'
+	const title = 'Reload from file'
 
 	let { mediaSvox } = $props()
 	let disabled = $derived(!mediaSvox.loaded)
 
 	function onclick() {
-		mediaSvox.restart()
+		mediaSvox.reload()
 	}
 </script>
 
-<MediaButton {disabled} {onclick} {title}>Reset</MediaButton>
+<MediaButton {disabled} {onclick} {title}>Reload</MediaButton>

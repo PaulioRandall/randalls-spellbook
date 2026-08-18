@@ -1,22 +1,30 @@
 <script>
 	import MediaButton from './MediaButton.svelte'
 
-	let { svelteMediaElement } = $props()
+	const textStates = {
+		playing: { label: 'Pause', title: 'Pause the media' },
+		paused: { label: 'Play', title: 'Play the media' },
+	}
 
-	let label = $derived(
-		svelteMediaElement.paused ? 'Play' : 'Pause' //
-	)
+	let { mediaSvox } = $props()
+
+	let textState = $derived.by(() => {
+		if (mediaSvox.paused) {
+			return textStates.playing
+		}
+		return textStates.paused
+	})
 
 	let disabled = $derived(
-		!svelteMediaElement.running && //
-			!svelteMediaElement.playable
+		!mediaSvox.running && //
+			!mediaSvox.playable
 	)
 
 	function onclick() {
-		svelteMediaElement.playPause()
+		mediaSvox.playPause()
 	}
 </script>
 
-<MediaButton {disabled} {onclick}>
-	{label}
+<MediaButton {disabled} {onclick} title={textState.title}>
+	{textState.label}
 </MediaButton>
