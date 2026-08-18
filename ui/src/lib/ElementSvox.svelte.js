@@ -1,24 +1,35 @@
-import { untrack } from 'svelte'
-import Eventor from './Eventor.js'
-
-// ElementSvox is a generic SVOX for standard web
-// Elements. It is intended for extension.
-//
-// SVOX (Svelte Adapter Box) classes follow a set of
-// rules aimed at providing clarity for programmers and
-// minimising reactivity issues that can be hard to debug:
+// SVOX (Svelte Adapter Box) classes and their usage follow
+// a strict set of rules aimed at providing clarity for
+// programmers and minimising reactivity issues that can be
+// hard to debug:
 // 1. All public properties are readonly, i.e. they can
 //    only be set internally or through public functions.
+//    Keep them non-public and use getters to minimise
+//    falling foul.
 // 2. All public properties are reactive and tracked,
 //    i.e. they are created through runes such as $state
 //    and $derived, and trigger $effect and $derived runes.
 // 3. All public functions are non-reactive and untracked,
 //    i.e. they do not trigger $effect or $derived runes.
-//    Use common and iconic verbs for functions that get or
+//    Use Svelte's untrack function if needed to prevent
+//    state access triggering runes.
+// 4. Identifiers holding SVOX instances must never be
+//    null. Assign as constant if possible. The purpose of
+//    being a box is to minimise the need for existence
+//    checking. Users are allowed to perform certain
+//    actions even when the element is not set that trigger
+//    some effect when the element is set, e.g. adding
+//    event listeners to be added and removed from an
+//    element when set and unset.
+// 4. Use common and iconic verbs for functions that get or
 //    set properties: e.g. get, is, has, set, put, update.
-// 4. Instances of the class must never be null. The
-//    purpose of being a box is to minimise the need for
-//    existence checking.
+//    But readability and changability has priority.
+
+import { untrack } from 'svelte'
+import Eventor from './Eventor.js'
+
+// ElementSvox is a generic SVOX for standard web
+// Elements. It is intended for extension.
 export default class ElementSvox {
 	_eventor = new Eventor()
 
