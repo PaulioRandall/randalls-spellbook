@@ -13,19 +13,27 @@ func New() *Project {
 	return &Project{}
 }
 
-// AddVideo creates a new video entity and adds it to the
-// list of videos. See entity.MakeVideo for more
+// AddMedia creates a new Media entity and adds it to the
+// list of media. See entity.MakeMedia for more
 // information.
-func (p *Project) AddVideo(
-	name, description, localPath string,
+func (p *Project) AddMedia(
+	mediaType entity.MediaType,
+	name string,
+	description string,
+	localPath string,
 ) (entity.Media, error) {
-	v, e := entity.MakeVideo(name, description, localPath)
+	m, e := entity.MakeMedia(
+		mediaType,
+		name,
+		description,
+		localPath,
+	)
 
 	if e == nil {
-		p.media = append(p.media, v)
+		p.media = append(p.media, m)
 	}
 
-	return v, e
+	return m, e
 }
 
 // GetAllMedia returns all media.

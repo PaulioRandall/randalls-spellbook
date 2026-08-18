@@ -1,18 +1,21 @@
 const testMedia = [
 	{
 		entityId: 'abcdefghijklmnopqrstuvwxyz-1111',
+		mediaType: 'video',
 		name: 'Alice',
 		description: 'Alice in chains.',
 		localPath: 'C://data/alice-in-chains.mp4',
 	},
 	{
 		entityId: 'abcdefghijklmnopqrstuvwxyz-2222',
+		mediaType: 'video',
 		name: 'Bob',
 		description: "Bob's your uncle.",
 		localPath: 'C://data/bobs-your-uncle.mp4',
 	},
 	{
 		entityId: 'abcdefghijklmnopqrstuvwxyz-3333',
+		mediaType: 'video',
 		name: 'Charlie',
 		description: 'Charlie loves cheese.',
 		localPath: 'C://data/charlie-loves-cheese.mp4',
@@ -42,10 +45,16 @@ async function selectLocalMediaFile() {
 	return '/path/to/media file.mp4'
 }
 
-async function addMedia(name, description, localPath) {
-	if (!!window?.addVideoToProject) {
-		return window.addVideoToProject(
-			name, //
+async function addMedia(
+	mediaType, //
+	name,
+	description,
+	localPath
+) {
+	if (!!window?.addMediaToProject) {
+		return window.addMediaToProject(
+			mediaType, //
+			name,
 			description,
 			localPath
 		)
@@ -55,6 +64,7 @@ async function addMedia(name, description, localPath) {
 
 	testMedia.push({
 		entityId, //
+		mediaType,
 		name,
 		description,
 		localPath,

@@ -26,19 +26,19 @@ var webview glaze.WebView
 // window and starting the file server.
 func Run(debug bool) error {
 	proj = project.New()
-	fileServer, err := createFileServer()
+	fileServer, e := createFileServer()
 
-	if err != nil {
-		return err
+	if e != nil {
+		return e
 	}
 
 	return startUi(fileServer, debug)
 }
 
 func createFileServer() (*http.ServeMux, error) {
-	svelteFS, err := fs.Sub(buildFS, "build")
-	if err != nil {
-		return nil, err
+	svelteFS, e := fs.Sub(buildFS, "build")
+	if e != nil {
+		return nil, e
 	}
 
 	mux := http.NewServeMux()
@@ -70,7 +70,7 @@ func startUi(handler http.Handler, debug bool) error {
 				return err
 			}
 
-			err = w.Bind("addVideoToProject", addVideoToProject)
+			err = w.Bind("addMediaToProject", addMediaToProject)
 			if err != nil {
 				return err
 			}
@@ -98,15 +98,29 @@ func selectLocalMediaFile() (string, error) {
 	})
 }
 
-func addVideoToProject(
-	name, description, localPath string,
+func addMediaToProject(
+	mediaType string,
+	name string,
+	description string,
+	localPath string,
 ) (string, error) {
-	media, err := proj.AddVideo(name, description, localPath)
-	return string(media.EntityId()), err
+	mt, e := entity.ToMediaType(mediaType)
+	if e != nil {
+		return "", e
+	}
+
+	m, e := proj.AddMedia(
+		mt,
+		name,
+		description,
+		localPath,
+	)
+	return string(m.EntityId), e
 }
 
 type MediaResult struct {
 	EntityId    string `json:"entityId"`
+	MediaType   string `json:"mediaType"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	LocalPath   string `json:"lcoalPath"`
@@ -114,10 +128,11 @@ type MediaResult struct {
 
 func makeMediaResult(media entity.Media) MediaResult {
 	return MediaResult{
-		EntityId:    media.EntityId().String(),
-		Name:        media.Name(),
-		Description: media.Description(),
-		LocalPath:   media.LocalPath(),
+		EntityId:    media.EntityId.String(),
+		MediaType:   media.MediaType.String(),
+		Name:        media.Name,
+		Description: media.Description,
+		LocalPath:   media.LocalPath,
 	}
 }
 
@@ -135,7 +150,7 @@ func getAllMedia() []MediaResult {
 func getMediaById(entityId string) (MediaResult, error) {
 	media := proj.GetMediaById(entity.EntityId(entityId))
 
-	if media == nil {
+	if media.IsEmpty() {
 		return MediaResult{}, errors.New("Unable to find media")
 	}
 

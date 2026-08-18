@@ -3,6 +3,9 @@
 	import { goto } from '$app/navigation'
 	import backend from '$lib/backend.js'
 
+	let mediaType = $state('video')
+	let mediaTypeError = $state('')
+
 	let name = $state('')
 	let nameError = $state('')
 
@@ -35,7 +38,8 @@
 		}
 
 		const entityId = await backend.addMedia(
-			name, //
+			mediaType, //
+			name,
 			description,
 			localPath
 		)
@@ -68,6 +72,16 @@
 
 <main>
 	<div class="form">
+		<div class="form-field">
+			<label class="form-field-media-type" for="mediaType"> Media type </label>
+			{#if mediaTypeError}
+				<p class="form-field-error">
+					{mediaTypeErrorError}
+				</p>
+			{/if}
+			<!-- TODO: Convert to select -->
+			<input readonly type="text" name="mediaType" bind:value={mediaType} />
+		</div>
 		<div class="form-field">
 			<label class="form-field-label" for="name"> Name </label>
 			{#if nameError}

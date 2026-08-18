@@ -26,7 +26,7 @@ func New(mediaSource MediaSource) http.Handler {
 
 func (ms MediaServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	media := lookupMedia(w, r, ms.mediaSource)
-	if media != nil {
+	if !media.IsEmpty() {
 		serveMedia(w, r, media)
 	}
 }
@@ -36,22 +36,21 @@ func lookupMedia(w http.ResponseWriter, r *http.Request, mediaSource MediaSource
 
 	if entityIdParam == "" {
 		http.Error(w, "Missing or invalid entity ID parameter", http.StatusBadRequest)
-		return nil
+		return entity.Media{}
 	}
 
 	entityId := entity.EntityId(entityIdParam)
 	media := mediaSource.GetMediaById(entityId)
 
-	if media == nil {
+	if media.IsEmpty() {
 		http.Error(w, "Could not find media by ID", http.StatusBadRequest)
-		return nil
 	}
 
 	return media
 }
 
 func serveMedia(w http.ResponseWriter, r *http.Request, media entity.Media) {
-	file, err := os.Open(media.LocalPath())
+	file, err := os.Open(media.LocalPath)
 	if err != nil {
 		http.Error(w, "Could not find media file", http.StatusNotFound)
 		return

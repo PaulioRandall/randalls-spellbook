@@ -13,13 +13,6 @@ func (id EntityId) String() string {
 	return string(id)
 }
 
-// MediaType is a string representing the type of media,
-// e.g. video, audio, PDF, etc.
-//
-// Media type constants are defined within the Go file
-// holding its implementation.
-type MediaType string
-
 // randomEntityId randomly generates a new EntityId in the
 // form of a UUID.
 func randomEntityId() EntityId {
