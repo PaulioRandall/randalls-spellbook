@@ -25,9 +25,17 @@ var webview glaze.WebView
 // Run starts (blocking) the UI by creating a WebView
 // window and starting the file server.
 func Run(debug bool) error {
-	proj = project.New()
-	fileServer, e := createFileServer()
+	proj = project.New("./testproject/data.sqlite")
 
+	// TEMP START
+	// TODO: Implement project selection in UI.
+	e := proj.Open()
+	if e != nil {
+		return e
+	}
+	// TEMP END
+
+	fileServer, e := createFileServer()
 	if e != nil {
 		return e
 	}
@@ -52,7 +60,7 @@ func createFileServer() (*http.ServeMux, error) {
 	return mux, nil
 }
 
-func startUi(handler http.Handler, debug bool) error {
+func startUi(handler http.Handler, debug bool) (e error) {
 	options := AppOptions{
 		Debug:   debug,
 		Title:   "Randall's Spellbook",
@@ -65,29 +73,38 @@ func startUi(handler http.Handler, debug bool) error {
 
 			// TODO: Create struct and use BindMethods.
 
-			err := w.Bind("selectLocalMediaFile", selectLocalMediaFile)
-			if err != nil {
-				return err
+			e = w.Bind("selectLocalMediaFile", selectLocalMediaFile)
+			if e != nil {
+				return e
 			}
 
-			err = w.Bind("addMediaToProject", addMediaToProject)
-			if err != nil {
-				return err
+			e = w.Bind("addMediaToProject", addMediaToProject)
+			if e != nil {
+				return e
 			}
 
-			err = w.Bind("getAllMedia", getAllMedia)
-			if err != nil {
-				return err
+			e = w.Bind("getAllMedia", getAllMedia)
+			if e != nil {
+				return e
 			}
 
-			err = w.Bind("getMediaById", getMediaById)
-			if err != nil {
-				return err
+			e = w.Bind("getMediaById", getMediaById)
+			if e != nil {
+				return e
 			}
 
 			return nil
 		},
 	}
+
+	defer func() {
+		closeErr := proj.Close()
+
+		// Don't hide original error.
+		if e == nil {
+			e = closeErr
+		}
+	}()
 
 	return AppWindow(options)
 }
@@ -136,22 +153,32 @@ func makeMediaResult(media entity.Media) MediaResult {
 	}
 }
 
-func getAllMedia() []MediaResult {
-	mediaList := proj.GetAllMedia()
+func getAllMedia() ([]MediaResult, error) {
+	mediaList, e := proj.GetAllMedia()
+
+	if e != nil {
+		return nil, e
+	}
+
 	result := []MediaResult{}
 
 	for _, media := range mediaList {
 		result = append(result, makeMediaResult(media))
 	}
 
-	return result
+	return result, nil
 }
 
 func getMediaById(entityId string) (MediaResult, error) {
-	media := proj.GetMediaById(entity.EntityId(entityId))
+	empty := MediaResult{}
+	media, e := proj.GetMediaById(entity.EntityId(entityId))
+
+	if e != nil {
+		return empty, e
+	}
 
 	if media.IsEmpty() {
-		return MediaResult{}, errors.New("Unable to find media")
+		return empty, errors.New("Unable to find media")
 	}
 
 	return makeMediaResult(media), nil

@@ -1,6 +1,7 @@
 package mediaserver
 
 import (
+	"log"
 	"net/http"
 	"os"
 
@@ -13,7 +14,7 @@ import (
 // TODO: Return 404 if media doesn't exist.
 
 type MediaSource interface {
-	GetMediaById(id entity.EntityId) entity.Media
+	GetMediaById(id entity.EntityId) (entity.Media, error)
 }
 
 type MediaServer struct {
@@ -40,7 +41,12 @@ func lookupMedia(w http.ResponseWriter, r *http.Request, mediaSource MediaSource
 	}
 
 	entityId := entity.EntityId(entityIdParam)
-	media := mediaSource.GetMediaById(entityId)
+	media, e := mediaSource.GetMediaById(entityId)
+
+	if e != nil {
+		log.Println(e)
+		http.Error(w, "Error looking up media", http.StatusInternalServerError)
+	}
 
 	if media.IsEmpty() {
 		http.Error(w, "Could not find media by ID", http.StatusBadRequest)

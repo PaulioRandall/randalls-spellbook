@@ -3,6 +3,10 @@
 	import { goto } from '$app/navigation'
 	import backend from '$lib/backend.js'
 
+	const mediaTypes = {
+		video: 'Video', //
+	}
+
 	let mediaType = $state('video')
 	let mediaTypeError = $state('')
 
@@ -50,23 +54,38 @@
 	}
 
 	function validateFields() {
+		mediaTypeError = ''
 		nameError = ''
 		descriptionError = ''
 		localPathError = ''
 
+		mediaType = mediaType.trim()
 		name = name.trim()
 		description = description.trim()
 		localPath = localPath.trim()
 
+		if (!mediaType) {
+			mediaTypeError = 'Select a media type'
+		}
+
+		if (!Object.hasOwn(mediaTypes, mediaType)) {
+			mediaTypeError = 'Select a media type. The one provided is invalid.'
+		}
+
 		if (!name) {
-			nameError = 'Provide a name for the media file'
+			nameError = 'Name the new media'
 		}
 
 		if (!localPath) {
 			localPathError = 'Select a media file'
 		}
 
-		return !nameError && !descriptionError && !localPathError
+		return (
+			!mediaTypeError && //
+			!nameError &&
+			!descriptionError &&
+			!localPathError
+		)
 	}
 </script>
 
@@ -79,8 +98,11 @@
 					{mediaTypeErrorError}
 				</p>
 			{/if}
-			<!-- TODO: Convert to select -->
-			<input readonly type="text" name="mediaType" bind:value={mediaType} />
+			<select name="mediaType" bind:value={mediaType}>
+				{#each Object.entries(mediaTypes) as [value, label] (value)}
+					<option {value}>{label}</option>
+				{/each}
+			</select>
 		</div>
 		<div class="form-field">
 			<label class="form-field-label" for="name"> Name </label>

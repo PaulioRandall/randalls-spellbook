@@ -1,16 +1,41 @@
 package project
 
 import (
+	"github.com/PaulioRandall/randalls-spellbook/pkg/datastore"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/datastore/sqlite"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/entity"
 )
 
+// Project is the access to project data including
+// project configuration.
 type Project struct {
-	media []entity.Media
+	ds datastore.Datastore
 }
 
 // New creates and returns a new empty project.
-func New() *Project {
-	return &Project{}
+func New(path string) *Project {
+	return &Project{
+		ds: sqlite.New(path),
+	}
+}
+
+// Path returns the file path to the project file, i.e.
+// its datastore.
+func (p *Project) Path() string {
+	return p.ds.Path()
+}
+
+// Open opens the project. The project datastore is opened,
+// being created first if it doesn't exist. Project
+// configuration is loaded.
+func (p *Project) Open() error {
+	return p.ds.Open()
+	// TODO: Load configuration.
+}
+
+// Close closes the datastore and cleans up resources.
+func (p *Project) Close() error {
+	return p.ds.Close()
 }
 
 // AddMedia creates a new Media entity and adds it to the
@@ -22,6 +47,8 @@ func (p *Project) AddMedia(
 	description string,
 	localPath string,
 ) (entity.Media, error) {
+	empty := entity.Media{}
+
 	m, e := entity.MakeMedia(
 		mediaType,
 		name,
@@ -29,20 +56,27 @@ func (p *Project) AddMedia(
 		localPath,
 	)
 
-	if e == nil {
-		p.media = append(p.media, m)
+	if e != nil {
+		return empty, e
 	}
 
-	return m, e
+	e = p.ds.InsertMedia(m)
+	if e != nil {
+		return empty, e
+	}
+
+	return m, nil
 }
 
 // GetAllMedia returns all media.
-func (p Project) GetAllMedia() []entity.Media {
-	return p.media
+func (p Project) GetAllMedia() ([]entity.Media, error) {
+	return p.ds.GetAllMedia()
 }
 
-// GetMediaById returns the media with the given EntityId
+// GetMediaById returns the media with the given entityId
 // or nil if it doesn't exist.
-func (p Project) GetMediaById(entityId entity.EntityId) entity.Media {
-	return entity.FindMediaById(p.media, entityId)
+func (p Project) GetMediaById(
+	entityId entity.EntityId,
+) (entity.Media, error) {
+	return p.ds.GetMediaById(entityId)
 }
