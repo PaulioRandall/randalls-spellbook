@@ -1,53 +1,37 @@
-package entity
+package data
 
 import (
+	"database/sql"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 )
 
-// MediaType is a string representing the type of media,
-// e.g. video, audio, PDF, etc.
-type MediaType string
-
-// ToMediaType returns the MediaType given its string
-// representation. If there is no matching MediaType then
-// an error is returned.
-func ToMediaType(s string) (MediaType, error) {
-	mt := MediaType(s)
-
-	if SupportsMediaType(mt) {
-		return mt, nil
-	}
-
-	// TODO: Fmt with the media type for debugging.
-	return "", errors.New("Invalid media type")
-}
-
-// SupportsMediaType returns true if the given MediaType is
-// supported.
-func SupportsMediaType(mt MediaType) bool {
-	switch mt {
-	case MediaTypeVideo:
-		return true
-	default:
-		return false
-	}
-}
-
-func (mt MediaType) String() string {
-	return string(mt)
-}
-
 // MediaTypeVideo is only used by video implementations
 // of Media.
 const (
-	MediaTypeUnknown MediaType = "unknown"
-	MediaTypeVideo   MediaType = "video"
+	MediaTypeVideo string = "video"
 )
 
+var supportedMediaTypes []string = []string{
+	MediaTypeVideo,
+}
+
+// SupportsMediaType returns true if the given media type
+// is supported.
+func SupportsMediaType(mt string) bool {
+	for _, smt := range supportedMediaTypes {
+		if mt == smt {
+			return true
+		}
+	}
+	return false
+}
+
 // Media holds information about a user defined media
-// entity.
+// entity. It maps directly to a single table in the
+// database.
 type Media struct {
 	// EntityId of the video.
 	//
@@ -57,7 +41,7 @@ type Media struct {
 
 	// MediaType is type of the media, e.g. video, audio,
 	// PDF, etc.
-	MediaType MediaType
+	MediaType string
 
 	// Name is the user defined readable and meaningful name
 	// for human users and AI agents. This is not the
@@ -90,10 +74,10 @@ type Media struct {
 // name or localPath are empty, or if localPath is not a
 // valid absolute filepath.
 //
-// The exsitance of the file or file type are not checked
+// The existence of the file or file type are not checked
 // but this may change in the future.
 func MakeMedia(
-	mediaType MediaType,
+	mediaType string,
 	name string,
 	description string,
 	localPath string,
@@ -135,7 +119,7 @@ func (m Media) GetEntityId() EntityId {
 
 // GetMediaType returns the type of the media, e.g. video,
 // audio, PDF, etc.
-func (m Media) GetMediaType() MediaType {
+func (m Media) GetMediaType() string {
 	return m.MediaType
 }
 
@@ -167,24 +151,133 @@ func (m Media) GetLocalPath() string {
 	return m.LocalPath
 }
 
-// IsEmpty returns true if the instance is an empty
-// Media.
-func (m Media) IsEmpty() bool {
-	return m == Media{}
-}
+func createMediaTable(db *sql.DB) error {
+	query := `
+		CREATE TABLE IF NOT EXISTS media (
+			id INTEGER PRIMARY KEY,
+			entity_id TEXT UNIQUE NOT NULL ON CONFLICT ROLLBACK,
+			media_type TEXT NOT NULL,
+			name TEXT NOT NULL,
+			description TEXT NOT NULL,
+			local_path TEXT NOT NULL
+		)
+	`
 
-// FindMediaById looks up a specific media in mediaList
-// given an entityId. If not found, an empty Media is
-// returned.
-func FindMediaById(
-	mediaList []Media,
-	entityId EntityId,
-) Media {
-	for _, m := range mediaList {
-		if m.EntityId == entityId {
-			return m
-		}
+	_, e := db.Exec(query)
+
+	if e != nil {
+		return fmt.Errorf("Failed to create media table: %w", e)
 	}
 
-	return Media{}
+	return nil
+}
+
+func insertMedia(db *sql.DB, media Media) error {
+	query := `
+		INSERT INTO media (
+			entity_id,
+			media_type,
+			name,
+			description,
+			local_path
+		) VALUES (?, ?, ?, ?, ?)
+	`
+
+	_, e := db.Exec(
+		query,
+		media.EntityId,
+		media.MediaType,
+		media.Name,
+		media.Description,
+		media.LocalPath,
+	)
+
+	if e != nil {
+		return fmt.Errorf("Failed to insert media: %w", e)
+	}
+
+	return nil
+}
+
+func listMedia(db *sql.DB) ([]Media, error) {
+	query := `
+		SELECT
+			entity_id,
+			media_type,
+			name,
+			description,
+			local_path
+		FROM
+			media
+	`
+
+	rows, e := db.Query(query)
+	if e != nil {
+		return nil, fmt.Errorf("Failed to query media table (all): %w", e)
+	}
+
+	defer rows.Close()
+	return parseMediaRows(rows)
+}
+
+func getMediaByEntityId(
+	db *sql.DB,
+	entityId EntityId,
+) (Media, error) {
+	query := `
+		SELECT
+			entity_id,
+			media_type,
+			name,
+			description,
+			local_path
+		FROM
+			media
+		WHERE
+			entity_id = ?
+	`
+
+	empty := Media{}
+
+	rows, e := db.Query(query, entityId)
+	if e != nil {
+		return empty, fmt.Errorf("Failed to query media table by EntityId: %w", e)
+	}
+
+	defer rows.Close()
+
+	media, e := parseMediaRows(rows)
+	if e != nil {
+		return empty, e
+	}
+
+	if len(media) == 0 {
+		return empty, nil
+	}
+
+	return media[0], nil
+}
+
+func parseMediaRows(rows *sql.Rows) ([]Media, error) {
+	var result []Media
+
+	for rows.Next() {
+		var m Media
+
+		e := rows.Scan(
+			&m.EntityId,
+			&m.MediaType,
+			&m.Name,
+			&m.Description,
+			&m.LocalPath,
+		)
+
+		if e != nil {
+			return nil, fmt.Errorf("Failed to scan media row: %w", e)
+		}
+
+		result = append(result, m)
+	}
+
+	return result, rows.Err()
 }

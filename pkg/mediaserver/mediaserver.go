@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/entity"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/data"
 )
 
 // TODO: Improve error descriptions to include names and
@@ -14,7 +14,7 @@ import (
 // TODO: Return 404 if media doesn't exist.
 
 type MediaSource interface {
-	GetMediaById(id entity.EntityId) (entity.Media, error)
+	GetMediaById(id data.EntityId) (data.Media, error)
 }
 
 type MediaServer struct {
@@ -25,40 +25,68 @@ func New(mediaSource MediaSource) http.Handler {
 	return MediaServer{mediaSource}
 }
 
-func (ms MediaServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (ms MediaServer) ServeHTTP(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	media := lookupMedia(w, r, ms.mediaSource)
-	if !media.IsEmpty() {
+	if media != (data.Media{}) {
 		serveMedia(w, r, media)
 	}
 }
 
-func lookupMedia(w http.ResponseWriter, r *http.Request, mediaSource MediaSource) entity.Media {
+func lookupMedia(
+	w http.ResponseWriter,
+	r *http.Request,
+	mediaSource MediaSource,
+) data.Media {
 	entityIdParam := r.URL.Query().Get("entity_id")
 
 	if entityIdParam == "" {
-		http.Error(w, "Missing or invalid entity ID parameter", http.StatusBadRequest)
-		return entity.Media{}
+		http.Error(
+			w,
+			"Missing or invalid entity ID parameter",
+			http.StatusBadRequest,
+		)
+
+		return data.Media{}
 	}
 
-	entityId := entity.EntityId(entityIdParam)
+	entityId := data.EntityId(entityIdParam)
 	media, e := mediaSource.GetMediaById(entityId)
 
 	if e != nil {
 		log.Println(e)
-		http.Error(w, "Error looking up media", http.StatusInternalServerError)
+		http.Error(
+			w,
+			"Error looking up media",
+			http.StatusInternalServerError,
+		)
 	}
 
-	if media.IsEmpty() {
-		http.Error(w, "Could not find media by ID", http.StatusBadRequest)
+	if media == (data.Media{}) {
+		http.Error(
+			w,
+			"Could not find media by ID",
+			http.StatusBadRequest,
+		)
 	}
 
 	return media
 }
 
-func serveMedia(w http.ResponseWriter, r *http.Request, media entity.Media) {
+func serveMedia(
+	w http.ResponseWriter,
+	r *http.Request,
+	media data.Media,
+) {
 	file, err := os.Open(media.LocalPath)
 	if err != nil {
-		http.Error(w, "Could not find media file", http.StatusNotFound)
+		http.Error(
+			w,
+			"Could not find media file",
+			http.StatusNotFound,
+		)
 		return
 	}
 
@@ -66,7 +94,11 @@ func serveMedia(w http.ResponseWriter, r *http.Request, media entity.Media) {
 
 	info, err := file.Stat()
 	if err != nil {
-		http.Error(w, "Could not read media file stats", http.StatusInternalServerError)
+		http.Error(
+			w,
+			"Could not read media file stats",
+			http.StatusInternalServerError,
+		)
 		return
 	}
 

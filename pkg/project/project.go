@@ -1,55 +1,53 @@
 package project
 
 import (
-	"github.com/PaulioRandall/randalls-spellbook/pkg/datastore"
-	"github.com/PaulioRandall/randalls-spellbook/pkg/datastore/sqlite"
-	"github.com/PaulioRandall/randalls-spellbook/pkg/entity"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/data"
 )
 
 // Project is the access to project data including
 // project configuration.
 type Project struct {
-	ds datastore.Datastore
+	store data.Store
 }
 
 // New creates and returns a new empty project.
 func New(path string) *Project {
 	return &Project{
-		ds: sqlite.New(path),
+		store: data.NewStore(path),
 	}
 }
 
 // Path returns the file path to the project file, i.e.
 // its datastore.
 func (p *Project) Path() string {
-	return p.ds.Path()
+	return p.store.Path()
 }
 
 // Open opens the project. The project datastore is opened,
 // being created first if it doesn't exist. Project
 // configuration is loaded.
 func (p *Project) Open() error {
-	return p.ds.Open()
+	return p.store.Open()
 	// TODO: Load configuration.
 }
 
 // Close closes the datastore and cleans up resources.
 func (p *Project) Close() error {
-	return p.ds.Close()
+	return p.store.Close()
 }
 
 // AddMedia creates a new Media entity and adds it to the
-// list of media. See entity.MakeMedia for more
+// list of media. See data.MakeMedia for more
 // information.
 func (p *Project) AddMedia(
-	mediaType entity.MediaType,
+	mediaType string,
 	name string,
 	description string,
 	localPath string,
-) (entity.Media, error) {
-	empty := entity.Media{}
+) (data.Media, error) {
+	empty := data.Media{}
 
-	m, e := entity.MakeMedia(
+	m, e := data.MakeMedia(
 		mediaType,
 		name,
 		description,
@@ -60,7 +58,7 @@ func (p *Project) AddMedia(
 		return empty, e
 	}
 
-	e = p.ds.InsertMedia(m)
+	e = p.store.InsertMedia(m)
 	if e != nil {
 		return empty, e
 	}
@@ -68,15 +66,15 @@ func (p *Project) AddMedia(
 	return m, nil
 }
 
-// GetAllMedia returns all media.
-func (p Project) GetAllMedia() ([]entity.Media, error) {
-	return p.ds.GetAllMedia()
+// ListMedia returns all media.
+func (p Project) ListMedia() ([]data.Media, error) {
+	return p.store.ListMedia()
 }
 
 // GetMediaById returns the media with the given entityId
 // or nil if it doesn't exist.
 func (p Project) GetMediaById(
-	entityId entity.EntityId,
-) (entity.Media, error) {
-	return p.ds.GetMediaById(entityId)
+	entityId data.EntityId,
+) (data.Media, error) {
+	return p.store.GetMediaById(entityId)
 }

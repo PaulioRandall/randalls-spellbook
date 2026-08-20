@@ -4,11 +4,12 @@ import (
 	"embed"
 	"errors"
 	"io/fs"
+	"log"
 	"net/http"
 
 	"github.com/crgimenes/glaze"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/entity"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/data"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/mediaserver"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/project"
 )
@@ -102,6 +103,7 @@ func startUi(handler http.Handler, debug bool) (e error) {
 
 		// Don't hide original error.
 		if e == nil {
+			log.Println(closeErr)
 			e = closeErr
 		}
 	}()
@@ -121,17 +123,13 @@ func addMediaToProject(
 	description string,
 	localPath string,
 ) (string, error) {
-	mt, e := entity.ToMediaType(mediaType)
-	if e != nil {
-		return "", e
-	}
-
 	m, e := proj.AddMedia(
-		mt,
+		mediaType,
 		name,
 		description,
 		localPath,
 	)
+
 	return string(m.EntityId), e
 }
 
@@ -143,10 +141,10 @@ type MediaResult struct {
 	LocalPath   string `json:"lcoalPath"`
 }
 
-func makeMediaResult(media entity.Media) MediaResult {
+func makeMediaResult(media data.Media) MediaResult {
 	return MediaResult{
 		EntityId:    media.EntityId.String(),
-		MediaType:   media.MediaType.String(),
+		MediaType:   media.MediaType,
 		Name:        media.Name,
 		Description: media.Description,
 		LocalPath:   media.LocalPath,
@@ -154,7 +152,7 @@ func makeMediaResult(media entity.Media) MediaResult {
 }
 
 func getAllMedia() ([]MediaResult, error) {
-	mediaList, e := proj.GetAllMedia()
+	mediaList, e := proj.ListMedia()
 
 	if e != nil {
 		return nil, e
@@ -171,13 +169,13 @@ func getAllMedia() ([]MediaResult, error) {
 
 func getMediaById(entityId string) (MediaResult, error) {
 	empty := MediaResult{}
-	media, e := proj.GetMediaById(entity.EntityId(entityId))
+	media, e := proj.GetMediaById(data.EntityId(entityId))
 
 	if e != nil {
 		return empty, e
 	}
 
-	if media.IsEmpty() {
+	if media == (data.Media{}) {
 		return empty, errors.New("Unable to find media")
 	}
 

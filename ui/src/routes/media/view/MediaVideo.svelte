@@ -10,6 +10,7 @@
 	import MediaButtonRestart from './MediaButtonRestart.svelte'
 	import MediaButtonReload from './MediaButtonReload.svelte'
 	import MediaVideoPlayer from './MediaVideoPlayer.svelte'
+	import MediaObservationInput from './MediaObservationInput.svelte'
 
 	const mediaSvox = new HTMLMediaElementSvox()
 
@@ -71,6 +72,9 @@
 			<MediaButtonPlayPause {mediaSvox} />
 			<MediaButtonRestart {mediaSvox} />
 			<MediaButtonReload {mediaSvox} />
+		</div>
+		<div>
+			<MediaObservationInput {mediaSvox} {media} />
 		</div>
 	</div>
 </div>
