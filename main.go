@@ -4,6 +4,8 @@ import (
 	"log"
 
 	"github.com/PaulioRandall/randalls-spellbook/ui"
+
+	_ "github.com/PaulioRandall/randalls-spellbook/pkg/spellbook"
 )
 
 func main() {
