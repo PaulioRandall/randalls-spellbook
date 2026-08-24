@@ -5,7 +5,7 @@ import (
 
 	"github.com/PaulioRandall/randalls-spellbook/ui"
 
-	_ "github.com/PaulioRandall/randalls-spellbook/pkg/spellbook"
+	_ "github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
 )
 
 func main() {

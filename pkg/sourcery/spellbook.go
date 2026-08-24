@@ -1,14 +1,12 @@
-package spellbook
+package sourcery
 
 import (
 	"encoding/json"
-	"errors"
 	"reflect"
 )
 
-type DemystifyData func([]byte) (any, error)
-
-type Incantation func(data any) (any, error)
+type DemystifyData func(bytes []byte) Effect
+type Incantation func(data any) Effect
 
 type Spellbook struct {
 	spells map[string][]Incantation
@@ -20,7 +18,7 @@ func New() *Spellbook {
 	}
 }
 
-func (spellbook *Spellbook) ScribeIncantation(
+func (spellbook *Spellbook) Scribe(
 	spellname string,
 	incantation Incantation,
 ) {
@@ -30,7 +28,7 @@ func (spellbook *Spellbook) ScribeIncantation(
 	)
 }
 
-func (spellbook *Spellbook) SeekIncantations(
+func (spellbook *Spellbook) Seek(
 	spellname string,
 ) []Incantation {
 	for name, incantations := range spellbook.spells {
@@ -42,14 +40,14 @@ func (spellbook *Spellbook) SeekIncantations(
 	return nil
 }
 
-func (spellbook *Spellbook) CastSpell(
+func (spellbook *Spellbook) Cast(
 	spellname string,
 	data any,
-) (any, error) {
-	incantations := spellbook.SeekIncantations(spellname)
+) Effect {
+	incantations := spellbook.Seek(spellname)
 
 	if incantations == nil {
-		return nil, errors.New("The spell bears no incantations within this spellbook.")
+		return Curse("The spell bears no incantations within this spellbook.")
 	}
 
 	return chant(incantations, data)
@@ -58,21 +56,21 @@ func (spellbook *Spellbook) CastSpell(
 func chant(
 	incantations []Incantation,
 	data any,
-) (any, error) {
-	var e error
+) Effect {
+	var effect Effect
 
 	for _, incant := range incantations {
-		data, e = incant(data)
-		if e != nil {
-			return nil, e
+		effect = incant(data)
+		if effect.Cursed() {
+			return effect
 		}
 	}
 
-	return data, nil
+	return effect
 }
 
-func DemystifyToNil(_ []byte) (any, error) {
-	return nil, nil
+func DemystifyToNil(_ []byte) Effect {
+	return Purify()
 }
 
 func parseDemystifyer(demystifyer any) DemystifyData {
@@ -87,7 +85,7 @@ func parseDemystifyer(demystifyer any) DemystifyData {
 
 	// Assume it's an object from which we can determine the
 	// type and instantiate a new instance of.
-	return func(bytes []byte) (any, error) {
+	return func(bytes []byte) Effect {
 		return demystifyToObject(bytes, demystifyer)
 	}
 }
@@ -95,18 +93,14 @@ func parseDemystifyer(demystifyer any) DemystifyData {
 func demystifyToObject(
 	bytes []byte,
 	objectExample any,
-) (any, error) {
+) Effect {
 	objectType := reflect.TypeOf(objectExample)
 	object := reflect.Zero(objectType).Interface()
 
 	e := json.Unmarshal(bytes, &object)
 	if e != nil {
-		return nil, e
+		return Sin(e)
 	}
 
-	return object, nil
-}
-
-func Invoke(spell string) {
-	// TODO
+	return Bestow(object)
 }
