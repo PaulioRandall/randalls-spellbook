@@ -9,14 +9,14 @@ import (
 )
 
 func mockIncantation(
-	result any,
+	data any,
 	err error,
 ) (Incantation, *int) {
 	count := 0
 
-	f := func(any) Effect {
+	f := func(effect Effect) Effect {
 		count++
-		return Judge(result, err)
+		return effect.Judge(data, err)
 	}
 
 	return f, &count
@@ -36,7 +36,7 @@ func requireSubset[T any](
 }
 
 func Test_Scribe(t *testing.T) {
-	spellbook := New()
+	spellbook := ConjureSpellbook()
 	incant, _ := mockIncantation(nil, nil)
 
 	spellbook.Scribe("spellname", incant)
@@ -49,7 +49,7 @@ func Test_Scribe(t *testing.T) {
 }
 
 func Test_Seek(t *testing.T) {
-	spellbook := New()
+	spellbook := ConjureSpellbook()
 	incantA, _ := mockIncantation("A", nil)
 	incantB, _ := mockIncantation("B", nil)
 
@@ -57,7 +57,7 @@ func Test_Seek(t *testing.T) {
 	spellbook.Scribe("spellname", incantB)
 
 	act := spellbook.Seek("spellname")
-	exp := []Incantation{
+	exp := Spell{
 		incantA,
 		incantB,
 	}
@@ -67,7 +67,7 @@ func Test_Seek(t *testing.T) {
 
 func Test_Cast_1(t *testing.T) {
 	var effect Effect
-	spellbook := New()
+	spellbook := ConjureSpellbook()
 	incant, countPtr := mockIncantation("data", nil)
 
 	spellbook.Scribe("spellname", incant)
@@ -80,7 +80,7 @@ func Test_Cast_1(t *testing.T) {
 
 func Test_Cast_2(t *testing.T) {
 	var effect Effect
-	spellbook := New()
+	spellbook := ConjureSpellbook()
 	incant, countPtr := mockIncantation("data", nil)
 
 	spellbook.Scribe("spellname", incant)
@@ -96,7 +96,7 @@ func Test_Cast_2(t *testing.T) {
 
 func Test_Cast_3(t *testing.T) {
 	var effect Effect
-	spellbook := New()
+	spellbook := ConjureSpellbook()
 
 	incant, countPtr := mockIncantation("data", nil)
 	spellbook.Scribe("spellname", incant)
@@ -118,7 +118,7 @@ func Test_Cast_3(t *testing.T) {
 
 func Test_Cast_4(t *testing.T) {
 	var effect Effect
-	spellbook := New()
+	spellbook := ConjureSpellbook()
 
 	err := errors.New("error")
 	incant, _ := mockIncantation(nil, err)

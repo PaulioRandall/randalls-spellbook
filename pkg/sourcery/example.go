@@ -1,68 +1,45 @@
 package sourcery
 
 import (
-	"encoding/json"
+	"fmt"
 )
 
-type Fireball struct {
-	baseDamage   int
-	burnInterval int
-	burnCount    int
-	burnDamage   int
-}
-
-type Frostbolt struct {
-	baseDamage   int
-	freezeChance int
-}
-
 func Example() {
-	spellbook := New()
+	spellbook := ConjureSpellbook()
 
-	spellbook.Scribe("fireball", onFireball)
-	spellbook.Scribe("frostbolt", onFrostbolt)
-	spellbook.Scribe("thunderbolt", onThunderbolt)
+	spellbook.Scribe("fireball", newFireball)
+	spellbook.Scribe("fireball", inflictDamage)
 
-	spellbook.Cast("fireball", nil)
-	spellbook.Cast("frostbolt", onFrostbolt)
-	spellbook.Cast("thunderbolt", nil)
+	spellbook.Cast("fireball", 123)
 }
 
-func demystifyFrostbolt(bytes []byte) Effect {
-	frostbolt := Frostbolt{}
-
-	e := json.Unmarshal(bytes, &frostbolt)
-	if e != nil {
-		return Sin(e)
-	}
-
-	return Bestow(frostbolt)
+type Fireball struct {
+	baseDamage int
 }
 
-func onFireball(data any) Effect {
-	fireball, ok := data.(Fireball)
+func newFireball(input Effect) Effect {
+	dmg, ok := input.Summon().(int)
 	if !ok {
-		return Curse("Wrong type, expected Fireball")
+		return input.Curse("Wrong type, expected an int")
 	}
 
-	println("Fire damage")
+	fb := Fireball{
+		baseDamage: dmg,
+	}
 
-	return Bestow(fireball)
+	return input.Bestow(fb)
 }
 
-func onFrostbolt(data any) Effect {
-	frostbolt, ok := data.(Frostbolt)
+func inflictDamage(input Effect) Effect {
+	fb, ok := input.Summon().(Fireball)
 	if !ok {
-		return Curse("Wrong type, expected Frostbolt")
+		return input.Curse("Wrong type, expected a Fireball")
 	}
 
-	println("Ice damage!")
+	fmt.Printf(
+		"Fireball inflicts %d fire damage.\n",
+		fb.baseDamage,
+	)
 
-	return Bestow(frostbolt)
-}
-
-func onThunderbolt(_ any) Effect {
-	println("Lighting damage! (no args)")
-
-	return Purify()
+	return input.Forsake()
 }
