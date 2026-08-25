@@ -5,11 +5,10 @@ import (
 )
 
 // Effect is the result of an incantation. It contains some
-// value or an error. There is a flag for ending the spell,
-// i.e. skipping the remaining incantations. Each effect
-// has a name, but it can be empty. It also contains a
-// reference to the previous effect which will only be nil
-// for the initial effect (yes, it's a linked list).
+// value or an error. Each effect has a name, but it can be
+// empty. It also contains a reference to the previous
+// effect which will only be nil for the initial effect
+// (yes, it's a linked list).
 type Effect interface {
 	// Name returns the effect name. It may be empty.
 	Name() string
@@ -21,15 +20,15 @@ type Effect interface {
 	// nil.
 	Result() any
 
-	// Curse returns the error if set, else returns nil.
-	Curse() error
+	// Sin returns the error if set, else returns nil.
+	Sin() error
 
-	// IsCursed returns true if the effect is an error.
-	IsCursed() bool
+	// Cursed returns true if the effect is an error.
+	Cursed() bool
 
-	// IsDispelled returns true if the spell ends with this
+	// Dispelled returns true if the spell ends with this
 	// incantation.
-	IsDispelled() bool
+	Dispelled() bool
 }
 
 // effect satisfies the Effect interface.
@@ -69,9 +68,9 @@ func Bless(value any) effect {
 	}
 }
 
-// Ruin returns a new effect with a the passed err set as
-// the error.
-func Ruin(err error) effect {
+// Sin returns a new effect with a the passed err set
+// as the error.
+func Sin(err error) effect {
 	return effect{
 		error: err,
 	}
@@ -85,17 +84,17 @@ func Curse(message string, args ...any) effect {
 	}
 }
 
-// Demystify returns a new effect with the error value set
+// Judge returns a new effect with the error value set
 // if valueOrErr is an error, else sets the result value to
 // valueOrErr.
-func Demystify(valueOrErr any) effect {
+func Judge(valueOrErr any) effect {
 	err, _ := valueOrErr.(error)
 	return newEffect(valueOrErr, err)
 }
 
-// Judge returns a new effect with the error set if err is
+// Choose returns a new effect with the error set if err is
 // not nil, else the result value is set.
-func Judge(value any, err error) effect {
+func Choose(value any, err error) effect {
 	return newEffect(value, err)
 }
 
@@ -114,18 +113,18 @@ func (ef effect) Result() any {
 	return ef.result
 }
 
-// Curse satisfies the Effect interface.
-func (ef effect) Curse() error {
+// Sin satisfies the Effect interface.
+func (ef effect) Sin() error {
 	return ef.error
 }
 
-// IsCursed satisfies the Effect interface.
-func (ef effect) IsCursed() bool {
+// Cursed satisfies the Effect interface.
+func (ef effect) Cursed() bool {
 	return ef.error != nil
 }
 
-// IsDispelled satisfies the Effect interface.
-func (ef effect) IsDispelled() bool {
+// Dispelled satisfies the Effect interface.
+func (ef effect) Dispelled() bool {
 	return ef.endSpell
 }
 
@@ -135,9 +134,9 @@ func (ef effect) Named(name string) effect {
 	return ef
 }
 
-// Dispelled copies and returns the effect with the end
+// Dispels copies and returns the effect with the end
 // spell flag set as true.
-func (ef effect) Dispelled(valueOrErr any) effect {
+func (ef effect) Dispels() effect {
 	ef.endSpell = true
 	return ef
 }

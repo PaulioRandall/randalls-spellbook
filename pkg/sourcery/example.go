@@ -27,7 +27,7 @@ func newFireball(input Effect) Effect {
 		baseDamage: dmg,
 	}
 
-	return Bless(fb)
+	return Bless(fb).Named("Fireball")
 }
 
 func inflictDamage(input Effect) Effect {

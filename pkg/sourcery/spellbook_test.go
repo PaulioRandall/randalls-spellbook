@@ -16,7 +16,7 @@ func mockIncantation(
 
 	f := func(effect Effect) Effect {
 		count++
-		return Judge(data, err)
+		return Choose(data, err)
 	}
 
 	return f, &count
@@ -66,20 +66,21 @@ func Test_Seek(t *testing.T) {
 }
 
 func Test_Cast_1(t *testing.T) {
-	var effect Effect
 	spellbook := ConjureSpellbook()
 	incant, countPtr := mockIncantation("data", nil)
 
 	spellbook.Scribe("spellname", incant)
-	effect = spellbook.Cast("spellname", nil)
-	require.Equal(t, false, effect.IsCursed())
-	require.Equal(t, "data", effect.Result())
 
+	act := spellbook.Cast("spellname", nil)
+	exp := effect{
+		result: "data",
+	}
+
+	require.Equal(t, exp, act)
 	require.Equal(t, 1, *countPtr)
 }
 
 func Test_Cast_2(t *testing.T) {
-	var effect Effect
 	spellbook := ConjureSpellbook()
 	incant, countPtr := mockIncantation("data", nil)
 
@@ -87,45 +88,76 @@ func Test_Cast_2(t *testing.T) {
 	spellbook.Scribe("spellname", incant)
 	spellbook.Scribe("spellname", incant)
 
-	effect = spellbook.Cast("spellname", nil)
-	require.Equal(t, false, effect.IsCursed())
-	require.Equal(t, "data", effect.Result())
+	act := spellbook.Cast("spellname", nil)
+	exp := effect{
+		result: "data",
+	}
 
+	require.Equal(t, exp, act)
 	require.Equal(t, 3, *countPtr)
 }
 
 func Test_Cast_3(t *testing.T) {
-	var effect Effect
 	spellbook := ConjureSpellbook()
 
 	incant, countPtr := mockIncantation("data", nil)
 	spellbook.Scribe("spellname", incant)
 
-	effect = spellbook.Cast("spellname", nil)
-	require.Equal(t, false, effect.IsCursed())
-	require.Equal(t, "data", effect.Result())
+	var act Effect
+	exp := effect{
+		result: "data",
+	}
 
-	effect = spellbook.Cast("spellname", nil)
-	require.Equal(t, false, effect.IsCursed())
-	require.Equal(t, "data", effect.Result())
+	act = spellbook.Cast("spellname", nil)
+	require.Equal(t, exp, act)
 
-	effect = spellbook.Cast("spellname", nil)
-	require.Equal(t, false, effect.IsCursed())
-	require.Equal(t, "data", effect.Result())
+	act = spellbook.Cast("spellname", nil)
+	require.Equal(t, exp, act)
+
+	act = spellbook.Cast("spellname", nil)
+	require.Equal(t, exp, act)
 
 	require.Equal(t, 3, *countPtr)
 }
 
 func Test_Cast_4(t *testing.T) {
-	var effect Effect
 	spellbook := ConjureSpellbook()
 
 	err := errors.New("error")
 	incant, _ := mockIncantation(nil, err)
 	spellbook.Scribe("spellname", incant)
 
-	effect = spellbook.Cast("spellname", nil)
-	require.Equal(t, true, effect.IsCursed())
-	require.Equal(t, err, effect.Curse())
-	require.Equal(t, nil, effect.Result())
+	act := spellbook.Cast("spellname", nil)
+	exp := effect{
+		error: err,
+	}
+
+	require.Equal(t, exp, act)
+}
+
+func Test_JsonDemystifyer_1(t *testing.T) {
+	type testObject struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
+
+	var object testObject
+	incant := JsonDemystifyer(&object)
+
+	input := effect{
+		result: []byte(`{
+		  "name": "Alice",
+		  "age": 24
+	  }`),
+	}
+
+	act := incant(input)
+	exp := effect{
+		result: &testObject{
+			Name: "Alice",
+			Age:  24,
+		},
+	}
+
+	require.Equal(t, exp, act)
 }
