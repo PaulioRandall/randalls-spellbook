@@ -1,4 +1,4 @@
-package sourcery
+package spellbook
 
 import (
 	"errors"
