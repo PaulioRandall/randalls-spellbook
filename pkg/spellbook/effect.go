@@ -42,8 +42,8 @@ type effect struct {
 
 // newEffect sets the effect's error if err is not
 // nil, else sets the result value.
-func newEffect(value any, err error) effect {
-	ef := effect{}
+func newEffect(value any, err error) *effect {
+	ef := &effect{}
 
 	if err != nil {
 		ef.error = err
@@ -58,28 +58,28 @@ func newEffect(value any, err error) effect {
 // the result. If the value is an Effect then its value
 // will be used instead. A result value cannot be an
 // Effect.
-func Bless(value any) effect {
+func Bless(value any) *effect {
 	if ef, ok := value.(Effect); ok {
 		value = ef.Result()
 	}
 
-	return effect{
+	return &effect{
 		result: value,
 	}
 }
 
 // Sin returns a new effect with a the passed err set
 // as the error.
-func Sin(err error) effect {
-	return effect{
+func Sin(err error) *effect {
+	return &effect{
 		error: err,
 	}
 }
 
 // Curse returns a new effect with a new error created from
 // the given message and optional arguments.
-func Curse(message string, args ...any) effect {
-	return effect{
+func Curse(message string, args ...any) *effect {
+	return &effect{
 		error: fmt.Errorf(message, args...),
 	}
 }
@@ -87,56 +87,75 @@ func Curse(message string, args ...any) effect {
 // Judge returns a new effect with the error value set
 // if valueOrErr is an error, else sets the result value to
 // valueOrErr.
-func Judge(valueOrErr any) effect {
+func Judge(valueOrErr any) *effect {
 	err, _ := valueOrErr.(error)
 	return newEffect(valueOrErr, err)
 }
 
 // Choose returns a new effect with the error set if err is
 // not nil, else the result value is set.
-func Choose(value any, err error) effect {
+func Choose(value any, err error) *effect {
 	return newEffect(value, err)
 }
 
 // Name satisfies the Effect interface.
-func (ef effect) Name() string {
+func (ef *effect) Name() string {
 	return ef.name
 }
 
 // Prior satisfies the Effect interface.
-func (ef effect) Prior() Effect {
+func (ef *effect) Prior() Effect {
 	return ef.prior
 }
 
 // Result satisfies the Effect interface.
-func (ef effect) Result() any {
+func (ef *effect) Result() any {
 	return ef.result
 }
 
 // Sin satisfies the Effect interface.
-func (ef effect) Sin() error {
+func (ef *effect) Sin() error {
 	return ef.error
 }
 
 // Cursed satisfies the Effect interface.
-func (ef effect) Cursed() bool {
+func (ef *effect) Cursed() bool {
 	return ef.error != nil
 }
 
 // Dispelled satisfies the Effect interface.
-func (ef effect) Dispelled() bool {
+func (ef *effect) Dispelled() bool {
 	return ef.endSpell
 }
 
 // Named copies and returns the effect with a new name.
-func (ef effect) Named(name string) effect {
-	ef.name = name
-	return ef
+func (ef *effect) Named(name string) *effect {
+	cp := *ef
+	cp.name = name
+	return &cp
 }
 
 // Dispels copies and returns the effect with the end
 // spell flag set as true.
-func (ef effect) Dispels() effect {
-	ef.endSpell = true
-	return ef
+func (ef *effect) Dispels() *effect {
+	cp := *ef
+	cp.endSpell = true
+	return &cp
+}
+
+// SeekNamedEffect iterates the list of prior Effects to
+// find the most recent with the specified name, or nil if
+// no matching Effect is found.
+func SeekNamedEffect(ef Effect, name string) Effect {
+	prior := ef
+
+	for prior != nil {
+		if prior.Name() == name {
+			return prior
+		}
+
+		prior = prior.Prior()
+	}
+
+	return nil
 }

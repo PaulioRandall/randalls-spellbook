@@ -8,18 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func mockIncantation(
-	data any,
-	err error,
-) (Incantation, *int) {
-	count := 0
-
-	f := func(effect Effect) Effect {
-		count++
+func mockIncantation(data any, err error) Incantation {
+	return func(effect Effect) Effect {
 		return Choose(data, err)
 	}
-
-	return f, &count
 }
 
 func requireSubset[T any](
@@ -35,11 +27,11 @@ func requireSubset[T any](
 	}
 }
 
-func Test_Scribe(t *testing.T) {
-	spellbook := ConjureSpellbook()
-	incant, _ := mockIncantation(nil, nil)
+func Test_Enscribe(t *testing.T) {
+	spellbook := Conjure()
+	incant := mockIncantation(nil, nil)
 
-	spellbook.Scribe("spellname", incant)
+	spellbook.Enscribe("spellname", incant)
 
 	exp := []Incantation{
 		incant,
@@ -48,15 +40,18 @@ func Test_Scribe(t *testing.T) {
 	requireSubset(t, exp, spellbook.spells["spellname"])
 }
 
-func Test_Seek(t *testing.T) {
-	spellbook := ConjureSpellbook()
-	incantA, _ := mockIncantation("A", nil)
-	incantB, _ := mockIncantation("B", nil)
+func Test_Describe(t *testing.T) {
+	spellbook := Conjure()
+	incantA := mockIncantation("A", nil)
+	incantB := mockIncantation("B", nil)
 
-	spellbook.Scribe("spellname", incantA)
-	spellbook.Scribe("spellname", incantB)
+	spellbook.Transcribe(
+		"spellname",
+		incantA,
+		incantB,
+	)
 
-	act := spellbook.Seek("spellname")
+	act := spellbook.Describe("spellname")
 	exp := Spell{
 		incantA,
 		incantB,
@@ -66,46 +61,48 @@ func Test_Seek(t *testing.T) {
 }
 
 func Test_Cast_1(t *testing.T) {
-	spellbook := ConjureSpellbook()
-	incant, countPtr := mockIncantation("data", nil)
+	spellbook := Conjure()
+	incant := mockIncantation("data", nil)
 
-	spellbook.Scribe("spellname", incant)
+	spellbook.Enscribe("spellname", incant)
 
-	act := spellbook.Cast("spellname", nil)
-	exp := effect{
-		result: "data",
-	}
+	act := spellbook.Cast("spellname", "info")
+	expA := &effect{result: "info", prior: nil}
+	expB := &effect{result: "data", prior: expA}
 
-	require.Equal(t, exp, act)
-	require.Equal(t, 1, *countPtr)
+	require.Equal(t, expB, act)
 }
 
 func Test_Cast_2(t *testing.T) {
-	spellbook := ConjureSpellbook()
-	incant, countPtr := mockIncantation("data", nil)
+	spellbook := Conjure()
+	incant := mockIncantation("data", nil)
 
-	spellbook.Scribe("spellname", incant)
-	spellbook.Scribe("spellname", incant)
-	spellbook.Scribe("spellname", incant)
+	spellbook.Transcribe(
+		"spellname",
+		incant,
+		incant,
+		incant,
+	)
 
 	act := spellbook.Cast("spellname", nil)
-	exp := effect{
-		result: "data",
-	}
+	expA := &effect{result: nil, prior: nil}
+	expB := &effect{result: "data", prior: expA}
+	expC := &effect{result: "data", prior: expB}
+	expD := &effect{result: "data", prior: expC}
 
-	require.Equal(t, exp, act)
-	require.Equal(t, 3, *countPtr)
+	require.Equal(t, expD, act)
 }
 
 func Test_Cast_3(t *testing.T) {
-	spellbook := ConjureSpellbook()
+	spellbook := Conjure()
 
-	incant, countPtr := mockIncantation("data", nil)
-	spellbook.Scribe("spellname", incant)
+	incant := mockIncantation("data", nil)
+	spellbook.Enscribe("spellname", incant)
 
 	var act Effect
-	exp := effect{
+	exp := &effect{
 		result: "data",
+		prior:  &effect{},
 	}
 
 	act = spellbook.Cast("spellname", nil)
@@ -116,23 +113,42 @@ func Test_Cast_3(t *testing.T) {
 
 	act = spellbook.Cast("spellname", nil)
 	require.Equal(t, exp, act)
-
-	require.Equal(t, 3, *countPtr)
 }
 
 func Test_Cast_4(t *testing.T) {
-	spellbook := ConjureSpellbook()
+	spellbook := Conjure()
 
 	err := errors.New("error")
-	incant, _ := mockIncantation(nil, err)
-	spellbook.Scribe("spellname", incant)
+	incant := mockIncantation(nil, err)
+	spellbook.Enscribe("spellname", incant)
 
-	act := spellbook.Cast("spellname", nil)
-	exp := effect{
-		error: err,
-	}
+	act := spellbook.Cast("spellname", "info")
+	expA := &effect{result: "info", prior: nil}
+	expB := &effect{error: err, prior: expA}
 
-	require.Equal(t, exp, act)
+	require.Equal(t, expB, act)
+}
+
+func Test_Cast_5(t *testing.T) {
+	spellbook := Conjure()
+	incantA := mockIncantation("A", nil)
+	incantB := mockIncantation("B", nil)
+	incantC := mockIncantation("C", nil)
+
+	spellbook.Transcribe(
+		"spellname",
+		incantA,
+		incantB,
+		incantC,
+	)
+
+	act := spellbook.Cast("spellname", 0)
+	exp0 := &effect{result: 0, prior: nil}
+	expA := &effect{result: "A", prior: exp0}
+	expB := &effect{result: "B", prior: expA}
+	expC := &effect{result: "C", prior: expB}
+
+	require.Equal(t, expC, act)
 }
 
 func Test_JsonDemystifyer_1(t *testing.T) {
@@ -144,7 +160,7 @@ func Test_JsonDemystifyer_1(t *testing.T) {
 	var object testObject
 	incant := JsonDemystifyer(&object)
 
-	input := effect{
+	input := &effect{
 		result: []byte(`{
 		  "name": "Alice",
 		  "age": 24
@@ -152,7 +168,7 @@ func Test_JsonDemystifyer_1(t *testing.T) {
 	}
 
 	act := incant(input)
-	exp := effect{
+	exp := &effect{
 		result: &testObject{
 			Name: "Alice",
 			Age:  24,

@@ -52,28 +52,37 @@ func JsonDemystifyer(object any) Incantation {
 	}
 }
 
-// ConjureSpellbook a new Spellbook.
-func ConjureSpellbook() *Spellbook {
+// Conjure a new Spellbook.
+func Conjure() *Spellbook {
 	return &Spellbook{
 		spells: map[string]Spell{},
 	}
 }
 
-// Scribe adds a new incantation to the end of a spell.
-// Incantations may appear multiple times within a spell.
-func (spellbook *Spellbook) Scribe(
+// Enscribe adds one or more new incantations to the end of
+// a spell. Incantations may appear multiple times within
+// the same spell.
+func (spellbook *Spellbook) Enscribe(
 	spellname string,
-	incantation Incantation,
+	incantations ...Incantation,
 ) {
 	spellbook.spells[spellname] = append(
 		spellbook.spells[spellname],
-		incantation,
+		incantations...,
 	)
 }
 
-// Seek finds and returns a Spell, or nil if no
+// Transcribe adds or overrides a spell.
+func (spellbook *Spellbook) Transcribe(
+	spellname string,
+	spell ...Incantation,
+) {
+	spellbook.spells[spellname] = spell
+}
+
+// Describe finds and returns a Spell, or nil if no
 // incantations for spellname exist.
-func (spellbook *Spellbook) Seek(
+func (spellbook *Spellbook) Describe(
 	spellname string,
 ) Spell {
 	for name, spell := range spellbook.spells {
@@ -93,14 +102,14 @@ func (spellbook *Spellbook) Cast(
 	spellname string,
 	data any,
 ) Effect {
-	spell := spellbook.Seek(spellname)
+	spell := spellbook.Describe(spellname)
 	var input Effect = Bless(data)
 	var output Effect = input
 
 	for _, incant := range spell {
 		output = incant(input)
 
-		if ef, ok := output.(effect); ok {
+		if ef, ok := output.(*effect); ok {
 			ef.prior = input
 		}
 

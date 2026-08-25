@@ -2,19 +2,18 @@ package sourcery
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/spellbook"
 )
 
 // Sourcerer is the main application.
 type Sourcerer struct {
-	debug     bool
-	title     string
-	width     int
-	height    int
-	servers   []server
-	spellbook spellbook.Spellbook
+	spellbook.Spellbook
+	debug   bool
+	title   string
+	width   int
+	height  int
+	servers []server
 }
 
 type server struct {
@@ -22,9 +21,14 @@ type server struct {
 	handler http.Handler
 }
 
-// New returns a new empty Sourcerer.
-func New() *Sourcerer {
-	return &Sourcerer{}
+// NewSourcerer returns a new empty Sourcerer that can be
+// used to conjure an application.
+func NewSourcerer() *Sourcerer {
+	return &Sourcerer{
+		title:  "Technotelicomnicon",
+		width:  800,
+		height: 600,
+	}
 }
 
 // Debug sets the debug state. Default is false.
@@ -60,32 +64,12 @@ func (sour *Sourcerer) Serve(
 	)
 }
 
-// Spellbook returns the Spellbook used for creating
-// spells that are invoked by the frontend.
-func (sour *Sourcerer) Spellbook() spellbook.Spellbook {
-	return sour.spellbook
-}
-
-// Begin
-func (sour *Sourcerer) Begin() {
-	sour.setDefaults()
+// Conjure starts the application.
+func (sour *Sourcerer) Conjure() error {
 
 	// TODO: add servers, only if at least one exists
 	// TODO: create app
 	// TODO: configure frontend to invoke spells
-}
 
-// setDefaults applies defaults to unset user options.
-func (sour *Sourcerer) setDefaults() {
-	if sour.width <= 0 {
-		sour.width = 800
-	}
-
-	if sour.height <= 0 {
-		sour.width = 600
-	}
-
-	if strings.TrimSpace(sour.title) == "" {
-		sour.title = "Technotelicomnicon"
-	}
+	return nil
 }

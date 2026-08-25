@@ -9,7 +9,7 @@ import (
 
 func Test_Bless_1(t *testing.T) {
 	act := Bless("abc")
-	exp := effect{
+	exp := &effect{
 		result: "abc",
 	}
 
@@ -20,7 +20,7 @@ func Test_Sin_1(t *testing.T) {
 	err := errors.New("abc")
 
 	act := Sin(err)
-	exp := effect{
+	exp := &effect{
 		error: err,
 	}
 
@@ -29,7 +29,7 @@ func Test_Sin_1(t *testing.T) {
 
 func Test_Curse_1(t *testing.T) {
 	act := Curse("Error: %s", "abc")
-	exp := effect{
+	exp := &effect{
 		error: errors.New("Error: abc"),
 	}
 
@@ -40,14 +40,14 @@ func Test_Judge_1(t *testing.T) {
 	var act, exp Effect
 
 	act = Judge("abc")
-	exp = effect{
+	exp = &effect{
 		result: "abc",
 	}
 	require.Equal(t, exp, act)
 
 	err := errors.New("Error: abc")
 	act = Judge(err)
-	exp = effect{
+	exp = &effect{
 		error: err,
 	}
 	require.Equal(t, exp, act)
@@ -57,24 +57,24 @@ func Test_Choose_1(t *testing.T) {
 	var act, exp Effect
 
 	act = Choose("abc", nil)
-	exp = effect{
+	exp = &effect{
 		result: "abc",
 	}
 	require.Equal(t, exp, act)
 
 	err := errors.New("Error: abc")
 	act = Choose("abc", err)
-	exp = effect{
+	exp = &effect{
 		error: err,
 	}
 	require.Equal(t, exp, act)
 }
 
 func Test_effect_Named_1(t *testing.T) {
-	ef := effect{}
+	ef := &effect{}
 
 	act := ef.Named("Bob")
-	exp := effect{
+	exp := &effect{
 		name: "Bob",
 	}
 
@@ -82,12 +82,25 @@ func Test_effect_Named_1(t *testing.T) {
 }
 
 func Test_effect_Dispels_1(t *testing.T) {
-	ef := effect{}
+	ef := &effect{}
 
 	act := ef.Dispels()
-	exp := effect{
+	exp := &effect{
 		endSpell: true,
 	}
 
 	require.Equal(t, exp, act)
+}
+
+func Test_SeekNamedEffect_1(t *testing.T) {
+	A := &effect{name: "A", prior: nil}
+	B := &effect{name: "B", prior: A}
+	C := &effect{name: "C", prior: B}
+	D := &effect{name: "D", prior: C}
+
+	act := SeekNamedEffect(D, "B")
+	require.Equal(t, B, act)
+
+	act = SeekNamedEffect(B, "D")
+	require.Equal(t, nil, act)
 }

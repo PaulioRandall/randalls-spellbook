@@ -4,11 +4,11 @@ import (
 	"fmt"
 )
 
-func Example() {
-	spellbook := ConjureSpellbook()
+func SpellbookExample() {
+	spellbook := Conjure()
 
-	spellbook.Scribe("fireball", newFireball)
-	spellbook.Scribe("fireball", inflictDamage)
+	spellbook.Enscribe("fireball", newFireball)
+	spellbook.Enscribe("fireball", inflictDamage)
 
 	spellbook.Cast("fireball", 123)
 }
