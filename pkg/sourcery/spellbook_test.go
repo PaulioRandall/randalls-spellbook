@@ -16,7 +16,7 @@ func mockIncantation(
 
 	f := func(effect Effect) Effect {
 		count++
-		return effect.Judge(data, err)
+		return Judge(data, err)
 	}
 
 	return f, &count
@@ -72,8 +72,8 @@ func Test_Cast_1(t *testing.T) {
 
 	spellbook.Scribe("spellname", incant)
 	effect = spellbook.Cast("spellname", nil)
-	require.Equal(t, false, effect.Cursed())
-	require.Equal(t, "data", effect.Summon())
+	require.Equal(t, false, effect.IsCursed())
+	require.Equal(t, "data", effect.Result())
 
 	require.Equal(t, 1, *countPtr)
 }
@@ -88,8 +88,8 @@ func Test_Cast_2(t *testing.T) {
 	spellbook.Scribe("spellname", incant)
 
 	effect = spellbook.Cast("spellname", nil)
-	require.Equal(t, false, effect.Cursed())
-	require.Equal(t, "data", effect.Summon())
+	require.Equal(t, false, effect.IsCursed())
+	require.Equal(t, "data", effect.Result())
 
 	require.Equal(t, 3, *countPtr)
 }
@@ -102,16 +102,16 @@ func Test_Cast_3(t *testing.T) {
 	spellbook.Scribe("spellname", incant)
 
 	effect = spellbook.Cast("spellname", nil)
-	require.Equal(t, false, effect.Cursed())
-	require.Equal(t, "data", effect.Summon())
+	require.Equal(t, false, effect.IsCursed())
+	require.Equal(t, "data", effect.Result())
 
 	effect = spellbook.Cast("spellname", nil)
-	require.Equal(t, false, effect.Cursed())
-	require.Equal(t, "data", effect.Summon())
+	require.Equal(t, false, effect.IsCursed())
+	require.Equal(t, "data", effect.Result())
 
 	effect = spellbook.Cast("spellname", nil)
-	require.Equal(t, false, effect.Cursed())
-	require.Equal(t, "data", effect.Summon())
+	require.Equal(t, false, effect.IsCursed())
+	require.Equal(t, "data", effect.Result())
 
 	require.Equal(t, 3, *countPtr)
 }
@@ -125,7 +125,7 @@ func Test_Cast_4(t *testing.T) {
 	spellbook.Scribe("spellname", incant)
 
 	effect = spellbook.Cast("spellname", nil)
-	require.Equal(t, true, effect.Cursed())
-	require.Equal(t, err, effect.Flaw())
-	require.Equal(t, nil, effect.Summon())
+	require.Equal(t, true, effect.IsCursed())
+	require.Equal(t, err, effect.Curse())
+	require.Equal(t, nil, effect.Result())
 }

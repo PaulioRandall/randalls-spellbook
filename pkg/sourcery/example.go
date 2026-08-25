@@ -18,22 +18,22 @@ type Fireball struct {
 }
 
 func newFireball(input Effect) Effect {
-	dmg, ok := input.Summon().(int)
+	dmg, ok := input.Result().(int)
 	if !ok {
-		return input.Curse("Wrong type, expected an int")
+		return Curse("Wrong type, expected an int")
 	}
 
 	fb := Fireball{
 		baseDamage: dmg,
 	}
 
-	return input.Bestow(fb)
+	return Bless(fb)
 }
 
 func inflictDamage(input Effect) Effect {
-	fb, ok := input.Summon().(Fireball)
+	fb, ok := input.Result().(Fireball)
 	if !ok {
-		return input.Curse("Wrong type, expected a Fireball")
+		return Curse("Wrong type, expected a Fireball")
 	}
 
 	fmt.Printf(
@@ -41,5 +41,5 @@ func inflictDamage(input Effect) Effect {
 		fb.baseDamage,
 	)
 
-	return input.Forsake()
+	return Bless(fb)
 }

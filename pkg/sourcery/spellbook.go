@@ -1,5 +1,10 @@
 package sourcery
 
+import (
+	"encoding/json"
+	"reflect"
+)
+
 // Incantation is a single step when casting a spell. It
 // may transform data, create a side effect (e.g. write to
 // storage), check data and generate an error, or a
@@ -28,6 +33,31 @@ type Spell []Incantation
 // Spellbook stores and enables casting of spells.
 type Spellbook struct {
 	spells map[string]Spell
+}
+
+// JsonIllumator returns an Incantation that unmarshalls
+// the input Effect's JSON byte array data into object,
+// which is returned in the resultant effect. The object
+// may be a concrete value or a pointer to one. The
+// incantation sets error if the input data is not a byte
+// array or if unmarshalling fails.
+func JsonIllumator(object any) Incantation {
+	return func(input Effect) Effect {
+		bytes, ok := input.Result().([]byte)
+		if !ok {
+			return Curse("Wrong type, expected []bytes")
+		}
+
+		var e error
+
+		if reflect.ValueOf(object).Kind() == reflect.Ptr {
+			e = json.Unmarshal(bytes, object)
+		} else {
+			e = json.Unmarshal(bytes, &object)
+		}
+
+		return Judge(object, e)
+	}
 }
 
 // ConjureSpellbook a new Spellbook.
@@ -72,24 +102,21 @@ func (spellbook *Spellbook) Cast(
 	data any,
 ) Effect {
 	spell := spellbook.Seek(spellname)
-	return castSpell(spell, data)
-}
-
-func castSpell(
-	spell Spell,
-	data any,
-) Effect {
-	input := Effect{data: data}
-	output := input
+	var input Effect = Bless(data)
+	var output Effect = input
 
 	for _, incant := range spell {
 		output = incant(input)
 
-		if output.Cursed() {
+		if ef, ok := output.(effect); ok {
+			ef.prior = input
+		}
+
+		if output.IsCursed() {
 			return output
 		}
 
-		if output.Dispelled() {
+		if output.IsDispelled() {
 			break
 		}
 
