@@ -8,6 +8,8 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/ui"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
+
+	_ "github.com/PaulioRandall/randalls-spellbook/pkg/effect"
 )
 
 func main() {

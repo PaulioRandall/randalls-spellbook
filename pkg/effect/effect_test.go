@@ -9,7 +9,7 @@ import (
 
 func Test_Bless_1(t *testing.T) {
 	act := Bless("abc")
-	exp := &effect{
+	exp := &effect[string]{
 		result: "abc",
 	}
 
@@ -19,8 +19,8 @@ func Test_Bless_1(t *testing.T) {
 func Test_Sin_1(t *testing.T) {
 	err := errors.New("abc")
 
-	act := Cursed(err)
-	exp := &effect{
+	act := Cursed[string](err)
+	exp := &effect[string]{
 		error: err,
 	}
 
@@ -28,8 +28,8 @@ func Test_Sin_1(t *testing.T) {
 }
 
 func Test_Curse_1(t *testing.T) {
-	act := Curse("Error: %s", "abc")
-	exp := &effect{
+	act := Curse[string]("Error: %s", "abc")
+	exp := &effect[string]{
 		error: errors.New("Error: abc"),
 	}
 
@@ -37,44 +37,44 @@ func Test_Curse_1(t *testing.T) {
 }
 
 func Test_Judge_1(t *testing.T) {
-	var act, exp Effect
+	var act, exp Effect[string]
 
-	act = Judge("abc")
-	exp = &effect{
+	act = Judge[string]("abc")
+	exp = &effect[string]{
 		result: "abc",
 	}
 	require.Equal(t, exp, act)
 
 	err := errors.New("Error: abc")
-	act = Judge(err)
-	exp = &effect{
+	act = Judge[string](err)
+	exp = &effect[string]{
 		error: err,
 	}
 	require.Equal(t, exp, act)
 }
 
 func Test_Choose_1(t *testing.T) {
-	var act, exp Effect
+	var act, exp Effect[string]
 
 	act = Choose("abc", nil)
-	exp = &effect{
+	exp = &effect[string]{
 		result: "abc",
 	}
 	require.Equal(t, exp, act)
 
 	err := errors.New("Error: abc")
 	act = Choose("abc", err)
-	exp = &effect{
+	exp = &effect[string]{
 		error: err,
 	}
 	require.Equal(t, exp, act)
 }
 
 func Test_effect_NameAs_1(t *testing.T) {
-	ef := &effect{}
+	ef := &effect[string]{}
 
 	act := ef.NameAs("Bob")
-	exp := &effect{
+	exp := &effect[string]{
 		name: "Bob",
 	}
 
@@ -82,21 +82,29 @@ func Test_effect_NameAs_1(t *testing.T) {
 }
 
 func Test_effect_Dispel_1(t *testing.T) {
-	ef := &effect{}
+	ef := &effect[string]{}
 
 	act := ef.Dispel()
-	exp := &effect{
+	exp := &effect[string]{
 		endSpell: true,
 	}
 
 	require.Equal(t, exp, act)
 }
 
+func Test_Demystify_1(t *testing.T) {
+	var te Effect[string] = &effect[string]{result: "abc"}
+	var ue UntypedEffect = te
+
+	var act Effect[string] = Demystify[string](ue)
+	require.Equal(t, te, act)
+}
+
 func Test_SeekNamedEffect_1(t *testing.T) {
-	A := &effect{name: "A", prior: nil}
-	B := &effect{name: "B", prior: A}
-	C := &effect{name: "C", prior: B}
-	D := &effect{name: "D", prior: C}
+	A := &effect[string]{name: "A", prior: nil}
+	B := &effect[string]{name: "B", prior: A}
+	C := &effect[string]{name: "C", prior: B}
+	D := &effect[string]{name: "D", prior: C}
 
 	act := SeekNamedEffect(D, "B")
 	require.Equal(t, B, act)

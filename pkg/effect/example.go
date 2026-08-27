@@ -6,13 +6,13 @@ import (
 
 func effectExample() {
 	var err error = errors.New("error message")
-	var ef, prior Effect
+	var ef, prior Effect[string]
 
 	ef = Bless("data")
-	ef = Curse("error message")
-	ef = Cursed(err)
-	ef = Judge("data")
-	ef = Judge(err)
+	ef = Curse[string]("error message")
+	ef = Cursed[string](err)
+	ef = Judge[string]("data")
+	ef = Judge[string](err)
 	ef = Choose("data", err)
 
 	prior = Bless("abc")
@@ -28,9 +28,11 @@ func effectExample() {
 	_ = ef.Dispelled() // true
 	_, _ = ef.Values() // "efg", nil
 
-	ef = Curse("error message")
+	ef = Curse[string]("error message")
 
 	_ = ef.Cursed()    // true
 	_ = ef.Error()     // error{message:"error message"}
 	_, _ = ef.Values() // nil, error{message:"error message"}
+
+	ef = Bless("abc")
 }

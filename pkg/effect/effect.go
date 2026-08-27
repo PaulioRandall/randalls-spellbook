@@ -1,32 +1,29 @@
 package effect
 
 import (
-	"errors"
 	"fmt"
 )
 
-// Effect is the result of an incantation. It contains some
-// value or an error. Each effect has a name, but it can be
-// empty. It also contains a reference to the previous
-// effect which will only be nil for the initial effect
-// (yes, it's a linked list).
-type Effect interface {
+// UntypedEffect represents an untyped result or an error,
+// similar to Rust's Result enum without the types. Effect
+// is the typed version of UntypedEffect.
+//
+// It contains a reference to the previous effect so
+// effects can be chained to create a [linked list] of
+// prior effects representing a chain of operations.
+type UntypedEffect interface {
 	// Name returns the effect name. It may be empty.
 	Name() string
 
-	// NameAs copies and returns the effect with a new name.
-	NameAs(name string) Effect
+	// Prior returns the prior effect. Note that the prior
+	// effect may carry a different result type than this
+	// one; use TransmuteEffect to recover it in typed form.
+	Prior() UntypedEffect
 
-	// Prior returns the prior effect.
-	Prior() Effect
-
-	// PriorAs copies and returns the effect with the prior
-	// set as the passed prior Effect.
-	PriorAs(prior Effect) Effect
-
-	// Result returns the result value if set, else returns
-	// nil.
-	Result() any
+	// UntypedResult returns the result as 'any' type since
+	// we don't know what the type is unless cast to an
+	// Effect.
+	UntypedResult() any
 
 	// Error returns the error if set, else returns nil.
 	Error() error
@@ -38,28 +35,54 @@ type Effect interface {
 	// incantation.
 	Dispelled() bool
 
-	// Dispel copies and returns the effect with the end
-	// spell flag set as true.
-	Dispel() Effect
-
-	// Values returns the result value and a nil error if no
-	// error is set, else returns a nil value and the error.
-	Values() (any, error)
+	// UntypedValues returns the result value and a nil error
+	// if no error is set, else returns nil and the error.
+	UntypedValues() (any, error)
 }
 
-// effect satisfies the Effect interface.
-type effect struct {
-	prior    Effect
+// Effect is the typed version of UntypedEffect. Functions
+// here will return an Effect unless we cannot determine
+// the type at compile time, UntypedEffect will be used
+// instead. This maximises use that minimises direct type
+// casting.
+type Effect[T any] interface {
+	UntypedEffect
+
+	// NameAs copies and returns the effect with a new name.
+	NameAs(name string) Effect[T]
+
+	// PriorAs copies and returns the effect with the prior
+	// set as the passed prior Effect. The prior may carry a
+	// different result type.
+	PriorAs(prior UntypedEffect) Effect[T]
+
+	// Result returns the result value if set, else returns
+	// the zero value of T.
+	Result() T
+
+	// Dispel copies and returns the effect with the end
+	// spell flag set as true.
+	Dispel() Effect[T]
+
+	// Values returns the result value and a nil error if no
+	// error is set, else returns the zero value of T and the
+	// error.
+	Values() (T, error)
+}
+
+// effect satisfies the TypedEffect interface.
+type effect[T any] struct {
+	prior    UntypedEffect
 	name     string
-	result   any
+	result   T
 	error    error
 	endSpell bool
 }
 
 // newEffect sets the effect's error if err is not
 // nil, else sets the result value.
-func newEffect(value any, err error) *effect {
-	ef := &effect{}
+func newEffect[T any](value T, err error) *effect[T] {
+	ef := &effect[T]{}
 
 	if err != nil {
 		ef.error = err
@@ -71,134 +94,164 @@ func newEffect(value any, err error) *effect {
 }
 
 // Bless returns a new effect with the passed value set as
-// the result. If the value is an Effect then its value
-// will be used instead. A result value cannot be an
-// Effect.
-func Bless(value any) *effect {
-	if ef, ok := value.(Effect); ok {
-		value = ef.Result()
+// the result. If the value is itself an Effect[T] then
+// its result will be used instead. A result value cannot
+// be an Effect or UntypedEffect.
+func Bless[T any](value T) *effect[T] {
+	if te, ok := any(value).(Effect[T]); ok {
+		value = te.Result()
 	}
 
-	return &effect{
+	return &effect[T]{
 		result: value,
 	}
 }
 
 // Curse returns a new effect with a new error created from
-// the given message and optional arguments.
-func Curse(message string, args ...any) *effect {
-	return &effect{
+// the given message and optional arguments. The result
+// type T must be specified explicitly since no value is
+// provided, e.g. Curse[string]("alakazam").
+func Curse[T any](message string, args ...any) *effect[T] {
+	return &effect[T]{
 		error: fmt.Errorf(message, args...),
 	}
 }
 
-// Cursed returns a new effect with a the passed err set
-// as the error.
-func Cursed(err error) *effect {
-	return &effect{
+// Cursed returns a new effect with the passed err set
+// as the error. The result type T must be specified
+// explicitly since no value is provided, e.g.
+// Cursed[string](err).
+func Cursed[T any](err error) *effect[T] {
+	return &effect[T]{
 		error: err,
 	}
 }
 
 // Judge returns a new effect with the error value set
 // if valueOrErr is an error, else sets the result value to
-// valueOrErr.
-func Judge(valueOrErr any) *effect {
-	err, _ := valueOrErr.(error)
-	return newEffect(valueOrErr, err)
+// valueOrErr cast to T.
+func Judge[T any](valueOrErr any) *effect[T] {
+	if err, ok := valueOrErr.(error); ok {
+		return &effect[T]{error: err}
+	}
+
+	value, _ := valueOrErr.(T)
+	return &effect[T]{result: value}
 }
 
 // Choose returns a new effect with the error set if err is
 // not nil, else the result value is set.
-func Choose(value any, err error) *effect {
+func Choose[T any](value T, err error) *effect[T] {
 	return newEffect(value, err)
 }
 
-// Name satisfies the Effect interface.
-func (ef *effect) Name() string {
+// Name satisfies the UntypedEffect and Effect interfaces.
+func (ef *effect[T]) Name() string {
 	return ef.name
 }
 
-// NameAs satisfies the Effect interface.
-func (ef *effect) NameAs(name string) Effect {
+// NameAs satisfies the UntypedEffect and Effect interfaces.
+func (ef *effect[T]) NameAs(name string) Effect[T] {
 	cp := *ef
 	cp.name = name
 	return &cp
 }
 
-// Prior satisfies the Effect interface.
-func (ef *effect) Prior() Effect {
+// Prior satisfies the UntypedEffect and Effect interfaces.
+func (ef *effect[T]) Prior() UntypedEffect {
 	return ef.prior
 }
 
-// PriorAs satisfies the Effect interface.
-func (ef *effect) PriorAs(prior Effect) Effect {
+// PriorAs satisfies the UntypedEffect and Effect
+// interfaces.
+func (ef *effect[T]) PriorAs(prior UntypedEffect) Effect[T] {
 	cp := *ef
 	cp.prior = prior
 	return &cp
 }
 
-// Result satisfies the Effect interface.
-func (ef *effect) Result() any {
+// Result satisfies the UntypedEffect and Effect
+// interfaces.
+func (ef *effect[T]) UntypedResult() any {
 	return ef.result
 }
 
-// Error satisfies the Effect interface.
-func (ef *effect) Error() error {
+// Result satisfies the UntypedEffect and Effect
+// interfaces.
+func (ef *effect[T]) Result() T {
+	return ef.result
+}
+
+// Error satisfies the UntypedEffect and Effect
+// interfaces.
+func (ef *effect[T]) Error() error {
 	return ef.error
 }
 
-// Cursed satisfies the Effect interface.
-func (ef *effect) Cursed() bool {
+// Cursed satisfies the UntypedEffect and Effect
+// interfaces.
+func (ef *effect[T]) Cursed() bool {
 	return ef.error != nil
 }
 
-// Dispelled satisfies the Effect interface.
-func (ef *effect) Dispelled() bool {
+// Dispelled satisfies the UntypedEffect and Effect
+// interfaces.
+func (ef *effect[T]) Dispelled() bool {
 	return ef.endSpell
 }
 
-// Dispel satisfies the Effect interface.
-func (ef *effect) Dispel() Effect {
+// Dispel satisfies the UntypedEffect and Effect
+// interfaces.
+func (ef *effect[T]) Dispel() Effect[T] {
 	cp := *ef
 	cp.endSpell = true
 	return &cp
 }
 
-// Values satisfies the Effect interface.
-func (ef *effect) Values() (any, error) {
+// UntypedValues satisfies the TypedEffect and Effect
+// interfaces.
+func (ef *effect[T]) UntypedValues() (any, error) {
 	if ef.error != nil {
 		return nil, ef.error
 	}
 	return ef.result, nil
 }
 
-// TransmuteEffect returns the result value, as the return
-// type, and a nil error if no error is set, else returns
-// the return types empty value and the error. If the
-// result value cannot be cast to the generic type then an
-// error shall be forthcoming.
-func TransmuteEffect[R any](ef Effect) (R, error) {
-	var empty R
-
-	if ef.Cursed() {
-		return empty, ef.Error()
+// Values satisfies the Effect interface.
+func (ef *effect[T]) Values() (T, error) {
+	if ef.error != nil {
+		var empty T
+		return empty, ef.error
 	}
-
-	result, ok := ef.Result().(R)
-	if !ok {
-		return empty, errors.New("Not even a Wizard² can transmute the Effect result to your uttered type")
-	}
-
-	return result, nil
+	return ef.result, nil
 }
 
-// SeekNamedEffect iterates the chain of Effects, starting
-// with the passed argument ef, and returns the first
-// found with the specified name, or nil if no matching
-// Effect is found.
-func SeekNamedEffect(ef Effect, name string) Effect {
-	prior := ef
+// Demystify casts the UntypedEffect ue to Effect[T].
+// If the underlying result type isn't T then the resultant
+// Effect shall contain an error stating so, with ue set as
+// the prior Effect.
+func Demystify[T any](ue UntypedEffect) Effect[T] {
+	te, ok := ue.(Effect[T])
+	if !ok {
+		result := Curse[T]("Not even a Wizard² can transmute the Effect result to your uttered type")
+		return result.PriorAs(ue)
+	}
+
+	return te
+}
+
+// SeekNamedEffect iterates the chain of UntypedEffects,
+// starting with the passed argument ue, and returns the
+// first found with the specified name, or nil if no
+// matching UntypedEffect is found. Since links in the
+// chain may carry different result types, the return value
+// is UntypedEffect. If you're confident you know what the
+// type is, use Demystify to cast to an Effect.
+func SeekNamedEffect(
+	ue UntypedEffect,
+	name string,
+) UntypedEffect {
+	prior := ue
 
 	for prior != nil {
 		if prior.Name() == name {
