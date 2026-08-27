@@ -1,7 +1,6 @@
 package spellbook
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -58,10 +57,12 @@ type effect struct {
 
 // newEffect sets the effect's error if err is not
 // nil, else sets the result value.
-func newEffect(value any, err error) *effect {
+func newEffect[T any](value T, err error) *effect {
 	ef := &effect{}
 
 	if err != nil {
+		var r T
+		ef.result = r
 		ef.error = err
 	} else {
 		ef.result = value
@@ -71,46 +72,53 @@ func newEffect(value any, err error) *effect {
 }
 
 // Bless returns a new effect with the passed value set as
-// the result. If the value is an Effect then its value
-// will be used instead. A result value cannot be an
-// Effect.
-func Bless(value any) *effect {
-	if ef, ok := value.(Effect); ok {
-		value = ef.Result()
-	}
-
+// the result.
+func Bless[T any](value T) *effect {
 	return &effect{
 		result: value,
 	}
 }
 
+// Bequeath returns a new effect with the passed ef result
+// used as the new result.
+func Bequeath(ef *effect) *effect {
+	return &effect{
+		result: ef.Result(),
+	}
+}
+
 // Curse returns a new effect with a new error created from
 // the given message and optional arguments.
-func Curse(message string, args ...any) *effect {
+func Curse[T any](message string, args ...any) *effect {
+	var r T
 	return &effect{
-		error: fmt.Errorf(message, args...),
+		result: r,
+		error:  fmt.Errorf(message, args...),
 	}
 }
 
 // Cursed returns a new effect with a the passed err set
 // as the error.
-func Cursed(err error) *effect {
+func Cursed[T any](err error) *effect {
+	var r T
 	return &effect{
-		error: err,
+		result: r,
+		error:  err,
 	}
 }
 
 // Judge returns a new effect with the error value set
 // if valueOrErr is an error, else sets the result value to
 // valueOrErr.
-func Judge(valueOrErr any) *effect {
+func Judge[T any](valueOrErr any) *effect {
+	r, _ := valueOrErr.(T)
 	err, _ := valueOrErr.(error)
-	return newEffect(valueOrErr, err)
+	return newEffect(r, err)
 }
 
 // Choose returns a new effect with the error set if err is
 // not nil, else the result value is set.
-func Choose(value any, err error) *effect {
+func Choose[T any](value T, err error) *effect {
 	return newEffect(value, err)
 }
 
@@ -173,21 +181,20 @@ func (ef *effect) Values() (any, error) {
 	return ef.result, nil
 }
 
-// TransmuteEffect returns the result value, as the return
+// DemystifyEffect returns the result value, as the return
 // type, and a nil error if no error is set, else returns
 // the return types empty value and the error. If the
-// result value cannot be cast to the generic type then an
-// error shall be forthcoming.
-func TransmuteEffect[R any](ef Effect) (R, error) {
-	var empty R
-
-	if ef.Cursed() {
-		return empty, ef.Error()
-	}
-
+// result value cannot be cast to the generic type then a
+// panic ensues.
+func DemystifyEffect[R any](ef Effect) (R, error) {
 	result, ok := ef.Result().(R)
 	if !ok {
-		return empty, errors.New("Not even a Wizard² can transmute the Effect result to your uttered type")
+		panic("Not even a Wizard² can demystify the Effect to your uttered type")
+	}
+
+	if ef.Cursed() {
+		var empty R
+		return empty, ef.Error()
 	}
 
 	return result, nil

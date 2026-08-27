@@ -19,18 +19,20 @@ func Test_Bless_1(t *testing.T) {
 func Test_Sin_1(t *testing.T) {
 	err := errors.New("abc")
 
-	act := Cursed(err)
+	act := Cursed[string](err)
 	exp := &effect{
-		error: err,
+		result: "",
+		error:  err,
 	}
 
 	require.Equal(t, exp, act)
 }
 
 func Test_Curse_1(t *testing.T) {
-	act := Curse("Error: %s", "abc")
+	act := Curse[string]("Error: %s", "abc")
 	exp := &effect{
-		error: errors.New("Error: abc"),
+		result: "",
+		error:  errors.New("Error: abc"),
 	}
 
 	require.Equal(t, exp, act)
@@ -39,16 +41,17 @@ func Test_Curse_1(t *testing.T) {
 func Test_Judge_1(t *testing.T) {
 	var act, exp Effect
 
-	act = Judge("abc")
+	act = Judge[string]("abc")
 	exp = &effect{
 		result: "abc",
 	}
 	require.Equal(t, exp, act)
 
 	err := errors.New("Error: abc")
-	act = Judge(err)
+	act = Judge[string](err)
 	exp = &effect{
-		error: err,
+		result: "",
+		error:  err,
 	}
 	require.Equal(t, exp, act)
 }
@@ -65,7 +68,8 @@ func Test_Choose_1(t *testing.T) {
 	err := errors.New("Error: abc")
 	act = Choose("abc", err)
 	exp = &effect{
-		error: err,
+		result: "",
+		error:  err,
 	}
 	require.Equal(t, exp, act)
 }

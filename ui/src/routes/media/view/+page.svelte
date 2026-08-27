@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte'
 	import { page } from '$app/state'
 
-	import backend from '$lib/backend.js'
 	import MediaVideo from './MediaVideo.svelte'
 
 	let entityId = $state('')

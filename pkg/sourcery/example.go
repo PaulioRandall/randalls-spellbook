@@ -6,28 +6,29 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/PaulioRandall/randalls-spellbook/pkg/data"
 	. "github.com/PaulioRandall/randalls-spellbook/pkg/spellbook"
 )
 
 //go:embed testdata
 var testdata embed.FS
 
-func SourceryExample() {
-	rm := NewRealm()
+func sourceryExample() {
+	rm := NewRealm[data.Store]()
 
 	rm.Debug(true)
 	rm.Title("Example")
 	rm.Size(420, 300)
 	rm.Serve("/testdata/", http.FileServerFS(testdata))
 
-	rm.Transcribe(
+	rm.spellbook.Transcribe(
 		"time",
-		getTime,
-		fmtTime,
+		exampleGetTime,
+		exampleFmtTime,
 	)
 
-	rm.AfterOpening(afterOpening)
-	rm.AfterClosing(afterClosing)
+	rm.AfterOpening(exampleAfterOpening)
+	rm.AfterClosing(exampleAfterClosing)
 
 	e := rm.OpenPortal()
 
@@ -36,26 +37,22 @@ func SourceryExample() {
 	}
 }
 
-func getTime(_ any, _ Effect) Effect {
+func exampleGetTime(_ any, _ any) Effect {
 	return Bless(time.Now())
 }
 
-func fmtTime(_ any, input Effect) Effect {
-	currTime, ok := input.Result().(time.Time)
-	if !ok {
-		return Curse("Wrong type, expected time.Time")
-	}
-
+func exampleFmtTime(_ any, data any) Effect {
+	currTime := Demystify[time.Time](data)
 	formattedTime := currTime.Format("13:14:15")
 	return Bless(formattedTime)
 }
 
-func afterOpening(rm *Realm) error {
+func exampleAfterOpening(rm *Realm[data.Store]) error {
 	println("Realm is open!")
 	return nil
 }
 
-func afterClosing(rm *Realm) error {
+func exampleAfterClosing(rm *Realm[data.Store]) error {
 	println("Realm is closed!")
 	return nil
 }

@@ -31,10 +31,6 @@ type UntypedEffect interface {
 	// Cursed returns true if the Effect contains an error.
 	Cursed() bool
 
-	// Dispelled returns true if the spell ends with this
-	// incantation.
-	Dispelled() bool
-
 	// UntypedValues returns the result value and a nil error
 	// if no error is set, else returns nil and the error.
 	UntypedValues() (any, error)
@@ -60,10 +56,6 @@ type Effect[T any] interface {
 	// the zero value of T.
 	Result() T
 
-	// Dispel copies and returns the effect with the end
-	// spell flag set as true.
-	Dispel() Effect[T]
-
 	// Values returns the result value and a nil error if no
 	// error is set, else returns the zero value of T and the
 	// error.
@@ -72,11 +64,10 @@ type Effect[T any] interface {
 
 // effect satisfies the TypedEffect interface.
 type effect[T any] struct {
-	prior    UntypedEffect
-	name     string
-	result   T
-	error    error
-	endSpell bool
+	prior  UntypedEffect
+	name   string
+	result T
+	error  error
 }
 
 // newEffect sets the effect's error if err is not
@@ -192,20 +183,6 @@ func (ef *effect[T]) Error() error {
 // interfaces.
 func (ef *effect[T]) Cursed() bool {
 	return ef.error != nil
-}
-
-// Dispelled satisfies the UntypedEffect and Effect
-// interfaces.
-func (ef *effect[T]) Dispelled() bool {
-	return ef.endSpell
-}
-
-// Dispel satisfies the UntypedEffect and Effect
-// interfaces.
-func (ef *effect[T]) Dispel() Effect[T] {
-	cp := *ef
-	cp.endSpell = true
-	return &cp
 }
 
 // UntypedValues satisfies the TypedEffect and Effect

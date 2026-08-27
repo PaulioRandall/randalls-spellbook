@@ -1,25 +1,32 @@
 package main
 
 import (
+	"embed"
 	"io/fs"
 	"log"
 	"net/http"
 
-	"github.com/PaulioRandall/randalls-spellbook/ui"
-
+	"github.com/PaulioRandall/randalls-spellbook/pkg/business"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/data"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
-
-	_ "github.com/PaulioRandall/randalls-spellbook/pkg/effect"
 )
 
+//go:embed ui/build/*
+var webFiles embed.FS
+
 func main() {
-	rm := sourcery.NewRealm()
+	rm := sourcery.NewRealm[data.Store]()
 
 	rm.Debug(true)
 	rm.Title("Randall's Spellbook")
-	rm.Size(800, 600)
-	rm.Serve("/media/", MediaServer{rm})
-	rm.Serve("/", createWebServer())
+	rm.Size(1200, 800)
+	rm.Serve("/media/", business.NewMediaServer(rm))
+	rm.Serve("/", createHtmlServer())
+
+	rm.Spellbook().Enscribe("SelectLocalFile", business.SelectLocalFile)
+	rm.Spellbook().Enscribe("ListMedia", business.ListMedia)
+	rm.Spellbook().Enscribe("GetMediaById", business.GetMediaById)
+	rm.Spellbook().Enscribe("AddMedia", business.AddMedia)
 
 	rm.AfterOpening(afterOpening)
 	rm.AfterClosing(afterClosing)
@@ -32,10 +39,32 @@ func main() {
 	}
 }
 
-func createWebServer() http.Handler {
-	webFiles, e := fs.Sub(ui.BuildFS, "build")
+func createHtmlServer() http.Handler {
+	fs, e := fs.Sub(webFiles, "ui/build")
 	if e != nil {
 		panic(e)
 	}
-	return http.FileServerFS(webFiles)
+	return http.FileServerFS(fs)
+}
+
+func afterOpening(rm business.Realm) error {
+	rm.Inventory = data.NewStore("./testproject/data.sqlite")
+
+	e := rm.Inventory.Open()
+	if e != nil {
+		return e
+	}
+
+	return nil
+}
+
+func afterClosing(rm business.Realm) error {
+	var e error
+
+	if rm.Inventory != nil {
+		e = rm.Inventory.Close()
+		rm.Inventory = nil
+	}
+
+	return e
 }

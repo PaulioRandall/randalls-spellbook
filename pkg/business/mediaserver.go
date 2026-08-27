@@ -1,4 +1,4 @@
-package main
+package business
 
 import (
 	"log"
@@ -11,7 +11,15 @@ import (
 )
 
 type MediaServer struct {
-	realm *sourcery.Realm
+	realm *sourcery.Realm[data.Store]
+}
+
+func NewMediaServer(
+	realm *sourcery.Realm[data.Store],
+) *MediaServer {
+	return &MediaServer{
+		realm: realm,
+	}
 }
 
 func (ms MediaServer) ServeHTTP(
@@ -19,9 +27,17 @@ func (ms MediaServer) ServeHTTP(
 	r *http.Request,
 ) {
 	media := ms.lookupMedia(w, r)
-	if media != (data.Media{}) {
-		serveMedia(w, r, media)
+
+	if media == (data.Media{}) {
+		http.Error(
+			w,
+			"Could not find media by ID",
+			http.StatusBadRequest,
+		)
+		return
 	}
+
+	serveMedia(w, r, media)
 }
 
 func (ms MediaServer) lookupMedia(
@@ -40,9 +56,12 @@ func (ms MediaServer) lookupMedia(
 		return data.Media{}
 	}
 
-	entityId := data.EntityId(entityIdParam)
-	effect := ms.realm.Cast("GetMediaById", ms.realm, entityId)
-	media, e := spellbook.TransmuteEffect[data.Media](effect)
+	effect := ms.realm.Spellbook().Cast(
+		"GetMediaById",
+		ms.realm,
+		entityIdParam,
+	)
+	media, e := spellbook.DemystifyEffect[data.Media](effect)
 
 	if e != nil {
 		log.Println(e)
@@ -50,14 +69,6 @@ func (ms MediaServer) lookupMedia(
 			w,
 			"Error looking up media",
 			http.StatusInternalServerError,
-		)
-	}
-
-	if media == (data.Media{}) {
-		http.Error(
-			w,
-			"Could not find media by ID",
-			http.StatusBadRequest,
 		)
 	}
 

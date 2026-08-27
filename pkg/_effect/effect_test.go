@@ -81,17 +81,6 @@ func Test_effect_NameAs_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_effect_Dispel_1(t *testing.T) {
-	ef := &effect[string]{}
-
-	act := ef.Dispel()
-	exp := &effect[string]{
-		endSpell: true,
-	}
-
-	require.Equal(t, exp, act)
-}
-
 func Test_Demystify_1(t *testing.T) {
 	var te Effect[string] = &effect[string]{result: "abc"}
 	var ue UntypedEffect = te

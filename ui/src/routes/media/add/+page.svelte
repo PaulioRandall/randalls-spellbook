@@ -20,7 +20,7 @@
 	let localPathError = $state('')
 
 	async function selectFile() {
-		localPath = await backend.selectLocalMediaFile()
+		localPath = await backend.SelectLocalFile()
 
 		if (!name.trim()) {
 			name = extractNameFromLocalPath(localPath)
@@ -41,7 +41,7 @@
 			return
 		}
 
-		const entityId = await backend.addMedia(
+		const entityId = await backend.AddMedia(
 			mediaType, //
 			name,
 			description,

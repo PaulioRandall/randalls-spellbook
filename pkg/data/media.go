@@ -37,11 +37,11 @@ type Media struct {
 	//
 	// It must be unique within the project, never empty, and
 	// never change.
-	EntityId EntityId
+	EntityId EntityId `json:"entityId"`
 
 	// MediaType is type of the media, e.g. video, audio,
 	// PDF, etc.
-	MediaType string
+	MediaType string `json:"mediaType"`
 
 	// Name is the user defined readable and meaningful name
 	// for human users and AI agents. This is not the
@@ -49,7 +49,7 @@ type Media struct {
 	//
 	// It must never be empty and should should be trimmed
 	// of whitespace.
-	Name string
+	Name string `json:"name"`
 
 	// Description is the user defined detailed explanation
 	// of the video for human users and AI agents.
@@ -57,56 +57,48 @@ type Media struct {
 	// It should compliment the Name field but is also
 	// intended for general notes. It may be may be empty and
 	// should should be trimmed of whitespace.
-	Description string
+	Description string `json:"description"`
 
 	// LocalPath is the file path to the video file within
 	// the local file system.
-	LocalPath string
+	LocalPath string `json:"localPath"`
 }
 
-// MakeMedia creates and returns a new Media entity
-// ensuring passed properties are valid. All values are
+// CleanMedia returns a new Media entity from an exsiting
+// one ensuring all properties are valid. All values are
 // trimmed and localPath is cleaned before being checked
-// and assigned to the new media.
+// and assigned to the new media. If the EntityId is empty
+// then a new one is allocated.
 //
-// If checks pass then the new media is returned else an
-// empty Media and an error. An error will occur if the
-// name or localPath are empty, or if localPath is not a
-// valid absolute filepath.
+// If checks pass then the media is returned else an empty
+// Media and an error. An error will occur if the Name or
+// LocalPath are empty, or if LocalPath is not a valid
+// absolute filepath.
 //
 // The existence of the file or file type are not checked
 // but this may change in the future.
-func MakeMedia(
-	mediaType string,
-	name string,
-	description string,
-	localPath string,
-) (Media, error) {
+func CleanMedia(m Media) (Media, error) {
 	empty := Media{}
 
-	name = strings.TrimSpace(name)
-	description = strings.TrimSpace(description)
-	localPath = strings.TrimSpace(localPath)
+	m.Name = strings.TrimSpace(m.Name)
+	m.Description = strings.TrimSpace(m.Description)
+	m.LocalPath = strings.TrimSpace(m.LocalPath)
 
-	if name == "" {
-		return empty, errors.New("name must not be empty")
+	if m.EntityId == "" {
+		m.EntityId = randomEntityId()
 	}
 
-	if localPath == "" {
-		return empty, errors.New("localPath must not be empty")
+	if m.Name == "" {
+		return empty, errors.New("Name must not be empty")
 	}
 
-	localPath = filepath.Clean(localPath)
-	if !filepath.IsAbs(localPath) {
-		return empty, errors.New("localPath must be absolute")
+	if m.LocalPath == "" {
+		return empty, errors.New("LocalPath must not be empty")
 	}
 
-	m := Media{
-		EntityId:    randomEntityId(),
-		MediaType:   mediaType,
-		Name:        name,
-		Description: description,
-		LocalPath:   localPath,
+	m.LocalPath = filepath.Clean(m.LocalPath)
+	if !filepath.IsAbs(m.LocalPath) {
+		return empty, errors.New("LocalPath must be absolute")
 	}
 
 	return m, nil
@@ -173,6 +165,11 @@ func createMediaTable(db *sql.DB) error {
 }
 
 func insertMedia(db *sql.DB, media Media) error {
+	media, e := CleanMedia(media)
+	if e != nil {
+		return e
+	}
+
 	query := `
 		INSERT INTO media (
 			entity_id,
@@ -183,7 +180,7 @@ func insertMedia(db *sql.DB, media Media) error {
 		) VALUES (?, ?, ?, ?, ?)
 	`
 
-	_, e := db.Exec(
+	_, e = db.Exec(
 		query,
 		media.EntityId,
 		media.MediaType,

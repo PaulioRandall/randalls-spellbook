@@ -22,42 +22,44 @@ const testMedia = [
 	},
 ]
 
-async function getAllMedia() {
-	if (!!window?.getAllMedia) {
-		return window.getAllMedia()
+async function SelectLocalFile() {
+	if (!!window?.CastSpell) {
+		return window.CastSpell('SelectLocalFile', null)
+	}
+	return '/path/to/media file.mp4'
+}
+
+async function ListMedia() {
+	if (!!window?.CastSpell) {
+		return window.CastSpell('ListMedia', null)
 	}
 	return structuredClone(testMedia)
 }
 
-async function getMediaById(entityId) {
-	if (!!window?.getMediaById) {
-		return window.getMediaById(entityId)
+async function GetMediaById(entityId) {
+	if (!!window?.CastSpell) {
+		return window.CastSpell('GetMediaById', entityId)
 	}
 
 	const media = testMedia.find((m) => m.entityId === entityId)
 	return media ? structuredClone(media) : null
 }
 
-async function selectLocalMediaFile() {
-	if (!!window?.selectLocalMediaFile) {
-		return window.selectLocalMediaFile()
-	}
-	return '/path/to/media file.mp4'
-}
-
-async function addMedia(
+async function AddMedia(
 	mediaType, //
 	name,
 	description,
 	localPath
 ) {
-	if (!!window?.addMediaToProject) {
-		return window.addMediaToProject(
+	if (!!window?.CastSpell) {
+		const data = JSON.stringify({
 			mediaType, //
 			name,
 			description,
-			localPath
-		)
+			localPath,
+		})
+
+		return window.CastSpell('AddMedia', data)
 	}
 
 	const entityId = crypto.randomUUID()
@@ -74,8 +76,8 @@ async function addMedia(
 }
 
 export default {
-	getAllMedia,
-	getMediaById,
-	addMedia,
-	selectLocalMediaFile,
+	SelectLocalFile,
+	ListMedia,
+	GetMediaById,
+	AddMedia,
 }

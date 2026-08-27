@@ -5,6 +5,7 @@
 <main>
 	<div class="menu">
 		<a class="option" href="/media">Media</a>
+		<a class="option" href="/todo">Todo</a>
 	</div>
 </main>
 

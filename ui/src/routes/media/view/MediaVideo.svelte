@@ -18,7 +18,8 @@
 	let media = $state(null)
 
 	onMount(async () => {
-		media = await backend.getMediaById(entityId)
+		console.log('entityId type:', typeof entityId)
+		media = await backend.GetMediaById(entityId)
 	})
 
 	mediaSvox.onElement(() => {

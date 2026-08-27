@@ -9,7 +9,7 @@ import (
 )
 
 func mockIncantation(data any, err error) Incantation {
-	return func(_ any, _ Effect) Effect {
+	return func(_ any, _ any) Effect {
 		return Choose(data, err)
 	}
 }
@@ -157,15 +157,15 @@ func Test_JsonDemystifyer_1(t *testing.T) {
 		Age  int    `json:"age"`
 	}
 
-	var object testObject
-	incant := JsonDemystifyer(&object)
+	genObject := func() *testObject {
+		return &testObject{}
+	}
+	incant := JsonDemystifyer(genObject)
 
-	input := &effect{
-		result: []byte(`{
+	input := []byte(`{
 		  "name": "Alice",
 		  "age": 24
-	  }`),
-	}
+	  }`)
 
 	act := incant(nil, input)
 	exp := &effect{
