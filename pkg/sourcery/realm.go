@@ -23,8 +23,8 @@ type LifecycleHandler[T any] func(rm *Realm[T]) error
 
 // Realm is the main application structure.
 type Realm[T any] struct {
+	*spellbook.Spellbook
 	Inventory    T
-	spellbook    *spellbook.Spellbook
 	debug        bool
 	title        string
 	width        int
@@ -38,16 +38,11 @@ type Realm[T any] struct {
 // NewRealm returns a new Realm with default values.
 func NewRealm[T any]() *Realm[T] {
 	return &Realm[T]{
-		spellbook: spellbook.Conjure(),
+		Spellbook: spellbook.Conjure(),
 		title:     "Technotelicomnicon",
 		width:     800,
 		height:    600,
 	}
-}
-
-// Spellbook returns the realm's Spellbook.
-func (rm *Realm[T]) Spellbook() *spellbook.Spellbook {
-	return rm.spellbook
 }
 
 // Debug sets the debug state. Default is false.
@@ -188,7 +183,7 @@ func (rm *Realm[T]) castSpell(
 		panic(r)
 	}()
 
-	effect := rm.spellbook.Cast(spellname, rm, data)
+	effect := rm.Cast(spellname, rm, data)
 
 	if effect.Cursed() {
 		return nil, effect.Error()

@@ -6,7 +6,7 @@
 		`Experiment with typed Incantations that involve creating recursively wrapped thunks`,
 		`Fix issue with play button and seekbar not updating to match MediaElement`,
 		`Look into how to improve error messaging with spells, e.g. could we return the Effect and let the frontend determine check the error?`,
-		`Try making Realm embed Spellbook again as it looks like the previous issues we resolved were not related`,
+		`Fix issue with AddMedia unexpected type`,
 	]
 </script>
 

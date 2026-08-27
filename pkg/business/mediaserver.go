@@ -56,7 +56,7 @@ func (ms MediaServer) lookupMedia(
 		return data.Media{}
 	}
 
-	effect := ms.realm.Spellbook().Cast(
+	effect := ms.realm.Cast(
 		"GetMediaById",
 		ms.realm,
 		entityIdParam,

@@ -21,7 +21,7 @@ func sourceryExample() {
 	rm.Size(420, 300)
 	rm.Serve("/testdata/", http.FileServerFS(testdata))
 
-	rm.spellbook.Transcribe(
+	rm.Transcribe(
 		"time",
 		exampleGetTime,
 		exampleFmtTime,
