@@ -1,21 +1,39 @@
 package main
 
 import (
+	"io/fs"
 	"log"
+	"net/http"
 
 	"github.com/PaulioRandall/randalls-spellbook/ui"
 
-	_ "github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
 )
 
 func main() {
-	// TODO: Determine using cmd option -d.
-	debug := true
+	rm := sourcery.NewRealm()
+
+	rm.Debug(true)
+	rm.Title("Randall's Spellbook")
+	rm.Size(800, 600)
+	rm.Serve("/media/", MediaServer{rm})
+	rm.Serve("/", createWebServer())
+
+	rm.AfterOpening(afterOpening)
+	rm.AfterClosing(afterClosing)
 
 	// Blocks!
-	e := ui.Run(debug)
+	e := rm.OpenPortal()
 
 	if e != nil {
 		log.Fatal(e)
 	}
+}
+
+func createWebServer() http.Handler {
+	webFiles, e := fs.Sub(ui.BuildFS, "build")
+	if e != nil {
+		panic(e)
+	}
+	return http.FileServerFS(webFiles)
 }

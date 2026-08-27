@@ -1,4 +1,4 @@
-package spellbook
+package effect
 
 import (
 	"errors"

@@ -3,5 +3,5 @@
 
 **Requires:**
 
-- Go
-- Deno
+- Go 1.27+
+- NPM 24+

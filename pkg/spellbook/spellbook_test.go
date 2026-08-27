@@ -9,7 +9,7 @@ import (
 )
 
 func mockIncantation(data any, err error) Incantation {
-	return func(effect Effect) Effect {
+	return func(_ any, _ Effect) Effect {
 		return Choose(data, err)
 	}
 }
@@ -66,7 +66,7 @@ func Test_Cast_1(t *testing.T) {
 
 	spellbook.Enscribe("spellname", incant)
 
-	act := spellbook.Cast("spellname", "info")
+	act := spellbook.Cast("spellname", nil, "info")
 	expA := &effect{result: "info", prior: nil}
 	expB := &effect{result: "data", prior: expA}
 
@@ -84,7 +84,7 @@ func Test_Cast_2(t *testing.T) {
 		incant,
 	)
 
-	act := spellbook.Cast("spellname", nil)
+	act := spellbook.Cast("spellname", nil, nil)
 	expA := &effect{result: nil, prior: nil}
 	expB := &effect{result: "data", prior: expA}
 	expC := &effect{result: "data", prior: expB}
@@ -105,13 +105,13 @@ func Test_Cast_3(t *testing.T) {
 		prior:  &effect{},
 	}
 
-	act = spellbook.Cast("spellname", nil)
+	act = spellbook.Cast("spellname", nil, nil)
 	require.Equal(t, exp, act)
 
-	act = spellbook.Cast("spellname", nil)
+	act = spellbook.Cast("spellname", nil, nil)
 	require.Equal(t, exp, act)
 
-	act = spellbook.Cast("spellname", nil)
+	act = spellbook.Cast("spellname", nil, nil)
 	require.Equal(t, exp, act)
 }
 
@@ -122,7 +122,7 @@ func Test_Cast_4(t *testing.T) {
 	incant := mockIncantation(nil, err)
 	spellbook.Enscribe("spellname", incant)
 
-	act := spellbook.Cast("spellname", "info")
+	act := spellbook.Cast("spellname", nil, "info")
 	expA := &effect{result: "info", prior: nil}
 	expB := &effect{error: err, prior: expA}
 
@@ -142,7 +142,7 @@ func Test_Cast_5(t *testing.T) {
 		incantC,
 	)
 
-	act := spellbook.Cast("spellname", 0)
+	act := spellbook.Cast("spellname", nil, 0)
 	exp0 := &effect{result: 0, prior: nil}
 	expA := &effect{result: "A", prior: exp0}
 	expB := &effect{result: "B", prior: expA}
@@ -167,7 +167,7 @@ func Test_JsonDemystifyer_1(t *testing.T) {
 	  }`),
 	}
 
-	act := incant(input)
+	act := incant(nil, input)
 	exp := &effect{
 		result: &testObject{
 			Name: "Alice",

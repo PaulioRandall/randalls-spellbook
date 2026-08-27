@@ -23,7 +23,7 @@ import (
 // reason to hide or force garbage collection of prior
 // Effects. However, having the chain of Effects produced
 // is useful for testing spells and debugging!
-type Incantation func(Effect) Effect
+type Incantation func(ctx any, prior Effect) Effect
 
 // Spell is a series of incantations that are to be invoked
 // in order.
@@ -41,7 +41,7 @@ type Spellbook struct {
 // incantation sets error if the input data is not a byte
 // array or if unmarshalling fails.
 func JsonDemystifyer(object any) Incantation {
-	return func(input Effect) Effect {
+	return func(_ any, input Effect) Effect {
 		bytes, ok := input.Result().([]byte)
 		if !ok {
 			return Curse("Wrong type, expected []bytes")
@@ -100,6 +100,7 @@ func (spellbook *Spellbook) Describe(
 // as the result data.
 func (spellbook *Spellbook) Cast(
 	spellname string,
+	ctx any,
 	data any,
 ) Effect {
 	spell := spellbook.Describe(spellname)
@@ -107,18 +108,10 @@ func (spellbook *Spellbook) Cast(
 	var output Effect = input
 
 	for _, incant := range spell {
-		output = incant(input)
+		output = incant(ctx, input).PriorAs(input)
 
-		if ef, ok := output.(*effect); ok {
-			ef.prior = input
-		}
-
-		if output.Cursed() {
+		if output.Cursed() || output.Dispelled() {
 			return output
-		}
-
-		if output.Dispelled() {
-			break
 		}
 
 		input = output

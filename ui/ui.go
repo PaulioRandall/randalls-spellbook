@@ -15,7 +15,14 @@ import (
 )
 
 //go:embed build/*
-var buildFS embed.FS
+var BuildFS embed.FS
+
+// TODO: Spell to open database that adds a closer to the
+//       sourcerer.
+// TODO: Spell GetMediaById
+// TODO: Spell ListMedia
+// TODO: Spell AddMedia
+// TODO: Select SelectLocalFile
 
 // project stores project data.
 var proj *project.Project
@@ -45,7 +52,7 @@ func Run(debug bool) error {
 }
 
 func createFileServer() (*http.ServeMux, error) {
-	svelteFS, e := fs.Sub(buildFS, "build")
+	svelteFS, e := fs.Sub(BuildFS, "build")
 	if e != nil {
 		return nil, e
 	}
