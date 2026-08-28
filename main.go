@@ -40,6 +40,15 @@ func main() {
 		business.JsonToMedia,
 		business.AddMedia,
 	)
+	rm.Transcribe(
+		"AddObservation",
+		business.JsonToObservation,
+		business.AddObservation,
+	)
+	rm.Transcribe(
+		"ListObservationsByMediaId",
+		business.ListObservationsByMediaId,
+	)
 
 	rm.AfterOpening(afterOpening)
 	rm.AfterClosing(afterClosing)

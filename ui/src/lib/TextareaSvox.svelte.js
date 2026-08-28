@@ -1,19 +1,17 @@
 import { untrack } from 'svelte'
 import ElementSvox from './ElementSvox.svelte.js'
-import Eventor from './Eventor.js'
 
 // TextareaSvox is a ElementSvox specific for the standard
 // HTMLTextAreaElement class.
 export default class TextareaSvox extends ElementSvox {
-	// isValidElement override to constrain elements to
-	// HTMLTextAreaElement only.
+	// isValidElement overides, HTMLTextAreaElement only.
 	//
 	// Untracked.
 	isValidElement(element) {
 		return element instanceof HTMLTextAreaElement
 	}
 
-	// text is the users text input.
+	// text is the user's text input.
 	//
 	// Tracked.
 	_text = $state('')
@@ -57,8 +55,7 @@ export default class TextareaSvox extends ElementSvox {
 		return untrack(() => this._empty)
 	}
 
-	// syncStates performs a state syncing with the currently
-	// set HTMLTextAreaElement.
+	// syncStates overides.
 	//
 	// Untracked.
 	syncStates() {
@@ -76,20 +73,7 @@ export default class TextareaSvox extends ElementSvox {
 		})
 	}
 
-	// reset removes all text from the textarea.
-	//
-	// Untracked.
-	reset() {
-		untrack(() => {
-			if (this.hasElement()) {
-				this.getElement().value = ''
-				this.syncStates()
-			}
-		})
-	}
-
-	// generateStateListeners overide to return monitor value
-	// state.
+	// generateStateListeners overides.
 	generateStateListeners() {
 		const svox = this
 

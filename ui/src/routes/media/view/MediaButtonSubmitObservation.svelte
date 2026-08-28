@@ -4,7 +4,7 @@
 
 	const title = 'Submit observation'
 
-	let { mediaSvox, textareaSvox } = $props()
+	let { mediaSvox, textareaSvox, media } = $props()
 	let disabled = $derived(
 		!mediaSvox.loaded || textareaSvox.empty //
 	)
@@ -14,19 +14,17 @@
 	})
 
 	function onclick() {
-		const data = {
-			time: mediaSvox.currentTime,
+		const ob = {
+			mediaId: media.entityId,
+			startTime: mediaSvox.currentTime,
+			duration: 0,
 			description: textareaSvox.text,
 		}
 
-		console.table(data)
-
-		/*
-		backend.CastSpell('AddObservation', {
-			time: mediaSvox.currentTime,
-			description: textareaSvox.text,
-		})
-		*/
+		window.CastSpell(
+			'AddObservation', //
+			JSON.stringify(ob)
+		)
 	}
 </script>
 

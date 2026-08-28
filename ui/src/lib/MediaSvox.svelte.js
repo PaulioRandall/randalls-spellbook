@@ -1,6 +1,5 @@
 import { untrack } from 'svelte'
 import ElementSvox from './ElementSvox.svelte.js'
-import Eventor from './Eventor.js'
 
 // MediaSvox is a ElementSvox specific for the
 // standard HTMLMediaElement class.
@@ -360,17 +359,6 @@ export default class MediaSvox extends ElementSvox {
 
 			this.element.currentTime = time
 		})
-	}
-
-	// restart sets the playback time to the start of the
-	// video. It's a seek operation to time 0. Unlike the
-	// reload function, restart does not reload the media so
-	// load related events are not fired, but seek operations
-	// will.
-	//
-	// Untracked.
-	restart() {
-		this.seekTo(0)
 	}
 
 	// syncStates performs a state syncing with the current

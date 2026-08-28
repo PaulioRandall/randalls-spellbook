@@ -21,8 +21,7 @@ type Store interface {
 	// GetProject returns the project data.
 	GetProject() (Project, error)
 
-	// InsertMedia inserts a media. The media is assumed to
-	// be valid.
+	// InsertMedia inserts a media.
 	InsertMedia(Media) error
 
 	// ListMedia returns all the media entities.
@@ -31,4 +30,11 @@ type Store interface {
 	// GetMediaById returns the media entity with the given
 	// entity ID.
 	GetMediaById(string) (Media, error)
+
+	// InsertObservation inserts an observation.
+	InsertObservation(Observation) error
+
+	// ListObservationsByMediaId returns all the observations
+	// with the given Media's EntityId.
+	ListObservationsByMediaId(string) ([]Observation, error)
 }

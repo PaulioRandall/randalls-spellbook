@@ -7,7 +7,7 @@
 	let disabled = $derived(!mediaSvox.loaded)
 
 	function onclick() {
-		mediaSvox.restart()
+		mediaSvox.seekTo(0)
 	}
 </script>
 

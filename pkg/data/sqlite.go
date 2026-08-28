@@ -89,6 +89,7 @@ func createTables(db *sql.DB) error {
 	tableCreators := []tableCreator{
 		createProjectTable,
 		createMediaTable,
+		createObservationTable,
 	}
 
 	for _, createTable := range tableCreators {
@@ -99,4 +100,18 @@ func createTables(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+// InsertObservation satisfies the Store interface.
+func (sqlite *sqliteDatabase) InsertObservation(
+	obs Observation,
+) error {
+	return insertObservation(sqlite.db, obs)
+}
+
+// ListObservationsByMediaId satisfies the Store interface.
+func (sqlite *sqliteDatabase) ListObservationsByMediaId(
+	mediaId string,
+) ([]Observation, error) {
+	return listObservationsByMediaId(sqlite.db, mediaId)
 }

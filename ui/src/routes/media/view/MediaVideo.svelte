@@ -13,6 +13,7 @@
 	import MediaButtonSubmitObservation from './MediaButtonSubmitObservation.svelte'
 	import MediaVideoPlayer from './MediaVideoPlayer.svelte'
 	import MediaObservationInput from './MediaObservationInput.svelte'
+	import MediaObservations from './MediaObservations.svelte'
 
 	const mediaSvox = new MediaSvox()
 	const textareaSvox = new TextareaSvox()
@@ -42,10 +43,13 @@
 			<MediaButtonPlayPause {mediaSvox} />
 			<MediaButtonRestart {mediaSvox} />
 			<MediaButtonReload {mediaSvox} />
-			<MediaButtonSubmitObservation {mediaSvox} {textareaSvox} />
+			<MediaButtonSubmitObservation {mediaSvox} {textareaSvox} {media} />
 		</div>
 		<div>
 			<MediaObservationInput {mediaSvox} {textareaSvox} />
+			{#if media}
+				<MediaObservations {mediaSvox} {media} />
+			{/if}
 		</div>
 	</div>
 </div>
@@ -65,7 +69,7 @@
 	}
 
 	.media-video-controls {
-		flex-basis: 60px;
+		flex-basis: 120px;
 		flex-grow: 0;
 		flex-shrink: 0;
 		width: 100%;

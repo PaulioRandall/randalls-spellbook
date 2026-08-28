@@ -3,22 +3,9 @@ package business
 import (
 	"encoding/json"
 
-	"github.com/crgimenes/glaze"
-
 	"github.com/PaulioRandall/randalls-spellbook/pkg/data"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/spellbook"
 )
-
-func SelectLocalFile(ctx any, _ any) spellbook.Effect {
-	rm := getRealm(ctx)
-
-	// Blocks!
-	path, e := rm.WebView().OpenFile(glaze.FileDialogOptions{
-		Title: "Select media file",
-	})
-
-	return spellbook.Choose(path, e)
-}
 
 func ListMedia(ctx any, _ any) spellbook.Effect {
 	inventory := getInventory(ctx)

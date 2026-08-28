@@ -28,6 +28,8 @@
 
 	onMount(async () => {
 		mediaList = await backend.ListMedia()
+
+		console.log(mediaList[0])
 	})
 </script>
 
