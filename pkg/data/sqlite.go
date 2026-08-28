@@ -64,7 +64,9 @@ func (sqlite *sqliteDatabase) GetProject() (Project, error) {
 }
 
 // InsertMedia satisfies the Store interface.
-func (sqlite *sqliteDatabase) InsertMedia(media Media) error {
+func (sqlite *sqliteDatabase) InsertMedia(
+	media Media,
+) error {
 	return insertMedia(sqlite.db, media)
 }
 
@@ -75,7 +77,7 @@ func (sqlite *sqliteDatabase) ListMedia() ([]Media, error) {
 
 // GetMediaById satisfies the Store interface.
 func (sqlite *sqliteDatabase) GetMediaById(
-	entityId EntityId,
+	entityId string,
 ) (Media, error) {
 	return getMediaByEntityId(sqlite.db, entityId)
 }

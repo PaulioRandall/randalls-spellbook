@@ -52,27 +52,26 @@ async function AddMedia(
 	localPath
 ) {
 	if (!!window?.CastSpell) {
-		const data = JSON.stringify({
+		const data = {
 			mediaType, //
 			name,
 			description,
 			localPath,
-		})
+		}
 
 		return window.CastSpell('AddMedia', data)
 	}
 
-	const entityId = crypto.randomUUID()
-
-	testMedia.push({
-		entityId, //
+	const m = {
+		entityId: crypto.randomUUID(), //
 		mediaType,
 		name,
 		description,
 		localPath,
-	})
+	}
 
-	return entityId
+	testMedia.push(m)
+	return m
 }
 
 export default {

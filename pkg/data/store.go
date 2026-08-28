@@ -29,6 +29,6 @@ type Store interface {
 	ListMedia() ([]Media, error)
 
 	// GetMediaById returns the media entity with the given
-	// EntityID.
-	GetMediaById(EntityId) (Media, error)
+	// entity ID.
+	GetMediaById(string) (Media, error)
 }

@@ -1,7 +1,6 @@
 package spellbook
 
 import (
-	"encoding/json"
 	"fmt"
 )
 
@@ -22,24 +21,6 @@ type Incantation func(ctx any, data any) Effect
 // Spell is a series of incantations that are to be invoked
 // in order.
 type Spell []Incantation
-
-// JsonDemystifyer returns an Incantation that unmarshalls
-// the input data (JSON byte array) into an object pointed
-// to by a pointer returned from genObject. The pointer to
-// the object is then returned as the result. If the data
-// passed to the Incantation is not []byte then panic
-// ensues. On each call, genObject's pointer may point to a
-// new object or reusable one.
-func JsonDemystifyer[T any](
-	genObject func() *T,
-) Incantation {
-	return func(_ any, data any) Effect {
-		bytes := Demystify[[]byte](data)
-		object := genObject()
-		e := json.Unmarshal(bytes, object)
-		return Choose(object, e)
-	}
-}
 
 // Demystify casts the value to type T. If casting fails
 // panic ensues.

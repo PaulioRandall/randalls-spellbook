@@ -37,7 +37,7 @@ type Media struct {
 	//
 	// It must be unique within the project, never empty, and
 	// never change.
-	EntityId EntityId `json:"entityId"`
+	EntityId string `json:"entityId"`
 
 	// MediaType is type of the media, e.g. video, audio,
 	// PDF, etc.
@@ -105,7 +105,7 @@ func CleanMedia(m Media) (Media, error) {
 }
 
 // GetEntityId returns the unique entity ID of the media.
-func (m Media) GetEntityId() EntityId {
+func (m Media) GetEntityId() string {
 	return m.EntityId
 }
 
@@ -219,7 +219,7 @@ func listMedia(db *sql.DB) ([]Media, error) {
 
 func getMediaByEntityId(
 	db *sql.DB,
-	entityId EntityId,
+	entityId string,
 ) (Media, error) {
 	query := `
 		SELECT

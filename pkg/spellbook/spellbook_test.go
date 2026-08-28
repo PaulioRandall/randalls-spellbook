@@ -150,30 +150,3 @@ func Test_Cast_5(t *testing.T) {
 
 	require.Equal(t, expC, act)
 }
-
-func Test_JsonDemystifyer_1(t *testing.T) {
-	type testObject struct {
-		Name string `json:"name"`
-		Age  int    `json:"age"`
-	}
-
-	genObject := func() *testObject {
-		return &testObject{}
-	}
-	incant := JsonDemystifyer(genObject)
-
-	input := []byte(`{
-		  "name": "Alice",
-		  "age": 24
-	  }`)
-
-	act := incant(nil, input)
-	exp := &effect{
-		result: &testObject{
-			Name: "Alice",
-			Age:  24,
-		},
-	}
-
-	require.Equal(t, exp, act)
-}

@@ -2,11 +2,9 @@
 	import { onMount } from 'svelte'
 
 	const todos = [
-		`Remove EntityId type because it's causing dev mistakes`,
 		`Experiment with typed Incantations that involve creating recursively wrapped thunks`,
 		`Fix issue with play button and seekbar not updating to match MediaElement`,
 		`Look into how to improve error messaging with spells, e.g. could we return the Effect and let the frontend determine check the error?`,
-		`Fix issue with AddMedia unexpected type`,
 	]
 </script>
 

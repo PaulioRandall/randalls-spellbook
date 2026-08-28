@@ -23,10 +23,23 @@ func main() {
 	rm.Serve("/media/", business.NewMediaServer(rm))
 	rm.Serve("/", createHtmlServer())
 
-	rm.Transcribe("SelectLocalFile", business.SelectLocalFile)
-	rm.Transcribe("ListMedia", business.ListMedia)
-	rm.Transcribe("GetMediaById", business.GetMediaById)
-	rm.Transcribe("AddMedia", business.AddMedia)
+	rm.Transcribe(
+		"SelectLocalFile",
+		business.SelectLocalFile,
+	)
+	rm.Transcribe(
+		"ListMedia",
+		business.ListMedia,
+	)
+	rm.Transcribe(
+		"GetMediaById",
+		business.GetMediaById,
+	)
+	rm.Transcribe(
+		"AddMedia",
+		business.JsonToMedia,
+		business.AddMedia,
+	)
 
 	rm.AfterOpening(afterOpening)
 	rm.AfterClosing(afterClosing)
