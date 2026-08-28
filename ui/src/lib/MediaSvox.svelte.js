@@ -2,42 +2,8 @@ import { untrack } from 'svelte'
 import ElementSvox from './ElementSvox.svelte.js'
 import Eventor from './Eventor.js'
 
-// HTMLMediaElementSvox is a ElementSvox specific for the
+// MediaSvox is a ElementSvox specific for the
 // standard HTMLMediaElement class.
-//
-// The primary purpose was to decouple Svelte components
-// from the underlying HTMLMediaElement. Because the
-// HTMLMediaElement is set and unset separate to
-// instance construction, the instance passed to components
-// can always be non-null.
-//
-// The class uses an Eventor to manage state and user
-// listeners. When a HTMLMediaElement is set and unset the
-// listeners will automatically be added and removed
-// respectively. Components using this class can use the
-// onElement function to register callbacks that are called
-// when the underlying HTMLMediaElement is set and unset
-// (these are callbacks, not events, so accept an instance
-// of this class instead of an event object).
-//
-// State is updated during the capturing phase of events
-// before user registered events so all user listeners
-// have access to fresh state through this class. Any
-// capturing listeners added to the HTMLMediaElement before
-// them will fire before state is updated. Furthermore, if
-// a listener i registered through this class is
-// unregistered manually it will not prevent the listener
-// from being added next time a HTMLMediaElement is set.
-// Unless you have a particualar niche requirement, it is
-// recommended that all listeners are registered and
-// unregistered through this class to avoid nasty, hard to
-// debug, errors.
-//
-// All properties are exposed as reactive state so they can
-// be used directly in components. However, untracked
-// values can sometimes be useful within the $effect rune
-// so a full set of untracked 'get' and 'is' functions are
-// provided. All public functions are untracked.
 //
 // This adapter has a number of additional fields and
 // functions for common use cases. For instance,
@@ -61,42 +27,13 @@ import Eventor from './Eventor.js'
 //    the middle of playback:
 //    + loaded, playable, running, seeking
 //    - paused, buffering, flowing
-//
-// Documentation for each property and function will end
-// with 'Tracked' if its use is tracked by Svelte, else it
-// will end with 'Untracked'. This allows user to quickly
-// see if use of a particular property or function will
-// trigger execution of $effect runes.
-// Properties and their getters should be tracked while
-// public functions should be untracked. This makes it even
-// easier for readers to quickly understand the reactivity
-// of some code.
-export default class HTMLMediaElementSvox extends ElementSvox {
-	// _stateEventor are capturing event listeners that
-	// mutate the adpaters state. They are added first when
-	// an element is set so they fire first.
-	_stateEventor = generateStateEventor(this)
-
+export default class MediaSvox extends ElementSvox {
 	// isValidElement override to constrain elements to
 	// HTMLMediaElements only.
 	//
 	// Untracked.
 	isValidElement(element) {
 		return element instanceof HTMLMediaElement
-	}
-
-	// afterSet override to add state listeners.
-	//
-	// Untracked.
-	afterSet() {
-		this._stateEventor.addTo(this.getElement())
-	}
-
-	// beforeUnset override to remove state listeners.
-	//
-	// Untracked.
-	beforeUnset() {
-		this._stateEventor.removeFrom(this.getElement())
 	}
 
 	// loaded is true when the media metadata has loaded.
@@ -438,24 +375,154 @@ export default class HTMLMediaElementSvox extends ElementSvox {
 
 	// syncStates performs a state syncing with the current
 	// set HTMLMediaElement.
+	//
+	// Untracked.
 	syncStates() {
-		const media = this.getElement()
+		untrack(() => {
+			const media = this.getElement()
 
-		if (!media) {
-			this._resetStates()
-			return
-		}
-
-		if (!this._loaded) {
-			if (media.readyState < HTMLMediaElement.HAVE_METADATA) {
+			if (!media) {
+				this._resetStates()
 				return
 			}
 
-			this._loaded = true
-			this._syncMetadataStates()
+			if (!this._loaded) {
+				if (media.readyState < HTMLMediaElement.HAVE_METADATA) {
+					return
+				}
+
+				this._loaded = true
+				this._syncMetadataStates()
+			}
+
+			this._syncMediaStates()
+		})
+	}
+
+	// generateStateListeners overide to monitor media state.
+	generateStateListeners() {
+		const svox = this
+
+		function abort() {
+			svox._syncMediaStates()
 		}
 
-		this._syncMediaStates()
+		function canplay() {
+			svox._syncMediaStates()
+		}
+
+		function canplaythrough() {
+			svox._syncMediaStates()
+		}
+
+		function durationchange() {
+			svox._syncMetadataStates()
+			svox._syncMediaStates()
+		}
+
+		function emptied() {
+			svox._resetStates()
+		}
+
+		function ended() {
+			svox._syncMediaStates()
+		}
+
+		function error() {
+			svox._syncMediaStates()
+		}
+
+		function loadeddata() {
+			svox._syncMetadataStates()
+			svox._syncMediaStates()
+		}
+
+		function loadedmetadata() {
+			svox.syncStates()
+		}
+
+		function loadstart() {
+			svox._resetStates()
+			svox.syncStates()
+		}
+
+		function pause() {
+			svox._syncMediaStates()
+		}
+
+		function play() {
+			svox._syncMediaStates()
+		}
+
+		function playing() {
+			svox._syncMediaStates()
+		}
+
+		function progress() {
+			svox._syncMediaStates()
+		}
+
+		function ratechange() {
+			// Do nothing.
+		}
+
+		function seeked() {
+			svox._syncMediaStates()
+		}
+
+		function seeking() {
+			svox._syncMediaStates()
+		}
+
+		function stalled() {
+			svox._syncMediaStates()
+		}
+
+		function suspend() {
+			svox._syncMediaStates()
+		}
+
+		function timeupdate() {
+			svox._updateCurrentTime()
+		}
+
+		function volumechange() {
+			// Do nothing.
+		}
+
+		function waiting() {
+			svox._syncMediaStates()
+		}
+
+		function waitingforkey() {
+			// Do nothing.
+		}
+
+		return {
+			abort, //
+			canplay,
+			canplaythrough,
+			durationchange,
+			emptied,
+			ended,
+			error,
+			loadeddata,
+			loadedmetadata,
+			loadstart,
+			pause,
+			play,
+			playing,
+			progress,
+			ratechange,
+			seeked,
+			seeking,
+			stalled,
+			suspend,
+			timeupdate,
+			volumechange,
+			waiting,
+			waitingforkey,
+		}
 	}
 
 	// _syncMetadataStates updates general metadata state
@@ -573,142 +640,4 @@ export default class HTMLMediaElementSvox extends ElementSvox {
 
 		this._loaded = false
 	}
-}
-
-// generateStateListeners creates the set of
-// HTMLMediaElement listeners that manage the state of a
-// HTMLMediaElementSvox. It returns an array of listener entries.
-function generateStateEventor(sme) {
-	function abort() {
-		sme._syncMediaStates()
-	}
-
-	function canplay() {
-		sme._syncMediaStates()
-	}
-
-	function canplaythrough() {
-		sme._syncMediaStates()
-	}
-
-	function durationchange() {
-		sme._syncMetadataStates()
-		sme._syncMediaStates()
-	}
-
-	function emptied() {
-		sme._resetStates()
-	}
-
-	function ended() {
-		sme._syncMediaStates()
-	}
-
-	function error() {
-		sme._syncMediaStates()
-	}
-
-	function loadeddata() {
-		sme._syncMetadataStates()
-		sme._syncMediaStates()
-	}
-
-	function loadedmetadata() {
-		sme.syncStates()
-	}
-
-	function loadstart() {
-		sme._resetStates()
-		sme.syncStates()
-	}
-
-	function pause() {
-		sme._syncMediaStates()
-	}
-
-	function play() {
-		sme._syncMediaStates()
-	}
-
-	function playing() {
-		sme._syncMediaStates()
-	}
-
-	function progress() {
-		sme._syncMediaStates()
-	}
-
-	function ratechange() {
-		// Do nothing.
-	}
-
-	function seeked() {
-		sme._syncMediaStates()
-	}
-
-	function seeking() {
-		sme._syncMediaStates()
-	}
-
-	function stalled() {
-		sme._syncMediaStates()
-	}
-
-	function suspend() {
-		sme._syncMediaStates()
-	}
-
-	function timeupdate() {
-		sme._updateCurrentTime()
-	}
-
-	function volumechange() {
-		// Do nothing.
-	}
-
-	function waiting() {
-		sme._syncMediaStates()
-	}
-
-	function waitingforkey() {
-		// Do nothing.
-	}
-
-	const listeners = {
-		abort, //
-		canplay,
-		canplaythrough,
-		durationchange,
-		emptied,
-		ended,
-		error,
-		loadeddata,
-		loadedmetadata,
-		loadstart,
-		pause,
-		play,
-		playing,
-		progress,
-		ratechange,
-		seeked,
-		seeking,
-		stalled,
-		suspend,
-		timeupdate,
-		volumechange,
-		waiting,
-		waitingforkey,
-	}
-
-	// Transform to enable capture.
-	for (const eventType in listeners) {
-		listeners[eventType] = {
-			listener: listeners[eventType], //
-			options: { capture: true },
-		}
-	}
-
-	const eventor = new Eventor()
-	eventor.on(listeners)
-	return eventor
 }

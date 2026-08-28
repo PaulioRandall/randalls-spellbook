@@ -2,8 +2,10 @@
 	import { onMount } from 'svelte'
 
 	const todos = [
-		`Fix issue with play button and seekbar not updating to match MediaElement`,
-		`Look into how to improve error messaging with spells, e.g. could we return the Effect and let the frontend determine check the error?`,
+		`Add a button and textarea input for recording observations`,
+		`Fix issue with play button and seekbar not updating to match MediaElement.`,
+		`Look into how to improve error messaging with spells, e.g. could we return the Effect and let the frontend check the error?`,
+		`Experiment with struct tags for using structs to create, read, and write tables instead of hand crafted SQL commands.`,
 	]
 </script>
 

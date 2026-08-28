@@ -24,6 +24,15 @@
 // 4. Use common and iconic verbs for functions that get or
 //    set properties: e.g. get, is, has, set, put, update.
 //    But readability and changability has priority.
+//
+// Documentation for each property and function will end
+// with 'Tracked' if its use is tracked by Svelte, else it
+// will end with 'Untracked'. This allows user to quickly
+// see if use of a particular property or function will
+// trigger execution of $effect runes. Properties and their
+// getters should be tracked while public functions should
+// be untracked. This makes it even easier for readers to
+// quickly understand the reactivity of some code.
 
 import { untrack } from 'svelte'
 import Eventor from './Eventor.js'
@@ -31,6 +40,7 @@ import Eventor from './Eventor.js'
 // ElementSvox is a generic SVOX for standard web
 // Elements. It is intended for extension.
 export default class ElementSvox {
+	_stateEventor = this._generateStateEventor()
 	_eventor = new Eventor()
 
 	// _element is the boxed HTMLElement, which may be null.
@@ -110,11 +120,12 @@ export default class ElementSvox {
 			}
 
 			this._element = element
-
 			this.syncStates()
-			this.afterSet()
-			this._callElementListeners()
 
+			this._stateEventor.addTo(this.getElement())
+			this.afterSet()
+
+			this._callElementListeners()
 			this._eventor.addTo(this._element)
 		})
 	}
@@ -131,6 +142,7 @@ export default class ElementSvox {
 			}
 
 			this.beforeUnset()
+			this._stateEventor.removeFrom(this.getElement())
 
 			this._eventor.removeFrom(this._element)
 			this._element = null
@@ -177,6 +189,14 @@ export default class ElementSvox {
 	// Untracked.
 	beforeUnset() {
 		// Do nothing.
+	}
+
+	// generateStateListeners is called during construction
+	// to create the listeners that are added to the element
+	// before user listeners. These listeners modify the
+	// SVOX's internal state.
+	generateStateListeners() {
+		return {}
 	}
 
 	// syncStates synchronises the state of the class
@@ -243,5 +263,21 @@ export default class ElementSvox {
 			const event = new Event(eventType, options)
 			this._element.dispatchEvent(event)
 		})
+	}
+
+	_generateStateEventor() {
+		const listeners = this.generateStateListeners()
+		const captureListeners = {}
+
+		for (const eventType in listeners) {
+			captureListeners[eventType] = {
+				listener: listeners[eventType], //
+				options: { capture: true },
+			}
+		}
+
+		const eventor = new Eventor()
+		eventor.on(listeners)
+		return eventor
 	}
 }

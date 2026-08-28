@@ -1,9 +1,15 @@
 <script>
-	let { mediaSvox, media } = $props()
+	let { mediaSvox, textareaSvox } = $props()
 
-	// TODO
-	// 1. Textarea to write an observation.
-	// 2. Button to submit an observation.
+	function setMediaElement(node) {
+		textareaSvox.setElement(node)
+		return () => textareaSvox.unsetElement()
+	}
 </script>
 
-<!-- TODO -->
+<textarea use:setMediaElement class="textarea"></textarea>
+
+<style>
+	.textarea {
+	}
+</style>
