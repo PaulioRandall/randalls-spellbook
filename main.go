@@ -9,12 +9,29 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/business"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/data"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/datastore"
 )
 
 //go:embed ui/build/*
 var webFiles embed.FS
 
 func main() {
+	type Abc struct {
+		Alice   string
+		Bob     int
+		Charlie float64
+		dave    string
+	}
+	s := datastore.SqliteDatastore{}
+	err := s.AddEntity(Abc{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	println(s.Tables()[0].String())
+
+	//
+
 	rm := sourcery.NewRealm[data.Store]()
 
 	rm.Debug(true)

@@ -5,17 +5,15 @@
 	let { mediaSvox, media } = $props()
 	let observationList = $state([])
 
-	$effect(() => {
-		if (!!media) {
-			updateObservationList(media.entityId)
-		}
-	})
+	$effect(() => updateObservationList(media))
 
-	function updateObservationList(entityId) {
+	function updateObservationList(media) {
 		untrack(() => {
-			CastSpell('ListObservationsByMediaId', entityId) //
-				.then((result) => (observationList = result))
-				.catch(console.error)
+			if (!!media) {
+				CastSpell('ListObservationsByMediaId', entityId) //
+					.then((result) => (observationList = result))
+					.catch(console.error)
+			}
 		})
 	}
 
@@ -26,6 +24,6 @@
 
 {#each observationList as ob (ob.entityId)}
 	<MediaButton onclick={jumpToStartTime.bind(ob)} title={ob.description}>
-		{ob.startTime} to {ob.startTime + ob.duration}
+		{ob.startTime} ({ob.duration})
 	</MediaButton>
 {/each}

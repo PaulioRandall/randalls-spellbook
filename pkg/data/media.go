@@ -105,6 +105,30 @@ func CleanMedia(m Media) (Media, error) {
 	return m, nil
 }
 
+// String returns the string representation of the media
+// suitable for debugging.
+func (m Media) String() string {
+	sb := strings.Builder{}
+
+	writeField := func(name, value string) {
+		sb.WriteString("  ")
+		sb.WriteString(name)
+		sb.WriteString(": ")
+		sb.WriteString(fmt.Sprintf("%v", value))
+		sb.WriteString(",\n")
+	}
+
+	sb.WriteString("Media{\n")
+	writeField("EntityId", m.EntityId)
+	writeField("MediaType", m.MediaType)
+	writeField("Name", m.Name)
+	writeField("Description", m.Description)
+	writeField("LocalPath", m.LocalPath)
+	sb.WriteString("}\n")
+
+	return sb.String()
+}
+
 // GetEntityId returns the unique entity ID of the media.
 func (m Media) GetEntityId() string {
 	return m.EntityId

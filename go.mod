@@ -1,6 +1,6 @@
 module github.com/PaulioRandall/randalls-spellbook
 
-go 1.26.5
+go 1.27.0
 
 require (
 	github.com/crgimenes/glaze v0.0.33
