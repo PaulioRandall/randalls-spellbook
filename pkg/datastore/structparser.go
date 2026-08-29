@@ -6,19 +6,7 @@ import (
 	"unicode"
 )
 
-func (ds *SqliteDatastore) AddEntity(object any) error {
-	table, e := parseSqlitePropsFromObject(object)
-	if e != nil {
-		return e
-	}
-
-	ds.tables = append(ds.tables, table)
-	return nil
-}
-
-func parseSqlitePropsFromObject(
-	object any,
-) (DbTable, error) {
+func parseDbTable(object any) (DbTable, error) {
 	empty := DbTable{}
 	t := reflect.TypeOf(object)
 
@@ -26,14 +14,14 @@ func parseSqlitePropsFromObject(
 		return empty, fmt.Errorf("Datastore entity must be a struct")
 	}
 
-	columns, e := parsePublicFieldsToSqliteColumns(t)
+	columns, e := parsePublicStructFieldsAsDbColumns(t)
 	if e != nil {
 		return empty, e
 	}
 
 	table := DbTable{
-		name:    t.Name(),
-		columns: columns,
+		Name:    t.Name(),
+		Columns: columns,
 	}
 
 	return table, nil
@@ -44,22 +32,22 @@ func isPublicField(field reflect.StructField) bool {
 	return unicode.IsUpper(firstLetter)
 }
 
-func parsePublicFieldsToSqliteColumns(
-	t reflect.Type,
+func parsePublicStructFieldsAsDbColumns(
+	structType reflect.Type,
 ) ([]DbColumn, error) {
 	var columns []DbColumn
 
-	for field := range t.Fields() {
+	for field := range structType.Fields() {
 		if !isPublicField(field) {
 			continue
 		}
 
 		col := DbColumn{
-			name:    field.Name,
-			sqlType: mapStructFieldTypeToSqliteType(field),
+			Name:     field.Name,
+			DataType: mapStructFieldTypeToString(field),
 		}
 
-		e := validateDbColumn(t, field, col)
+		e := validateDbColumn(structType, field, col)
 		if e != nil {
 			return nil, e
 		}
@@ -70,30 +58,30 @@ func parsePublicFieldsToSqliteColumns(
 	return columns, nil
 }
 
-func mapStructFieldTypeToSqliteType(
+func mapStructFieldTypeToString(
 	field reflect.StructField,
 ) string {
 	switch field.Type.Kind() {
 	case reflect.String:
-		return "TEXT"
+		return "string"
 	case reflect.Int:
-		return "INTEGER"
+		return "int"
 	case reflect.Float64:
-		return "REAL"
+		return "float64"
 	default:
 		return ""
 	}
 }
 
 func validateDbColumn(
-	object reflect.Type,
+	structType reflect.Type,
 	field reflect.StructField,
 	col DbColumn,
 ) error {
-	if col.sqlType == "" {
+	if col.DataType == "" {
 		return fmt.Errorf(
 			"Datastore struct '%s' has field '%s' with unsupported type '%s'",
-			object.Name(),
+			structType.Name(),
 			field.Name,
 			field.Type.Kind(),
 		)

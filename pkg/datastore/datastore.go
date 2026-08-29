@@ -19,21 +19,21 @@ type SqliteDatastore struct {
 }
 
 type DbTable struct {
-	name    string
-	columns []DbColumn
+	Name    string
+	Columns []DbColumn
 }
 
 type DbColumn struct {
-	name    string
-	sqlType string
+	Name     string
+	DataType string
 }
 
 func (table DbTable) String() string {
 	sb := strings.Builder{}
 
-	sb.WriteString(table.name)
+	sb.WriteString(table.Name)
 
-	for _, col := range table.columns {
+	for _, col := range table.Columns {
 		sb.WriteString("\n  ")
 		sb.WriteString(col.String())
 	}
@@ -44,13 +44,23 @@ func (table DbTable) String() string {
 func (col DbColumn) String() string {
 	sb := strings.Builder{}
 
-	sb.WriteString(col.name)
+	sb.WriteString(col.Name)
 	sb.WriteString(": ")
-	sb.WriteString(col.sqlType)
+	sb.WriteString(col.DataType)
 
 	return sb.String()
 }
 
 func (ds *SqliteDatastore) Tables() []DbTable {
 	return ds.tables
+}
+
+func (ds *SqliteDatastore) AddEntity(object any) error {
+	table, e := parseDbTable(object)
+	if e != nil {
+		return e
+	}
+
+	ds.tables = append(ds.tables, table)
+	return nil
 }
