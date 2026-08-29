@@ -81,7 +81,10 @@ func createObservationTable(db *sql.DB) error {
 			media_id TEXT NOT NULL,
 			start_time REAL NOT NULL,
 			duration REAL NOT NULL,
-			description TEXT NOT NULL
+			description TEXT NOT NULL,
+			FOREIGN KEY (media_id)
+				REFERENCES media(entity_id)
+				ON DELETE CASCADE
 		)
 	`
 

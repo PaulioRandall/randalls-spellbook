@@ -9,21 +9,16 @@
 	)
 
 	function onclick() {
-		let ob = {
+		const ob = {
 			mediaId: media.entityId,
 			startTime: mediaSvox.currentTime,
 			duration: 0,
 			description: textareaSvox.text,
 		}
 
-		ob = window.CastSpell(
-			'AddObservation', //
-			JSON.stringify(ob)
-		)
-
-		if (ob) {
-			textareaSvox.setText('')
-		}
+		CastSpell('AddObservation', JSON.stringify(ob))
+			.then(() => textareaSvox.setText(''))
+			.catch(console.error)
 	}
 </script>
 

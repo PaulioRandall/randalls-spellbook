@@ -38,26 +38,23 @@
 		return s[0].toUpperCase() + s.slice(1)
 	}
 
-	async function submit() {
+	function submit() {
 		if (!validateFields()) {
 			return
 		}
 
-		let media = {
+		const media = {
 			mediaType, //
 			name,
 			description,
 			localPath,
 		}
 
-		media = await window.CastSpell(
-			'AddMedia', //
-			JSON.stringify(media)
-		)
-
-		if (media) {
-			goto(`/media/view?entity_id=${media.entityId}`)
-		}
+		CastSpell('AddMedia', JSON.stringify(media))
+			.then((media) => {
+				goto(`/media/view?entity_id=${media.entityId}`)
+			})
+			.catch(console.error)
 	}
 
 	function validateFields() {

@@ -31,6 +31,11 @@ type Store interface {
 	// entity ID.
 	GetMediaById(string) (Media, error)
 
+	// DeleteMediaById deletes the media with the specified
+	// ID along with associated data, e.g. observations and
+	// sections.
+	DeleteMediaById(string) error
+
 	// InsertObservation inserts an observation.
 	InsertObservation(Observation) error
 

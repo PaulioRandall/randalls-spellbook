@@ -41,6 +41,10 @@ func main() {
 		business.AddMedia,
 	)
 	rm.Transcribe(
+		"DeleteMediaById",
+		business.DeleteMediaById,
+	)
+	rm.Transcribe(
 		"AddObservation",
 		business.JsonToObservation,
 		business.AddObservation,

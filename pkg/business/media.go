@@ -45,3 +45,10 @@ func AddMedia(ctx any, input any) spellbook.Effect {
 	insertedMedia, e := inventory.InsertMedia(media)
 	return spellbook.Choose(insertedMedia, e)
 }
+
+func DeleteMediaById(ctx any, input any) spellbook.Effect {
+	inventory := getInventory(ctx)
+	entityId := spellbook.Demystify[string](input)
+	e := inventory.DeleteMediaById(entityId)
+	return spellbook.Judge[any](e)
+}

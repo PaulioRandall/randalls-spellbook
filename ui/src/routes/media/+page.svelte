@@ -1,16 +1,3 @@
-<script context="module">
-	// This page lists all the media added to the current
-	// project.
-	//
-	// Users can:
-	// + remove a media from the project
-	//
-	// Users can access pages to:
-	// + add a new media
-	// + edit an existing media
-	// + view a media
-</script>
-
 <script>
 	import { onMount } from 'svelte'
 
@@ -18,16 +5,24 @@
 	let selectedMedia = $state(null)
 
 	function selectMedia(event) {
-		const entityId = event.target.id
-
 		selectedMedia = mediaList.find((m) => {
-			return m.entityId === entityId
+			return m.entityId === this.entityId
 		})
 	}
 
-	onMount(async () => {
-		mediaList = await window.CastSpell('ListMedia', null)
-	})
+	function deleteMedia(event) {
+		CastSpell('DeleteMediaById', this.entityId) //
+			.then(updateMediaList)
+			.catch(console.error)
+	}
+
+	function updateMediaList() {
+		CastSpell('ListMedia', null) //
+			.then((result) => (mediaList = result))
+			.catch(console.error)
+	}
+
+	onMount(updateMediaList)
 </script>
 
 <main>
@@ -38,17 +33,19 @@
 		{#each mediaList as media (media.entityId)}
 			<div class="media-item" role="listitem">
 				<div
-					id={media.entityId}
 					class="selectable-media"
 					role="button"
-					onclick={selectMedia}>
+					onclick={selectMedia.bind(media)}>
 					<span class="media-name">{media.name}</span>
-					<a
-						class="media-view-button"
-						href="/media/view?entity_id={media.entityId}">
-						View
-					</a>
 				</div>
+				<a
+					class="media-view-button"
+					href="/media/view?entity_id={media.entityId}">
+					View
+				</a>
+				<button class="media-delete-button" onclick={deleteMedia.bind(media)}>
+					Delete
+				</button>
 			</div>
 		{/each}
 	</div>
@@ -96,14 +93,16 @@
 	.media-item {
 		flex: 0 0 40px;
 		width: 100%;
-	}
-
-	.media-item {
-		width: 100%;
 		height: 100%;
+
+		border: 1px solid grey;
+		border-radius: 4px;
+
+		display: flex;
 	}
 
 	.selectable-media {
+		flex-grow: 1;
 		cursor: pointer;
 
 		&:hover {
@@ -114,9 +113,6 @@
 		gap: 16px;
 		justify-content: space-between;
 
-		border: 1px solid grey;
-		border-radius: 4px;
-
 		padding: 8px;
 	}
 
@@ -124,7 +120,8 @@
 		font-weight: bold;
 	}
 
-	.media-view-button {
+	.media-view-button,
+	.media-delete-button {
 		cursor: pointer;
 
 		&:hover {

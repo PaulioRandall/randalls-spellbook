@@ -258,6 +258,25 @@ func getMediaByEntityId(
 	return media[0], nil
 }
 
+func deleteMediaByEntityId(
+	db *sql.DB,
+	entityId string,
+) error {
+	query := `
+		DELETE FROM
+			media
+		WHERE
+			entity_id = ?
+	`
+
+	_, e := db.Exec(query, entityId)
+	if e != nil {
+		return fmt.Errorf("Failed to delete media with id '%s': %w", entityId, e)
+	}
+
+	return nil
+}
+
 func parseMediaRows(rows *sql.Rows) ([]Media, error) {
 	var result []Media
 

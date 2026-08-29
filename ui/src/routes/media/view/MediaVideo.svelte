@@ -19,8 +19,10 @@
 	let { entityId } = $props()
 	let media = $state(null)
 
-	onMount(async () => {
-		media = await window.CastSpell('GetMediaById', entityId)
+	onMount(() => {
+		CastSpell('GetMediaById', entityId) //
+			.then((result) => (media = result))
+			.catch(console.error)
 	})
 
 	mediaSvox.onElement(() => {
@@ -45,9 +47,7 @@
 		</div>
 		<div>
 			<MediaObservationInput {mediaSvox} {textareaSvox} />
-			{#if media}
-				<MediaObservations {mediaSvox} {media} />
-			{/if}
+			<MediaObservations {mediaSvox} {media} />
 		</div>
 	</div>
 </div>

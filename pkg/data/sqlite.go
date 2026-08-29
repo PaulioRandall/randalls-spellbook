@@ -82,6 +82,27 @@ func (sqlite *sqliteDatabase) GetMediaById(
 	return getMediaByEntityId(sqlite.db, entityId)
 }
 
+// DeleteMediaById satisfies the Store interface.
+func (sqlite *sqliteDatabase) DeleteMediaById(
+	entityId string,
+) error {
+	return deleteMediaByEntityId(sqlite.db, entityId)
+}
+
+// InsertObservation satisfies the Store interface.
+func (sqlite *sqliteDatabase) InsertObservation(
+	obs Observation,
+) error {
+	return insertObservation(sqlite.db, obs)
+}
+
+// ListObservationsByMediaId satisfies the Store interface.
+func (sqlite *sqliteDatabase) ListObservationsByMediaId(
+	mediaId string,
+) ([]Observation, error) {
+	return listObservationsByMediaId(sqlite.db, mediaId)
+}
+
 // createTables creates all database tables.
 func createTables(db *sql.DB) error {
 	type tableCreator func(db *sql.DB) error
@@ -100,18 +121,4 @@ func createTables(db *sql.DB) error {
 	}
 
 	return nil
-}
-
-// InsertObservation satisfies the Store interface.
-func (sqlite *sqliteDatabase) InsertObservation(
-	obs Observation,
-) error {
-	return insertObservation(sqlite.db, obs)
-}
-
-// ListObservationsByMediaId satisfies the Store interface.
-func (sqlite *sqliteDatabase) ListObservationsByMediaId(
-	mediaId string,
-) ([]Observation, error) {
-	return listObservationsByMediaId(sqlite.db, mediaId)
 }

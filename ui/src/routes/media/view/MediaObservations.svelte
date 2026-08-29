@@ -1,20 +1,27 @@
 <script>
-	import { onMount } from 'svelte'
+	import { onMount, untrack } from 'svelte'
 	import MediaButton from './MediaButton.svelte'
 
 	let { mediaSvox, media } = $props()
 	let observationList = $state([])
 
+	$effect(() => {
+		if (!!media) {
+			updateObservationList(media.entityId)
+		}
+	})
+
+	function updateObservationList(entityId) {
+		untrack(() => {
+			CastSpell('ListObservationsByMediaId', entityId) //
+				.then((result) => (observationList = result))
+				.catch(console.error)
+		})
+	}
+
 	function jumpToStartTime() {
 		mediaSvox.seekTo(this.startTime)
 	}
-
-	onMount(async () => {
-		observationList = await window.CastSpell(
-			'ListObservationsByMediaId', //
-			media.entityId
-		)
-	})
 </script>
 
 {#each observationList as ob (ob.entityId)}
