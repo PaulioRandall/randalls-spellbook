@@ -30,7 +30,10 @@ func GetMediaById(ctx any, input any) spellbook.Effect {
 }
 
 func JsonToMedia(_ any, input any) spellbook.Effect {
-	str := spellbook.Demystify[string](input)
+	str := spellbook.Demystifyf[string](
+		input,
+		"Unable to demystify JSON into a Media",
+	)
 	media := data.Media{}
 	e := json.Unmarshal([]byte(str), &media)
 	return spellbook.Choose(media, e)
@@ -39,6 +42,6 @@ func JsonToMedia(_ any, input any) spellbook.Effect {
 func AddMedia(ctx any, input any) spellbook.Effect {
 	inventory := getInventory(ctx)
 	media := spellbook.Demystify[data.Media](input)
-	e := inventory.InsertMedia(media)
-	return spellbook.Choose(media, e)
+	insertedMedia, e := inventory.InsertMedia(media)
+	return spellbook.Choose(insertedMedia, e)
 }

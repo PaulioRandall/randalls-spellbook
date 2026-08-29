@@ -1,8 +1,6 @@
 <script>
 	import { onMount } from 'svelte'
 
-	import backend from '$lib/backend.js'
-
 	import MediaSvox from '$lib/MediaSvox.svelte.js'
 	import TextareaSvox from '$lib/TextareaSvox.svelte.js'
 
@@ -22,7 +20,7 @@
 	let media = $state(null)
 
 	onMount(async () => {
-		media = await backend.GetMediaById(entityId)
+		media = await window.CastSpell('GetMediaById', entityId)
 	})
 
 	mediaSvox.onElement(() => {

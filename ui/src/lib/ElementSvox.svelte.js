@@ -1,44 +1,43 @@
 // SVOX (Svelte Adapter Box) classes and their usage follow
 // a strict set of rules aimed at providing clarity for
-// programmers and minimising reactivity issues that can be
-// hard to debug:
-// 1. All public properties are readonly, i.e. they can
-//    only be set internally or through public functions.
-//    Keep them non-public and use getters to minimise
-//    falling foul.
-// 2. All public properties are reactive and tracked,
+// programmers, minimising reactivity issues that can be
+// hard to debug, and minimising existence checking of the
+// underlying value:
+// 1. Identifiers holding SVOX instances should never be
+//    null.
+// 2. All public properties must be readonly, i.e. they can
+//    only be set internally or through public functions
+//    and internal processes. Keep them non-public and use
+//    getters to minimise falling foul. Reactivity,
+//    particularly Svelte's binding feature, is powerful
+//    and highly convenient but can cause difficult to
+//    diagnose errors.
+// 3. All public properties must be reactive and tracked,
 //    i.e. they are created through runes such as $state
 //    and $derived, and trigger $effect and $derived runes.
-// 3. All public functions are non-reactive and untracked,
-//    i.e. they do not trigger $effect or $derived runes.
-//    Use Svelte's untrack function if needed to prevent
-//    state access triggering runes.
-// 4. Identifiers holding SVOX instances must never be
-//    null. Assign as constant if possible. The purpose of
-//    being a box is to minimise the need for existence
-//    checking. Users are allowed to perform certain
-//    actions even when the element is not set that trigger
-//    some effect when the element is set, e.g. adding
-//    event listeners to be added and removed from an
-//    element when set and unset.
-// 4. Use common and iconic verbs for functions that get or
-//    set properties: e.g. get, is, has, set, put, update.
-//    But readability and changability has priority.
-//
-// Documentation for each property and function will end
-// with 'Tracked' if its use is tracked by Svelte, else it
-// will end with 'Untracked'. This allows user to quickly
-// see if use of a particular property or function will
-// trigger execution of $effect runes. Properties and their
-// getters should be tracked while public functions should
-// be untracked. This makes it even easier for readers to
-// quickly understand the reactivity of some code.
+// 2. All public functions must be non-reactive and
+//    untracked, i.e. they do not trigger $effect or
+//    $derived runes. Use Svelte's untrack function if
+//    there's a need to prevent triggering runes when
+//    accessing state. Together with the prior rule, this
+//    makes it easy for readers to quickly understand the
+//    reactivity of some code.
+// 4. Users may be allowed to perform certain actions even
+//    when the underlying value is not set, e.g. the
+//    ElementSvox allows event listeners to be registered
+//    and unregistered at anytime. These listeners will be
+//    added and removed from the element as it's set and
+//    unset.
+// 5. Prioritise readability and changability, but use
+//    common and iconic verbs for functions that get or
+//    set properties as much as possible: e.g. get, is,
+//    has, set, put, update, etc.
 
 import { untrack } from 'svelte'
 import Eventor from './Eventor.js'
 
-// ElementSvox is a generic SVOX for standard web
-// Elements. It is intended for extension.
+// ElementSvox is a SVOX for the standard Element class.
+// It is intended for extension, but may be used as is.
 export default class ElementSvox {
 	_stateEventor = this._generateStateEventor()
 	_eventor = new Eventor()
@@ -78,6 +77,8 @@ export default class ElementSvox {
 	// is set or unset. If the listener is not a function an
 	// error is thrown. A function is returned that
 	// unregisters the listener when called.
+	//
+	// Untracked.
 	onElement(listener) {
 		return untrack(() => {
 			const t = typeof listener
@@ -93,6 +94,8 @@ export default class ElementSvox {
 
 	// offElement removes a listener registered via
 	// onElement.
+	//
+	// Untracked.
 	offElement(listener) {
 		untrack(() => {
 			this._onElement.delete(listener)
@@ -175,8 +178,9 @@ export default class ElementSvox {
 	}
 
 	// afterSet is called after setting an element and
-	// syncing but before onElement listeners are called. It
-	// is not called when setting to null (unset).
+	// syncing, but not when setting to null (unset). This
+	// allows additional custom setup to occur before
+	// onElement listeners are called.
 	//
 	// Untracked.
 	afterSet() {
@@ -184,7 +188,8 @@ export default class ElementSvox {
 	}
 
 	// beforeUnset is called before unsetting the current
-	// element.
+	// element. This allows clean up of additional custom
+	// setup.
 	//
 	// Untracked.
 	beforeUnset() {

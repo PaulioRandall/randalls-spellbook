@@ -1,8 +1,8 @@
 import { untrack } from 'svelte'
 import ElementSvox from './ElementSvox.svelte.js'
 
-// MediaSvox is a ElementSvox specific for the
-// standard HTMLMediaElement class.
+// MediaSvox is an ElementSvox extended for the standard
+// HTMLMediaElement class.
 //
 // This adapter has a number of additional fields and
 // functions for common use cases. For instance,

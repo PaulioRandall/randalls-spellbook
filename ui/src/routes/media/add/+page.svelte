@@ -1,7 +1,6 @@
 <script>
 	import { onMount } from 'svelte'
 	import { goto } from '$app/navigation'
-	import backend from '$lib/backend.js'
 
 	const mediaTypes = {
 		video: 'Video', //
@@ -20,7 +19,10 @@
 	let localPathError = $state('')
 
 	async function selectFile() {
-		localPath = await backend.SelectLocalFile()
+		localPath = await window.CastSpell(
+			'SelectLocalFile', //
+			null
+		)
 
 		if (!name.trim()) {
 			name = extractNameFromLocalPath(localPath)
@@ -41,15 +43,20 @@
 			return
 		}
 
-		const entityId = await backend.AddMedia(
+		let media = {
 			mediaType, //
 			name,
 			description,
-			localPath
+			localPath,
+		}
+
+		media = await window.CastSpell(
+			'AddMedia', //
+			JSON.stringify(media)
 		)
 
-		if (entityId) {
-			goto('/media')
+		if (media) {
+			goto(`/media/view?entity_id=${media.entityId}`)
 		}
 	}
 

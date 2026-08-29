@@ -22,7 +22,7 @@ type Store interface {
 	GetProject() (Project, error)
 
 	// InsertMedia inserts a media.
-	InsertMedia(Media) error
+	InsertMedia(Media) (Media, error)
 
 	// ListMedia returns all the media entities.
 	ListMedia() ([]Media, error)

@@ -1,7 +1,7 @@
 import { untrack } from 'svelte'
 import ElementSvox from './ElementSvox.svelte.js'
 
-// TextareaSvox is a ElementSvox specific for the standard
+// TextareaSvox is an ElementSvox extended for the standard
 // HTMLTextAreaElement class.
 export default class TextareaSvox extends ElementSvox {
 	// isValidElement overides, HTMLTextAreaElement only.

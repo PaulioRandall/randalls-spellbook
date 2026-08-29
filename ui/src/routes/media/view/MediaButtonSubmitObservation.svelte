@@ -1,6 +1,5 @@
 <script>
 	import MediaButton from './MediaButton.svelte'
-	import backend from '$lib/backend.js'
 
 	const title = 'Submit observation'
 
@@ -9,22 +8,22 @@
 		!mediaSvox.loaded || textareaSvox.empty //
 	)
 
-	$effect(() => {
-		console.log('empty:', textareaSvox.empty)
-	})
-
 	function onclick() {
-		const ob = {
+		let ob = {
 			mediaId: media.entityId,
 			startTime: mediaSvox.currentTime,
 			duration: 0,
 			description: textareaSvox.text,
 		}
 
-		window.CastSpell(
+		ob = window.CastSpell(
 			'AddObservation', //
 			JSON.stringify(ob)
 		)
+
+		if (ob) {
+			textareaSvox.setText('')
+		}
 	}
 </script>
 

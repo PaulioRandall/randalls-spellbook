@@ -80,6 +80,7 @@ type Media struct {
 func CleanMedia(m Media) (Media, error) {
 	empty := Media{}
 
+	m.EntityId = strings.TrimSpace(m.EntityId)
 	m.Name = strings.TrimSpace(m.Name)
 	m.Description = strings.TrimSpace(m.Description)
 	m.LocalPath = strings.TrimSpace(m.LocalPath)
@@ -164,10 +165,12 @@ func createMediaTable(db *sql.DB) error {
 	return nil
 }
 
-func insertMedia(db *sql.DB, media Media) error {
+func insertMedia(db *sql.DB, media Media) (Media, error) {
+	empty := Media{}
+
 	media, e := CleanMedia(media)
 	if e != nil {
-		return e
+		return empty, e
 	}
 
 	query := `
@@ -190,10 +193,10 @@ func insertMedia(db *sql.DB, media Media) error {
 	)
 
 	if e != nil {
-		return fmt.Errorf("Failed to insert media: %w", e)
+		return empty, fmt.Errorf("Failed to insert media: %w", e)
 	}
 
-	return nil
+	return media, nil
 }
 
 func listMedia(db *sql.DB) ([]Media, error) {

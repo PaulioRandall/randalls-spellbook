@@ -16,7 +16,10 @@ func JsonToObservation(_ any, input any) spellbook.Effect {
 
 func AddObservation(ctx any, input any) spellbook.Effect {
 	inventory := getInventory(ctx)
-	ob := spellbook.Demystify[data.Observation](input)
+	ob := spellbook.Demystifyf[data.Observation](
+		input,
+		"Unable to demystify JSON into an Observation",
+	)
 	e := inventory.InsertObservation(ob)
 	return spellbook.Choose(ob, e)
 }

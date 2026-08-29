@@ -13,7 +13,6 @@
 
 <script>
 	import { onMount } from 'svelte'
-	import backend from '$lib/backend.js'
 
 	let mediaList = $state([])
 	let selectedMedia = $state(null)
@@ -27,9 +26,7 @@
 	}
 
 	onMount(async () => {
-		mediaList = await backend.ListMedia()
-
-		console.log(mediaList[0])
+		mediaList = await window.CastSpell('ListMedia', null)
 	})
 </script>
 

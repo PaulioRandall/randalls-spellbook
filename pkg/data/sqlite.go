@@ -66,7 +66,7 @@ func (sqlite *sqliteDatabase) GetProject() (Project, error) {
 // InsertMedia satisfies the Store interface.
 func (sqlite *sqliteDatabase) InsertMedia(
 	media Media,
-) error {
+) (Media, error) {
 	return insertMedia(sqlite.db, media)
 }
 
