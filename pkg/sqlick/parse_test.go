@@ -1,6 +1,7 @@
 package sqlick
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -24,6 +25,7 @@ func Test_Parse_1(t *testing.T) {
 	require.Equal(t, nil, e)
 
 	exp := Table{
+		GoType: reflect.TypeOf(v),
 		GoName: "TestEntity",
 		Columns: []Column{
 			Column{

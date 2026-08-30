@@ -34,25 +34,25 @@ var (
 // struct, the struct is not public, the struct contains
 // no public fields, or a field's type is unsupported.
 func Parse(object any) (Table, error) {
-	typ := reflect.TypeOf(object)
-	tbl := Table{}
+	tbl := Table{
+		GoType: reflect.TypeOf(object),
+	}
 
-	e := parseTable(&tbl, typ)
+	e := parseTable(&tbl)
 	if e == nil {
 		return tbl, nil
 	}
 
 	return Table{}, fmt.Errorf(
 		"Parse error with struct/table '%s': %w",
-		typ.Name(),
+		tbl.GoType.Name(),
 		e,
 	)
 }
 
-func parseTable(
-	tbl *Table,
-	typ reflect.Type,
-) error {
+func parseTable(tbl *Table) error {
+	typ := tbl.GoType
+
 	if typ.Kind() != reflect.Struct {
 		return ErrNotStruct
 	}
@@ -63,7 +63,7 @@ func parseTable(
 
 	tbl.GoName = typ.Name()
 
-	e := parseColumns(tbl, typ)
+	e := parseColumns(tbl)
 	if e != nil {
 		return e
 	}
@@ -75,11 +75,8 @@ func parseTable(
 	return nil
 }
 
-func parseColumns(
-	tbl *Table,
-	typ reflect.Type,
-) error {
-	for field := range typ.Fields() {
+func parseColumns(tbl *Table) error {
+	for field := range tbl.GoType.Fields() {
 		if !isPublicName(field.Name) {
 			continue
 		}

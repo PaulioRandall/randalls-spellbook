@@ -3,6 +3,7 @@ package sqlick
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -27,7 +28,15 @@ type SqlGenerator interface {
 // construct a SQL database table. It is derived from a
 // Go struct via the Parse functions.
 type Table struct {
-	GoName  string
+	// GoType is the reflect.Type of the Go struct from which
+	// this table was constructed.
+	GoType reflect.Type
+
+	// GoName is the name of the Go struct.
+	GoName string
+
+	// Columns is all the parsed public fields in the Go
+	// struct.
 	Columns []Column
 }
 
@@ -50,7 +59,11 @@ func (tbl *Table) String() string {
 // construct a SQL database table column. It is derived
 // from a Go struct's field via the Parse function.
 type Column struct {
+	// GoName is the field name of the Go struct field.
 	GoName string
+
+	// GoType is the field name of the type of the Go struct
+	// field in the form used by Go programmers.
 	GoType string
 }
 
