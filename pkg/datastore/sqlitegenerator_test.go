@@ -11,7 +11,7 @@ func joinLines(lines ...string) string {
 	return strings.Join(lines, "\n")
 }
 
-func Test_generateCreateTableSql_1(t *testing.T) {
+func Test_sqlitegenerator_1(t *testing.T) {
 	given := DbTable{
 		Name: "TestEntity",
 		Columns: []DbColumn{
