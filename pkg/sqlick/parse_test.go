@@ -23,18 +23,18 @@ func Test_Parse_1(t *testing.T) {
 	act, e := Parse(v)
 	require.Equal(t, nil, e)
 
-	exp := SqlickTable{
+	exp := Table{
 		GoName: "TestEntity",
-		Columns: []SqlickColumn{
-			SqlickColumn{
+		Columns: []Column{
+			Column{
 				GoName: "Alice",
 				GoType: "string",
 			},
-			SqlickColumn{
+			Column{
 				GoName: "Bob",
 				GoType: "int",
 			},
-			SqlickColumn{
+			Column{
 				GoName: "Charlie",
 				GoType: "float64",
 			},
@@ -73,4 +73,16 @@ func Test_Parse_4(t *testing.T) {
 	v := TestEntity{}
 	_, e := Parse(v)
 	require.ErrorIs(t, e, ErrMissingFields)
+}
+
+func Test_Parse_5(t *testing.T) {
+	// Error when struct is not public.
+
+	type testEntity struct {
+		Public int
+	}
+
+	v := testEntity{}
+	_, e := Parse(v)
+	require.ErrorIs(t, e, ErrNotPublic)
 }

@@ -7,14 +7,14 @@ import (
 )
 
 func Test_SqlickTable_String_1(t *testing.T) {
-	table := SqlickTable{
+	table := Table{
 		GoName: "Person",
-		Columns: []SqlickColumn{
-			SqlickColumn{
+		Columns: []Column{
+			Column{
 				GoName: "Name",
 				GoType: "string",
 			},
-			SqlickColumn{
+			Column{
 				GoName: "Age",
 				GoType: "int",
 			},

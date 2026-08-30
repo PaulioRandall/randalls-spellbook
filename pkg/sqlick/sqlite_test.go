@@ -6,21 +6,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_GenerateSql_1(t *testing.T) {
+func Test_SqliteGenerator_CreateTable_1(t *testing.T) {
 	// Happy path.
+	sqlGen := NewSqliteGenerator()
 
-	given := SqlickTable{
+	given := Table{
 		GoName: "TestEntity",
-		Columns: []SqlickColumn{
-			SqlickColumn{
+		Columns: []Column{
+			Column{
 				GoName: "UserId",
 				GoType: "int",
 			},
-			SqlickColumn{
+			Column{
 				GoName: "Name",
 				GoType: "string",
 			},
-			SqlickColumn{
+			Column{
 				GoName: "Height",
 				GoType: "float64",
 			},
@@ -36,7 +37,7 @@ func Test_GenerateSql_1(t *testing.T) {
 		")",
 	)
 
-	act, e := GenerateSql(given)
+	act, e := sqlGen.CreateTable(given)
 	require.Equal(t, nil, e)
 	require.Equal(t, exp, act)
 }
