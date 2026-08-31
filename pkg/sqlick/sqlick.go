@@ -16,12 +16,16 @@ var (
 // SqlGenerator is an interface implemented by specific
 // SQL dialects for generating SQL query strings.
 type SqlGenerator interface {
-
 	// CreateTable returns a CREATE TABLE SQL query for the
 	// given table. The exact types and nature of the
-	// constraints will vary based upon implementation, i.e.
-	// SQL dialect.
+	// constraints will vary based upon SQL dialect and
+	// implementation.
 	CreateTable(Table) (string, error)
+
+	// Insert returns an INSERTS INTO SQL query for the given
+	// table. The exact types and nature of the query will
+	// vary based upon SQL dialect and implementation.
+	Insert(Table) (string, error)
 }
 
 // Table represents the base information required to
