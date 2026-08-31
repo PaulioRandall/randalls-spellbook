@@ -2,6 +2,7 @@ package sqlick
 
 import (
 	"fmt"
+	"strings"
 )
 
 // sqliteGenerator satisfies the SqlGenerator interface for
@@ -90,7 +91,16 @@ func (sg sqliteGenerator) mapGoToSqlType(
 // TableInsert satisfies the SqlGenerator interface.
 func (sg sqliteGenerator) TableInsert(
 	tbl Table,
+	rows int,
 ) (string, error) {
+	if rows < 1 {
+		return "", fmt.Errorf(
+			"Failed to generate SQL for INSERT into table '%s': %w",
+			tbl.GoName,
+			ErrTooFewRows,
+		)
+	}
+
 	qb := queryBuilder{}
 
 	columns, _ := genList(tbl.Columns, sg.genColumn)
@@ -99,12 +109,18 @@ func (sg sqliteGenerator) TableInsert(
 	s := joinLines(
 		"INSERT INTO %s (",
 		"%s",
-		") VALUES (",
+		")%s",
+	)
+
+	sv := joinLines(
+		" VALUES (",
 		"%s",
 		")",
 	)
+	sv = fmt.Sprintf(sv, values)
+	sv = strings.Repeat(sv, rows)
 
-	qb.WriteFmt(s, tbl.GoName, columns, values)
+	qb.WriteFmt(s, tbl.GoName, columns, sv)
 	return qb.String(), nil
 }
 
@@ -122,8 +138,8 @@ func (sg sqliteGenerator) genQuestionMark(
 	return "  ?", nil
 }
 
-// TableSelect satisfies the SqlGenerator interface.
-func (sg sqliteGenerator) TableSelect(
+// TableSelectAll satisfies the SqlGenerator interface.
+func (sg sqliteGenerator) TableSelectAll(
 	tbl Table,
 ) (string, error) {
 	qb := queryBuilder{}
@@ -189,6 +205,21 @@ func (sg sqliteGenerator) genColumnSetter(
 	col Column,
 ) (string, error) {
 	return fmt.Sprintf("  %s = ?", col.GoName), nil
+}
+
+// TableDeleteAll satisfies the SqlGenerator interface.
+func (sg sqliteGenerator) TableDeleteAll(
+	tbl Table,
+) (string, error) {
+	qb := queryBuilder{}
+
+	s := joinLines(
+		"DELETE FROM",
+		"  %s",
+	)
+
+	qb.WriteFmt(s, tbl.GoName)
+	return qb.String(), nil
 }
 
 // TableDeleteById satisfies the SqlGenerator interface.

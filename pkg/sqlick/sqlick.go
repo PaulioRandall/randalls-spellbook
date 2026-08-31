@@ -11,6 +11,13 @@ var (
 	// ErrNoSqlType is used when there is no mapping from a
 	// Go type to a Sql type.
 	ErrNoSqlType = errors.New("No mapping for Go to SQL type")
+
+	// ErrTooFewRows is used when attempting to generate
+	// INSERT SQL but the number of rows for insert is less
+	// than one.
+	ErrTooFewRows = errors.New(
+		"Not enough rows to generate insert",
+	)
 )
 
 // SqlGenerator is an interface implemented by specific
@@ -26,11 +33,11 @@ type SqlGenerator interface {
 
 	// TableInsert returns an INSERTS INTO SQL query for the
 	// given Table.
-	TableInsert(Table) (string, error)
+	TableInsert(Table, int) (string, error)
 
-	// TableSelect returns a SELECT SQL query for all rows in
-	// the given Table.
-	TableSelect(Table) (string, error)
+	// TableSelectAll returns a SELECT SQL query for all rows
+	// in the given Table.
+	TableSelectAll(Table) (string, error)
 
 	// TableSelectById returns a SELECT SQL query for the row
 	// with a certain ID in the given Table.
@@ -39,6 +46,10 @@ type SqlGenerator interface {
 	// TableUpdateById returns an UPDATE SQL query for the
 	// row with a certain ID in the given table.
 	TableUpdateById(Table) (string, error)
+
+	// TableDeleteAll returns a DELETE FROM SQL query for
+	// all rows in the given Table.
+	TableDeleteAll(Table) (string, error)
 
 	// TableDeleteById returns a DELETE FROM SQL query for
 	// the row with a certain ID in the given Table.

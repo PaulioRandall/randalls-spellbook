@@ -92,15 +92,23 @@ func Test_SqliteGenerator_TableInsert_1(t *testing.T) {
 		"  ?,",
 		"  ?,",
 		"  ?",
+		") VALUES (",
+		"  ?,",
+		"  ?,",
+		"  ?",
+		") VALUES (",
+		"  ?,",
+		"  ?,",
+		"  ?",
 		")",
 	)
 
-	act, e := sqlGen.TableInsert(table)
+	act, e := sqlGen.TableInsert(table, 3)
 	require.Equal(t, nil, e)
 	require.Equal(t, exp, act)
 }
 
-func Test_SqliteGenerator_TableSelect_1(t *testing.T) {
+func Test_SqliteGenerator_TableSelectAll_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
@@ -131,7 +139,7 @@ func Test_SqliteGenerator_TableSelect_1(t *testing.T) {
 		"  TestEntity",
 	)
 
-	act, e := sqlGen.TableSelect(table)
+	act, e := sqlGen.TableSelectAll(table)
 	require.Equal(t, nil, e)
 	require.Equal(t, exp, act)
 }
@@ -207,6 +215,24 @@ func Test_SqliteGenerator_TableUpdateById_1(t *testing.T) {
 	)
 
 	act, e := sqlGen.TableUpdateById(table)
+	require.Equal(t, nil, e)
+	require.Equal(t, exp, act)
+}
+
+func Test_SqliteGenerator_TableDeleteAll_1(t *testing.T) {
+	// Happy path.
+	sqlGen := NewSqliteGenerator()
+
+	table := Table{
+		GoName: "TestEntity",
+	}
+
+	exp := joinLines(
+		"DELETE FROM",
+		"  TestEntity",
+	)
+
+	act, e := sqlGen.TableDeleteAll(table)
 	require.Equal(t, nil, e)
 	require.Equal(t, exp, act)
 }
