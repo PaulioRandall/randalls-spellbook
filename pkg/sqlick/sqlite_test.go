@@ -108,6 +108,13 @@ func Test_SqliteGenerator_TableInsert_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
+func Test_SqliteGenerator_TableInsert_2(t *testing.T) {
+	// Error when too few rows specified.
+	sqlGen := NewSqliteGenerator()
+	_, e := sqlGen.TableInsert(Table{}, 0)
+	require.ErrorIs(t, e, ErrTooFewRows)
+}
+
 func Test_SqliteGenerator_TableSelectAll_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
