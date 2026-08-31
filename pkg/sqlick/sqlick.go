@@ -25,11 +25,23 @@ type SqlGenerator interface {
 	CreateTable(Table) (string, error)
 
 	// Insert returns an INSERTS INTO SQL query for the given
-	// table.
+	// Table.
 	Insert(Table) (string, error)
 
+	// Select returns a SELECT SQL query for all rows in the
+	// given Table.
+	Select(Table) (string, error)
+
+	// Select returns a SELECT SQL query for the row with a
+	// certain ID in the given Table.
+	SelectById(Table) (string, error)
+
+	// Update returns an UPDATE SQL query for the row with a
+	// certain ID in the given table.
+	Update(Table) (string, error)
+
 	// Delete returns a DELETE FROM SQL query for the given
-	// table.
+	// Table.
 	Delete(Table) (string, error)
 }
 
@@ -47,6 +59,22 @@ type Table struct {
 	// Columns is all the parsed public fields in the Go
 	// struct.
 	Columns []Column
+}
+
+// IdColumn returns the ID column which is always the first
+// column. A valid Table must have at least one column so
+// is proper usage this function will never panic with
+// out of range message.
+func (tbl *Table) IdColumn() Column {
+	return tbl.Columns[0]
+}
+
+// NonIdColumns returns the all columns except the ID
+// column. The ID column is always the first column. If the
+// Table only contains an ID column then the returned slice
+// will be empty.
+func (tbl *Table) NonIdColumns() []Column {
+	return tbl.Columns[1:]
 }
 
 // String returns the human readable string representation

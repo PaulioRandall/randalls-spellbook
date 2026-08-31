@@ -46,7 +46,7 @@ func (sg sqliteGenerator) CreateTable(
 		)
 	}
 
-	qb.WriteFmt(s, tbl.GoName, strCols, tbl.Columns[0].GoName)
+	qb.WriteFmt(s, tbl.GoName, strCols, tbl.IdColumn().GoName)
 	return qb.String(), nil
 }
 
@@ -121,6 +121,72 @@ func (sg sqliteGenerator) genQuestionMark(
 	return "  ?", nil
 }
 
+func (sg sqliteGenerator) Select(
+	tbl Table,
+) (string, error) {
+	qb := queryBuilder{}
+
+	columns, _ := genList(tbl.Columns, sg.genColumn)
+
+	s := joinLines(
+		"SELECT",
+		"%s",
+		"FROM",
+		"  %s",
+	)
+
+	qb.WriteFmt(s, columns, tbl.GoName)
+	return qb.String(), nil
+}
+
+func (sg sqliteGenerator) SelectById(
+	tbl Table,
+) (string, error) {
+	qb := queryBuilder{}
+
+	columns, _ := genList(tbl.Columns, sg.genColumn)
+
+	s := joinLines(
+		"SELECT",
+		"%s",
+		"FROM",
+		"  %s",
+		"WHERE",
+		"  %s = ?",
+	)
+
+	qb.WriteFmt(s, columns, tbl.GoName, tbl.IdColumn().GoName)
+	return qb.String(), nil
+}
+
+func (sg sqliteGenerator) Update(
+	tbl Table,
+) (string, error) {
+	qb := queryBuilder{}
+
+	nonIdColumns := tbl.NonIdColumns()
+	setters, _ := genList(nonIdColumns, sg.genColumnSetter)
+
+	s := joinLines(
+		"UPDATE",
+		"  %s",
+		"SET",
+		"%s",
+		"WHERE",
+		"  %s = ?",
+	)
+
+	qb.WriteFmt(s, tbl.GoName, setters, tbl.IdColumn().GoName)
+	return qb.String(), nil
+}
+
+func (sg sqliteGenerator) genColumnSetter(
+	_ int,
+	col Column,
+) (string, error) {
+	return fmt.Sprintf("  %s = ?", col.GoName), nil
+}
+
 func (sg sqliteGenerator) Delete(
 	tbl Table,
 ) (string, error) {
@@ -130,9 +196,9 @@ func (sg sqliteGenerator) Delete(
 		"DELETE FROM",
 		"  %s",
 		"WHERE",
-		"  %s == ?",
+		"  %s = ?",
 	)
 
-	qb.WriteFmt(s, tbl.GoName, tbl.Columns[0].GoName)
+	qb.WriteFmt(s, tbl.GoName, tbl.IdColumn().GoName)
 	return qb.String(), nil
 }
