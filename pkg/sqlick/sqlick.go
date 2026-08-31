@@ -20,29 +20,29 @@ var (
 // The exact types and nature of the query will vary
 // slightly based upon SQL dialect and implementation.
 type SqlGenerator interface {
-	// CreateTable returns a CREATE TABLE SQL query for the
+	// TableCreate returns a CREATE TABLE SQL query for the
 	// given table.
-	CreateTable(Table) (string, error)
+	TableCreate(Table) (string, error)
 
-	// Insert returns an INSERTS INTO SQL query for the given
-	// Table.
-	Insert(Table) (string, error)
-
-	// Select returns a SELECT SQL query for all rows in the
+	// TableInsert returns an INSERTS INTO SQL query for the
 	// given Table.
-	Select(Table) (string, error)
+	TableInsert(Table) (string, error)
 
-	// Select returns a SELECT SQL query for the row with a
-	// certain ID in the given Table.
-	SelectById(Table) (string, error)
+	// TableSelect returns a SELECT SQL query for all rows in
+	// the given Table.
+	TableSelect(Table) (string, error)
 
-	// Update returns an UPDATE SQL query for the row with a
-	// certain ID in the given table.
-	Update(Table) (string, error)
+	// TableSelectById returns a SELECT SQL query for the row
+	// with a certain ID in the given Table.
+	TableSelectById(Table) (string, error)
 
-	// Delete returns a DELETE FROM SQL query for the given
-	// Table.
-	Delete(Table) (string, error)
+	// TableUpdateById returns an UPDATE SQL query for the
+	// row with a certain ID in the given table.
+	TableUpdateById(Table) (string, error)
+
+	// TableDeleteById returns a DELETE FROM SQL query for
+	// the row with a certain ID in the given Table.
+	TableDeleteById(Table) (string, error)
 }
 
 // Table represents the base information required to
@@ -123,11 +123,9 @@ func (qb *queryBuilder) WriteFmt(msg string, args ...any) {
 	qb.WriteString(s)
 }
 
-type stringifyListItem[T any] func(int, T) (string, error)
-
 func genList[T any](
 	list []T,
-	itemToStr stringifyListItem[T],
+	itemToStr func(int, T) (string, error),
 ) (string, error) {
 	qb := queryBuilder{}
 

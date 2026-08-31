@@ -16,7 +16,7 @@ func NewSqliteGenerator() SqlGenerator {
 	return sqliteGenerator{}
 }
 
-// CreateTable satisfies the SqlGenerator interface. The
+// TableCreate satisfies the SqlGenerator interface. The
 // table name is the GoName, all columns are NOT NULL, and
 // the first column is designated the PRIMARY KEY.
 //
@@ -25,7 +25,7 @@ func NewSqliteGenerator() SqlGenerator {
 //	int     => INTEGER
 //	float64 => REAL
 //	string  => TEXT
-func (sg sqliteGenerator) CreateTable(
+func (sg sqliteGenerator) TableCreate(
 	tbl Table,
 ) (string, error) {
 	qb := queryBuilder{}
@@ -87,7 +87,8 @@ func (sg sqliteGenerator) mapGoToSqlType(
 	return sqlType, nil
 }
 
-func (sg sqliteGenerator) Insert(
+// TableInsert satisfies the SqlGenerator interface.
+func (sg sqliteGenerator) TableInsert(
 	tbl Table,
 ) (string, error) {
 	qb := queryBuilder{}
@@ -121,7 +122,8 @@ func (sg sqliteGenerator) genQuestionMark(
 	return "  ?", nil
 }
 
-func (sg sqliteGenerator) Select(
+// TableSelect satisfies the SqlGenerator interface.
+func (sg sqliteGenerator) TableSelect(
 	tbl Table,
 ) (string, error) {
 	qb := queryBuilder{}
@@ -139,7 +141,8 @@ func (sg sqliteGenerator) Select(
 	return qb.String(), nil
 }
 
-func (sg sqliteGenerator) SelectById(
+// TableSelectById satisfies the SqlGenerator interface.
+func (sg sqliteGenerator) TableSelectById(
 	tbl Table,
 ) (string, error) {
 	qb := queryBuilder{}
@@ -159,7 +162,8 @@ func (sg sqliteGenerator) SelectById(
 	return qb.String(), nil
 }
 
-func (sg sqliteGenerator) Update(
+// TableUpdateById satisfies the SqlGenerator interface.
+func (sg sqliteGenerator) TableUpdateById(
 	tbl Table,
 ) (string, error) {
 	qb := queryBuilder{}
@@ -187,7 +191,8 @@ func (sg sqliteGenerator) genColumnSetter(
 	return fmt.Sprintf("  %s = ?", col.GoName), nil
 }
 
-func (sg sqliteGenerator) Delete(
+// TableDeleteById satisfies the SqlGenerator interface.
+func (sg sqliteGenerator) TableDeleteById(
 	tbl Table,
 ) (string, error) {
 	qb := queryBuilder{}
