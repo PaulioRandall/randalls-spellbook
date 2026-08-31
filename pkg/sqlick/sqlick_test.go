@@ -1,56 +1,112 @@
 package sqlick
 
 import (
-	"fmt"
+	"os"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func Test_SqlickTable_String_1(t *testing.T) {
-	table := Table{
-		GoName: "Person",
+type TestCheeseMaker struct {
+	Id      int
+	Name    string
+	Country string
+}
+
+type TestCheese struct {
+	Id       int
+	MakerId  int // Map to CheeseMaker.Id
+	Name     string
+	Strength int     // 1: Mild, 4: Extra Mature
+	Rating   float64 // Out of 5
+	Notes    string  // E.g. "Nutty after taste"
+}
+
+const testDb string = "../../testdata/test.sqlite"
+
+func TestMain(m *testing.M) {
+	deleteTestDbIfExists()
+	code := m.Run()
+	os.Exit(code)
+}
+
+func deleteTestDbIfExists() {
+	e := os.Remove(testDb)
+	if e != nil && !os.IsNotExist(e) {
+		panic(e)
+	}
+}
+
+func Test_Sqlick_AddStructTable_1(t *testing.T) {
+	db := NewSqliteDB(testDb)
+
+	e := db.AddStructTable(TestCheese{})
+
+	exp := Table{
+		GoType: reflect.TypeOf(TestCheese{}),
+		GoName: "TestCheese",
 		Columns: []Column{
+			Column{
+				GoName: "Id",
+				GoType: "int",
+			},
+			Column{
+				GoName: "MakerId",
+				GoType: "int",
+			},
 			Column{
 				GoName: "Name",
 				GoType: "string",
 			},
 			Column{
-				GoName: "Age",
+				GoName: "Strength",
 				GoType: "int",
+			},
+			Column{
+				GoName: "Rating",
+				GoType: "float64",
+			},
+			Column{
+				GoName: "Notes",
+				GoType: "string",
 			},
 		},
 	}
 
-	exp := joinLines(
-		"Person",
-		"  Name: string",
-		"  Age: int",
-	)
-
-	require.Equal(t, exp, table.String())
+	require.Equal(t, nil, e)
+	require.Equal(t, 1, len(db.tables))
+	require.Equal(t, exp, db.tables[0])
 }
 
-func Test_genList_1(t *testing.T) {
-	given := []string{
-		"Alice",
-		"Bob",
-		"Charlie",
-	}
+func Test_Sqlick_Open_Close_1(t *testing.T) {
+	db := NewSqliteDB(testDb)
 
-	exp := joinLines(
-		"  0: Alice,",
-		"  1: Bob,",
-		"  2: Charlie",
-	)
+	require.Equal(t, false, db.IsOpen())
 
-	s, e := genList(
-		given,
-		func(i int, item string) (string, error) {
-			return fmt.Sprintf("  %d: %s", i, item), nil
-		},
-	)
-
+	e := db.Open()
 	require.Equal(t, nil, e)
-	require.Equal(t, exp, s)
+	require.Equal(t, true, db.IsOpen())
+
+	e = db.Close()
+	require.Equal(t, nil, e)
+	require.Equal(t, false, db.IsOpen())
+}
+
+func Test_Sqlick_CreateTables_1(t *testing.T) {
+	db := NewSqliteDB(testDb)
+
+	e := db.AddStructTable(TestCheeseMaker{})
+	require.Equal(t, nil, e)
+
+	e = db.AddStructTable(TestCheese{})
+	require.Equal(t, nil, e)
+
+	e = db.Open()
+	require.Equal(t, nil, e)
+
+	defer db.Close()
+
+	e = db.CreateTables()
+	require.Equal(t, nil, e)
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_SqliteGenerator_TableCreate_1(t *testing.T) {
+func Test_sqliteGenerator_TableCreate_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
@@ -42,7 +42,7 @@ func Test_SqliteGenerator_TableCreate_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_SqliteGenerator_TableCreate_2(t *testing.T) {
+func Test_sqliteGenerator_TableCreate_2(t *testing.T) {
 	// Error when there's no SQL type mapping for a column's
 	// Go type.
 	sqlGen := NewSqliteGenerator()
@@ -61,7 +61,7 @@ func Test_SqliteGenerator_TableCreate_2(t *testing.T) {
 	require.ErrorIs(t, e, ErrNoSqlType)
 }
 
-func Test_SqliteGenerator_TableInsert_1(t *testing.T) {
+func Test_sqliteGenerator_TableInsert_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
@@ -108,14 +108,14 @@ func Test_SqliteGenerator_TableInsert_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_SqliteGenerator_TableInsert_2(t *testing.T) {
+func Test_sqliteGenerator_TableInsert_2(t *testing.T) {
 	// Error when too few rows specified.
 	sqlGen := NewSqliteGenerator()
 	_, e := sqlGen.TableInsert(Table{}, 0)
 	require.ErrorIs(t, e, ErrTooFewRows)
 }
 
-func Test_SqliteGenerator_TableSelectAll_1(t *testing.T) {
+func Test_sqliteGenerator_TableSelectAll_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
@@ -151,7 +151,7 @@ func Test_SqliteGenerator_TableSelectAll_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_SqliteGenerator_TableSelectById_1(t *testing.T) {
+func Test_sqliteGenerator_TableSelectById_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
@@ -189,7 +189,7 @@ func Test_SqliteGenerator_TableSelectById_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_SqliteGenerator_TableUpdateById_1(t *testing.T) {
+func Test_sqliteGenerator_TableUpdateById_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
@@ -226,7 +226,7 @@ func Test_SqliteGenerator_TableUpdateById_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_SqliteGenerator_TableDeleteAll_1(t *testing.T) {
+func Test_sqliteGenerator_TableDeleteAll_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
@@ -244,7 +244,7 @@ func Test_SqliteGenerator_TableDeleteAll_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_SqliteGenerator_TableDeleteById_1(t *testing.T) {
+func Test_sqliteGenerator_TableDeleteById_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
