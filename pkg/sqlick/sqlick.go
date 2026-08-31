@@ -15,17 +15,22 @@ var (
 
 // SqlGenerator is an interface implemented by specific
 // SQL dialects for generating SQL query strings.
+// Implementations assume that the passed Table is valid.
+//
+// The exact types and nature of the query will vary
+// slightly based upon SQL dialect and implementation.
 type SqlGenerator interface {
 	// CreateTable returns a CREATE TABLE SQL query for the
-	// given table. The exact types and nature of the
-	// constraints will vary based upon SQL dialect and
-	// implementation.
+	// given table.
 	CreateTable(Table) (string, error)
 
 	// Insert returns an INSERTS INTO SQL query for the given
-	// table. The exact types and nature of the query will
-	// vary based upon SQL dialect and implementation.
+	// table.
 	Insert(Table) (string, error)
+
+	// Delete returns a DELETE FROM SQL query for the given
+	// table.
+	Delete(Table) (string, error)
 }
 
 // Table represents the base information required to
@@ -81,11 +86,35 @@ func joinLines(lines ...string) string {
 	return strings.Join(lines, "\n")
 }
 
-func write(sb *strings.Builder, text string, args ...any) {
-	s := fmt.Sprintf(text, args...)
-	sb.WriteString(s)
+type queryBuilder struct {
+	strings.Builder
 }
 
-func newline(sb *strings.Builder) {
-	sb.WriteRune('\n')
+func (qb *queryBuilder) WriteFmt(msg string, args ...any) {
+	s := fmt.Sprintf(msg, args...)
+	qb.WriteString(s)
+}
+
+type stringifyListItem[T any] func(int, T) (string, error)
+
+func genList[T any](
+	list []T,
+	itemToStr stringifyListItem[T],
+) (string, error) {
+	qb := queryBuilder{}
+
+	for i, item := range list {
+		if i != 0 {
+			qb.WriteString(",\n")
+		}
+
+		s, e := itemToStr(i, item)
+		if e != nil {
+			return "", e
+		}
+
+		qb.WriteString(s)
+	}
+
+	return qb.String(), nil
 }

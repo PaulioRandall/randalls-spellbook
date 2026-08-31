@@ -2,7 +2,6 @@ package sqlick
 
 import (
 	"fmt"
-	"strings"
 )
 
 // sqliteGenerator satisfies the SqlGenerator interface for
@@ -29,72 +28,44 @@ func NewSqliteGenerator() SqlGenerator {
 func (sg sqliteGenerator) CreateTable(
 	tbl Table,
 ) (string, error) {
-	sb := strings.Builder{}
+	qb := queryBuilder{}
 
-	e := sg.genCreateTable(&sb, tbl)
-	if e == nil {
-		return sb.String(), nil
-	}
-
-	return "", fmt.Errorf(
-		"Failed to generate CREATE TABLE SQL for table '%s': %w",
-		tbl.GoName,
-		e,
+	s := joinLines(
+		"CREATE TABLE IF NOT EXISTS %s (",
+		"%s,",
+		"  PRIMARY KEY (%s)",
+		")",
 	)
-}
 
-func (sg sqliteGenerator) genCreateTable(
-	sb *strings.Builder,
-	tbl Table,
-) error {
-	write(sb, "CREATE TABLE IF NOT EXISTS %s (", tbl.GoName)
-
-	e := sg.genCreateTableColumns(sb, tbl.Columns)
+	strCols, e := genList(tbl.Columns, sg.genColumnDef)
 	if e != nil {
-		return e
+		return "", fmt.Errorf(
+			"Failed to generate CREATE TABLE SQL for table '%s': %w",
+			tbl.GoName,
+			e,
+		)
 	}
 
-	newline(sb)
-	write(sb, "  PRIMARY KEY (%s)", tbl.Columns[0].GoName)
-
-	newline(sb)
-	sb.WriteRune(')')
-
-	return nil
+	qb.WriteFmt(s, tbl.GoName, strCols, tbl.Columns[0].GoName)
+	return qb.String(), nil
 }
 
-func (sg sqliteGenerator) genCreateTableColumns(
-	sb *strings.Builder,
-	columns []Column,
-) error {
-	for _, col := range columns {
-		e := sg.genCreateTableColumn(sb, col)
-		if e == nil {
-			continue
-		}
+func (sg sqliteGenerator) genColumnDef(
+	_ int,
+	col Column,
+) (string, error) {
+	sqlType, e := sg.mapGoToSqlType(col.GoType)
 
-		return fmt.Errorf(
+	if e != nil {
+		return "", fmt.Errorf(
 			"Failed to generate SQL for column '%s': %w",
 			col.GoName,
 			e,
 		)
 	}
 
-	return nil
-}
-
-func (sg sqliteGenerator) genCreateTableColumn(
-	sb *strings.Builder,
-	col Column,
-) error {
-	sqlType, e := sg.mapGoToSqlType(col.GoType)
-	if e != nil {
-		return e
-	}
-
-	newline(sb)
-	write(sb, "  %s %s NOT NULL,", col.GoName, sqlType)
-	return nil
+	s := fmt.Sprintf("  %s %s NOT NULL", col.GoName, sqlType)
+	return s, nil
 }
 
 func (sg sqliteGenerator) mapGoToSqlType(
@@ -119,52 +90,49 @@ func (sg sqliteGenerator) mapGoToSqlType(
 func (sg sqliteGenerator) Insert(
 	tbl Table,
 ) (string, error) {
-	sb := strings.Builder{}
-	sg.genInsertInto(&sb, tbl)
-	return sb.String(), nil
+	qb := queryBuilder{}
+
+	columns, _ := genList(tbl.Columns, sg.genColumn)
+	values, _ := genList(tbl.Columns, sg.genQuestionMark)
+
+	s := joinLines(
+		"INSERT INTO %s (",
+		"%s",
+		") VALUES (",
+		"%s",
+		")",
+	)
+
+	qb.WriteFmt(s, tbl.GoName, columns, values)
+	return qb.String(), nil
 }
 
-func (sg sqliteGenerator) genInsertInto(
-	sb *strings.Builder,
+func (sg sqliteGenerator) genColumn(
+	_ int,
+	col Column,
+) (string, error) {
+	return fmt.Sprintf("  %s", col.GoName), nil
+}
+
+func (sg sqliteGenerator) genQuestionMark(
+	_ int,
+	col Column,
+) (string, error) {
+	return "  ?", nil
+}
+
+func (sg sqliteGenerator) Delete(
 	tbl Table,
-) {
-	write(sb, "INSERT INTO %s (", tbl.GoName)
+) (string, error) {
+	qb := queryBuilder{}
 
-	sg.genInsertIntoColumns(sb, tbl.Columns)
+	s := joinLines(
+		"DELETE FROM",
+		"  %s",
+		"WHERE",
+		"  %s == ?",
+	)
 
-	newline(sb)
-	sb.WriteString(") VALUES (")
-
-	sg.genInsertIntoValues(sb, len(tbl.Columns))
-
-	newline(sb)
-	sb.WriteRune(')')
-}
-
-func (sg sqliteGenerator) genInsertIntoColumns(
-	sb *strings.Builder,
-	columns []Column,
-) {
-	for i, col := range columns {
-		newline(sb)
-		write(sb, "  %s", col.GoName)
-
-		if i < len(columns)-1 {
-			sb.WriteRune(',')
-		}
-	}
-}
-
-func (sg sqliteGenerator) genInsertIntoValues(
-	sb *strings.Builder,
-	count int,
-) {
-	for i := 0; i < count; i++ {
-		newline(sb)
-		sb.WriteString("  ?")
-
-		if i < count-1 {
-			sb.WriteRune(',')
-		}
-	}
+	qb.WriteFmt(s, tbl.GoName, tbl.Columns[0].GoName)
+	return qb.String(), nil
 }

@@ -99,3 +99,29 @@ func Test_SqliteGenerator_Insert_1(t *testing.T) {
 	require.Equal(t, nil, e)
 	require.Equal(t, exp, act)
 }
+
+func Test_SqliteGenerator_Delete_1(t *testing.T) {
+	// Happy path.
+	sqlGen := NewSqliteGenerator()
+
+	table := Table{
+		GoName: "TestEntity",
+		Columns: []Column{
+			Column{
+				GoName: "UserId",
+				GoType: "int",
+			},
+		},
+	}
+
+	exp := joinLines(
+		"DELETE FROM",
+		"  TestEntity",
+		"WHERE",
+		"  UserId == ?",
+	)
+
+	act, e := sqlGen.Delete(table)
+	require.Equal(t, nil, e)
+	require.Equal(t, exp, act)
+}
