@@ -55,12 +55,15 @@ func (ss *sqliteSqlick) Close() error {
 	return ss.db.Close()
 }
 
-// AddStructTable satisfies the Sqlick interface.
-func (ss *sqliteSqlick) AddStructTable(object any) error {
+// Register satisfies the Sqlick interface.
+func (ss *sqliteSqlick) Register(object any) error {
 	table, e := Parse(object)
 
 	if e != nil {
-		return fmt.Errorf("Failed to add struct table: %w", e)
+		return fmt.Errorf(
+			"Failed to register struct/table: %w",
+			e,
+		)
 	}
 
 	ss.tables = append(ss.tables, table)
@@ -123,7 +126,10 @@ func (ss *sqliteSqlick) insertValue(
 		)
 	}
 
-	fieldValues := ss.listOrderedFieldValues(table, value)
+	fieldValues := ss.listOrderedFieldValues(
+		table.Columns,
+		value,
+	)
 	return ss.execInsert(table, fieldValues)
 }
 
@@ -139,13 +145,13 @@ func (ss *sqliteSqlick) findTableFor(
 }
 
 func (ss *sqliteSqlick) listOrderedFieldValues(
-	table Table,
+	columns []Column,
 	value reflect.Value,
 ) []any {
-	result := make([]any, len(table.Columns))
+	result := make([]any, len(columns))
 
-	for i := 0; i < len(table.Columns); i++ {
-		col := table.Columns[i]
+	for i := 0; i < len(columns); i++ {
+		col := columns[i]
 		field := value.FieldByName(col.GoName)
 		result[i] = field.Interface()
 	}
@@ -170,6 +176,69 @@ func (ss *sqliteSqlick) execInsert(
 	if e != nil {
 		return fmt.Errorf(
 			"Failed to insert into table '%s': %w",
+			table.GoName,
+			e,
+		)
+	}
+
+	return nil
+}
+
+// Update satisfies the Sqlick interface.
+func (ss *sqliteSqlick) Update(object any) error {
+	value := reflect.ValueOf(object)
+	e := ss.updateValue(value)
+
+	if e == nil {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"Failed to update object in database: %w",
+		e,
+	)
+}
+
+func (ss *sqliteSqlick) updateValue(
+	value reflect.Value,
+) error {
+	table, found := ss.findTableFor(value.Type())
+
+	if !found {
+		return fmt.Errorf(
+			"No table exists for struct '%s': %w",
+			value.Type().Name(),
+			ErrNoTableForType,
+		)
+	}
+
+	fieldValues := ss.listOrderedFieldValues(
+		table.Columns,
+		value,
+	)
+
+	// Move ID value to end (for the WHERE clause)
+	fieldValues = append(fieldValues[1:], fieldValues[0])
+	return ss.execUpdate(table, fieldValues)
+}
+
+func (ss *sqliteSqlick) execUpdate(
+	table Table,
+	fieldValues []any,
+) error {
+	query, e := ss.gen.TableUpdateById(table)
+	if e != nil {
+		return fmt.Errorf(
+			"Could not generate SQL query for table '%s': %w",
+			table.GoName,
+			e,
+		)
+	}
+
+	_, e = ss.db.Exec(query, fieldValues...)
+	if e != nil {
+		return fmt.Errorf(
+			"Failed to update row in table '%s': %w",
 			table.GoName,
 			e,
 		)
