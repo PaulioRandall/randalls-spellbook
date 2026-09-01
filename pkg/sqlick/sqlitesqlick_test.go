@@ -96,17 +96,101 @@ func Test_Sqlick_Open_Close_1(t *testing.T) {
 func Test_Sqlick_CreateTables_1(t *testing.T) {
 	db := NewSqliteDB(testDb)
 
-	e := db.AddStructTable(TestCheeseMaker{})
+	e := db.Open()
+	require.Equal(t, nil, e)
+	defer db.Close()
+
+	e = db.AddStructTable(TestCheeseMaker{})
 	require.Equal(t, nil, e)
 
 	e = db.AddStructTable(TestCheese{})
 	require.Equal(t, nil, e)
 
-	e = db.Open()
+	e = db.CreateTables()
 	require.Equal(t, nil, e)
 
+	rows, e := db.db.Query(`
+		SELECT
+			name
+		FROM
+			sqlite_schema
+		WHERE
+			name IN (
+				'TestCheeseMaker',
+				'TestCheese'
+			)
+	`)
+	require.Equal(t, nil, e)
+
+	var act string
+
+	require.Equal(t, true, rows.Next())
+	e = rows.Scan(&act)
+	require.Equal(t, nil, e)
+	require.Equal(t, "TestCheeseMaker", act)
+
+	require.Equal(t, true, rows.Next())
+	e = rows.Scan(&act)
+	require.Equal(t, nil, e)
+	require.Equal(t, "TestCheese", act)
+
+	require.Equal(t, false, rows.Next())
+}
+
+func Test_Sqlick_Insert_1(t *testing.T) {
+	db := NewSqliteDB(testDb)
+
+	bobs := TestCheeseMaker{
+		Id:      1,
+		Name:    "Bob's Cheese",
+		Country: "England",
+	}
+
+	francs := TestCheeseMaker{
+		Id:      2,
+		Name:    "Franc's Fromage",
+		Country: "France",
+	}
+
+	e := db.Open()
+	require.Equal(t, nil, e)
 	defer db.Close()
+
+	e = db.AddStructTable(TestCheeseMaker{})
+	require.Equal(t, nil, e)
 
 	e = db.CreateTables()
 	require.Equal(t, nil, e)
+
+	e = db.Insert(bobs)
+	require.Equal(t, nil, e)
+
+	e = db.Insert(francs)
+	require.Equal(t, nil, e)
+
+	rows, e := db.db.Query(`
+		SELECT
+			Id,
+			Name,
+			Country
+		FROM
+			TestCheeseMaker
+		WHERE
+			Id IN (1, 2)
+	`)
+	require.Equal(t, nil, e)
+
+	var act TestCheeseMaker
+
+	require.Equal(t, true, rows.Next())
+	e = rows.Scan(&act.Id, &act.Name, &act.Country)
+	require.Equal(t, nil, e)
+	require.Equal(t, bobs, act)
+
+	require.Equal(t, true, rows.Next())
+	e = rows.Scan(&act.Id, &act.Name, &act.Country)
+	require.Equal(t, nil, e)
+	require.Equal(t, francs, act)
+
+	require.Equal(t, false, rows.Next())
 }

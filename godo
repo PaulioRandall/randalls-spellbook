@@ -51,7 +51,7 @@ godoFormat() {
 }
 
 godoTest() {
-	runCmd "go test ./... -timeout 2s"
+	runCmd "go test ./... -timeout 8s"
 }
 
 godoVet() {
