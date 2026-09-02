@@ -8,7 +8,7 @@ import (
 
 var testColUserId = Column{
 	GoName: "UserId",
-	GoType: intType,
+	GoType: int64Type,
 }
 
 var testColName = Column{
@@ -18,7 +18,7 @@ var testColName = Column{
 
 var testColHeight = Column{
 	GoName: "Height",
-	GoType: floType,
+	GoType: float64Type,
 }
 
 var testTableEntity = Table{
@@ -58,7 +58,7 @@ func Test_sqliteGenerator_TableCreate_2(t *testing.T) {
 		Columns: []Column{
 			Column{
 				GoName: "UserId",
-				GoType: intArrType,
+				GoType: int64ArrType,
 			},
 		},
 	}

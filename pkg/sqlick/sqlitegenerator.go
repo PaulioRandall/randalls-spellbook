@@ -14,7 +14,7 @@ type sqliteGenerator struct {
 
 var goKindToSqliteTypeMappings = map[reflect.Kind]string{
 	reflect.String:  "TEXT",
-	reflect.Int:     "INTEGER",
+	reflect.Int64:   "INTEGER",
 	reflect.Float64: "REAL",
 }
 
@@ -30,7 +30,7 @@ func NewSqliteGenerator() SqlGenerator {
 //
 // Type mappings
 //
-//	int     => INTEGER
+//	int64     => INTEGER
 //	float64 => REAL
 //	string  => TEXT
 func (sg sqliteGenerator) TableCreate(

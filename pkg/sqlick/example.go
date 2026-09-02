@@ -5,16 +5,16 @@ import (
 )
 
 type CheeseMaker struct {
-	Id      int
+	Id      int64
 	Name    string
 	Country string
 }
 
 type Cheese struct {
-	Id       int
-	MakerId  int // Maps to CheeseMaker.Id
+	Id       int64
+	MakerId  int64 // Maps to CheeseMaker.Id
 	Name     string
-	Strength int     // 1: Mild, 4: Extra Mature
+	Strength int64   // 1: Mild, 4: Extra Mature
 	Rating   float64 // Out of 5
 	Notes    string  // E.g. "Nutty after taste"
 }
@@ -77,9 +77,9 @@ var cheeses = []Cheese{
 	},
 }
 
-func newIntGenerator() func() int {
-	i := 0
-	return func() int {
+func newIntGenerator() func() int64 {
+	var i int64 = 0
+	return func() int64 {
 		i++
 		return i
 	}

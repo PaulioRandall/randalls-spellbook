@@ -17,7 +17,7 @@ func Test_SqlickTable_String_1(t *testing.T) {
 			},
 			Column{
 				GoName:  "Age",
-				GoType:  intType,
+				GoType:  int64Type,
 				GoIndex: 1,
 			},
 		},
@@ -26,7 +26,7 @@ func Test_SqlickTable_String_1(t *testing.T) {
 	exp := joinLines(
 		"Person",
 		"  [0] Name: string",
-		"  [1] Age: int",
+		"  [1] Age: int64",
 	)
 
 	require.Equal(t, exp, table.String())

@@ -263,13 +263,12 @@ func (ss *sqliteSqlick) execUpdate(
 	return nil
 }
 
-/*
 // SelectAll satisfies the Sqlick interface.
 func (ss *sqliteSqlick) SelectAll(
-	object any,
+	model any,
 ) (any, error) {
-	value := reflect.ValueOf(object)
-	result, e := ss.selectAllOfValue(value)
+	typ := reflect.TypeOf(model)
+	result, e := ss.selectAllOfType(typ)
 
 	if e == nil {
 		return result, nil
@@ -281,14 +280,15 @@ func (ss *sqliteSqlick) SelectAll(
 	)
 }
 
-func (ss *sqliteSqlick) selectAllOfValue(
-	value reflect.Value,
+func (ss *sqliteSqlick) selectAllOfType(
+	typ reflect.Type,
 ) (any, error) {
-	table, e := ss.findTableForOrError(value.Type())
+	table, e := ss.findTableForOrError(typ)
 	if e != nil {
 		return nil, e
 	}
 
+	value := reflect.Zero(typ)
 	fieldValues := ss.listOrderedFieldValues(
 		table.Columns,
 		value,
@@ -331,62 +331,89 @@ func (ss *sqliteSqlick) scanSelectedRows(
 	table Table,
 	rows *sql.Rows,
 ) (any, error) {
-	colNames, e := rows.Columns()
-	if e != nil {
-		return nil, e
-	}
+	values, valuePtrs := createValueContainers(table)
 
-	valuePtrs := createValueContainers(
-		table,
-		colNames,
+	sliceValue := reflect.MakeSlice(
+		reflect.SliceOf(table.GoType),
+		0,
+		0,
 	)
 
-	var result []any
+	for i := 0; rows.Next(); i++ {
+		e := rows.Scan(valuePtrs...)
+		if e != nil {
+			return nil, fmt.Errorf(
+				"Failed to scan row %d: %w",
+				i,
+				e,
+			)
+		}
 
-	for rows.Next() {
-		rows.Scan(valuePtrs...)
-
-		objectValue := reflect.Zero(table.GoType)
-		populateObjectWithValues(
-			colNames,
-			valuePtrs,
-			&objectValue,
+		object := createNewObjectWithValues(
+			table,
+			values,
 		)
 
-		object := objectValue.Interface()
-		result = append(result, object)
+		sliceValue = reflect.Append(
+			sliceValue,
+			reflect.ValueOf(object),
+		)
 	}
 
-	return result, nil
+	e := rows.Err()
+	if e != nil {
+		return nil, fmt.Errorf(
+			"Error occurred after scanning database rows: %w",
+			e,
+		)
+	}
+
+	return sliceValue.Interface(), nil
 }
 
 func createValueContainers(
-	table Table,
-	colNames []string,
-) []any {
-	colCount := len(colNames)
-	values := make([]any, colCount)
-	valuePtrs := make([]any, colCount)
+	tbl Table,
+) ([]any, []any) {
+	values := make([]any, tbl.NumColumn())
+	valuePtrs := make([]any, tbl.NumColumn())
 
-	for i, name := range colNames {
-		// TODO: Find column by name and create a zero value
-		//       using the type. Will require changing GoType
-		//       to reflect.Type.
+	for i, col := range tbl.Columns {
+		values[i] = col.Zero()
 		valuePtrs[i] = &values[i]
 	}
 
-	return valuePtrs
+	return values, valuePtrs
 }
 
-func populateObjectWithValues(
-	colNames []string,
-	valuePtrs []any,
-	objectValue *reflect.Value,
-) {
-	for i, name := range colNames {
-		field := objectValue.FieldByName(name)
-		value := valuePtrs[i].(*any)
-		field.Set(reflect.ValueOf(*value))
+func createNewObjectWithValues(
+	table Table,
+	values []any,
+) any {
+	objectValue := reflect.New(table.GoType).Elem()
+
+	for i, col := range table.Columns {
+		field := objectValue.Field(col.GoIndex)
+		value := reflect.ValueOf(values[i])
+		field.Set(value)
 	}
+
+	return objectValue.Interface()
 }
-*/
+
+func toSliceOfType(
+	typ reflect.Type,
+	values []any,
+) any {
+	sliceValue := reflect.MakeSlice(
+		reflect.SliceOf(typ),
+		len(values),
+		len(values),
+	)
+
+	for i, v := range values {
+		itemValue := reflect.ValueOf(v)
+		sliceValue.Index(i).Set(itemValue)
+	}
+
+	return sliceValue.Interface()
+}

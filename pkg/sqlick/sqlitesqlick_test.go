@@ -10,16 +10,16 @@ import (
 )
 
 type TestCheeseMaker struct {
-	Id      int
+	Id      int64
 	Name    string
 	Country string
 }
 
 type TestCheese struct {
-	Id       int
-	MakerId  int // Map to CheeseMaker.Id
+	Id       int64
+	MakerId  int64 // Map to CheeseMaker.Id
 	Name     string
-	Strength int     // 1: Mild, 4: Extra Mature
+	Strength int64   // 1: Mild, 4: Extra Mature
 	Rating   float64 // Out of 5
 	Notes    string  // E.g. "Nutty after taste"
 }
@@ -61,12 +61,12 @@ func Test_Sqlick_Register_1(t *testing.T) {
 		Columns: []Column{
 			Column{
 				GoName:  "Id",
-				GoType:  intType,
+				GoType:  int64Type,
 				GoIndex: 0,
 			},
 			Column{
 				GoName:  "MakerId",
-				GoType:  intType,
+				GoType:  int64Type,
 				GoIndex: 1,
 			},
 			Column{
@@ -76,12 +76,12 @@ func Test_Sqlick_Register_1(t *testing.T) {
 			},
 			Column{
 				GoName:  "Strength",
-				GoType:  intType,
+				GoType:  int64Type,
 				GoIndex: 3,
 			},
 			Column{
 				GoName:  "Rating",
-				GoType:  floType,
+				GoType:  float64Type,
 				GoIndex: 4,
 			},
 			Column{
@@ -269,7 +269,6 @@ func Test_Sqlick_Update_1(t *testing.T) {
 	require.Equal(t, false, rows.Next())
 }
 
-/*
 func Test_Sqlick_SelectAll_1(t *testing.T) {
 	dropTablesIfExists()
 	db := NewSqliteDB(testDb)
@@ -299,6 +298,9 @@ func Test_Sqlick_SelectAll_1(t *testing.T) {
 	e = db.Insert(bobs)
 	require.Equal(t, nil, e)
 
+	e = db.Insert(francs)
+	require.Equal(t, nil, e)
+
 	result, e := db.SelectAll(TestCheeseMaker{})
 	require.Equal(t, nil, e)
 
@@ -308,4 +310,3 @@ func Test_Sqlick_SelectAll_1(t *testing.T) {
 	require.Equal(t, bobs, act[0])
 	require.Equal(t, francs, act[1])
 }
-*/

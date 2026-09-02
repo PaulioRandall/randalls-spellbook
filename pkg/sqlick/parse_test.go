@@ -14,7 +14,7 @@ func Test_Parse_1(t *testing.T) {
 
 	type TestEntity struct {
 		Alice   string
-		Bob     int
+		Bob     int64
 		dave    string
 		Charlie float64
 	}
@@ -35,12 +35,12 @@ func Test_Parse_1(t *testing.T) {
 			},
 			Column{
 				GoName:  "Bob",
-				GoType:  intType,
+				GoType:  int64Type,
 				GoIndex: 1,
 			},
 			Column{
 				GoName:  "Charlie",
-				GoType:  floType,
+				GoType:  float64Type,
 				GoIndex: 3,
 			},
 		},
@@ -51,7 +51,7 @@ func Test_Parse_1(t *testing.T) {
 
 func Test_Parse_2(t *testing.T) {
 	// Error when object is not a struct.
-	_, e := Parse(intZero)
+	_, e := Parse(int64Zero)
 	require.ErrorIs(t, e, ErrNotStruct)
 }
 
@@ -71,7 +71,7 @@ func Test_Parse_4(t *testing.T) {
 	// Error when struct has no public fields.
 
 	type TestEntity struct {
-		private int
+		private int64
 	}
 
 	v := TestEntity{}
@@ -83,7 +83,7 @@ func Test_Parse_5(t *testing.T) {
 	// Error when struct is not public.
 
 	type testEntity struct {
-		Public int
+		Public int64
 	}
 
 	v := testEntity{}

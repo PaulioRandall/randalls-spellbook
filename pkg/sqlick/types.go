@@ -8,19 +8,21 @@ import (
 )
 
 var (
-	strZero    string
-	intZero    int
-	intArrZero []int
-	floZero    float64
+	strZero     string
+	int64Zero   int64
+	float64Zero float64
 
-	strType    = reflect.TypeOf(strZero)
-	intType    = reflect.TypeOf(intZero)
-	intArrType = reflect.TypeOf(intArrZero)
-	floType    = reflect.TypeOf(floZero)
+	int64ArrZero []int64
+
+	strType     = reflect.TypeOf(strZero)
+	int64Type   = reflect.TypeOf(int64Zero)
+	float64Type = reflect.TypeOf(float64Zero)
+
+	int64ArrType = reflect.TypeOf(int64ArrZero)
 
 	validKinds = []reflect.Kind{
 		reflect.String,
-		reflect.Int,
+		reflect.Int64,
 		reflect.Float64,
 	}
 
@@ -79,18 +81,18 @@ type Sqlick interface {
 	// The model must be a struct with at least one exported
 	// field or an error is returned. Only exported fields
 	// are parsed as part of the Table and field types are
-	// currently limited to int, float64, and string;
+	// currently limited to int64, float64, and string;
 	// this will be expanded in future. The first exported
 	// field is designated the primary key, regardless of
-	// type. It's is recommended to use int for primary keys;
-	// some databases may require int while others are less
-	// performant with non-int keys, e.g. SQLite works best
-	// with integers as primary keys but the benefits aren't
+	// type. It's is recommended to use int64 for primary
+	// keys; some databases may require integers while others
+	// are less performant with non-int keys, e.g. SQLite
+	// works best with integers but the benefits aren't
 	// noticable unless you're storing and querying large
 	// datasets.
 	//
 	//		type Model struct {
-	//			Id int
+	//			Id int64
 	//			Name string
 	//			volume float64 // This field is ignored.
 	//		}
@@ -138,23 +140,19 @@ type Sqlick interface {
 	Update(object any) error
 
 	// SelectAll returns all records for the table associated
-	// with the passed model. An error is returned if the
-	// model is not registered.
+	// with the passed model. The model's type must be
+	// registered (Register()) and table created
+	// (CreateTables()) for the select to return without
+	// error.
 	//
 	//		slice, err := SelectAll(Model{})
-	//SelectAll(model any) (any, error)
-
-	// SelectAllInto queries for all records of the table
-	// associated with the item type of the passed array and
-	// appends the results to said array. An error is
-	// returned if the item type is not registered.
-	//
-	//		err := SelectAllInto(Model{})
-	//SelectAllInto(array *[]any) error
+	SelectAll(model any) (any, error)
 
 	// SelectById returns the record with the given id from
-	// the table associated with the passed model. An error
-	// is returned if the model is not registered.
+	// the table associated with the passed model. The
+	// model's type must be registered (Register()) and table
+	// created (CreateTables()) for the select to return
+	// without error.
 	//
 	//		slice, err := SelectById(Model{}, 123)
 	//SelectById(model any, id any) (any, error)
@@ -162,15 +160,18 @@ type Sqlick interface {
 	// SelectByIdInto queries for the record with the given
 	// id from the table associated with the type of the
 	// passed object. The row values are placed in the
-	// object. An error is returned if the model is not
-	// registered.
+	// object. The model's type must be registered
+	// (Register()) and table created (CreateTables()) for
+	// the select to return without error.
 	//
 	//		err := SelectByIdInto(&object, 123)
 	//SelectByIdInto(object *any, id any) (any, error)
 
 	// Select queries the database for one or many records.
 	// It calls one of the other select functions based on
-	// the arguments.
+	// the arguments. The model's type must be registered
+	// (Register()) and table created (CreateTables()) for
+	// the select to return without error.
 	//
 	// The model parameter determines the return type. If
 	// it's an array then zero or multiple records may be
@@ -266,6 +267,11 @@ type Table struct {
 	Columns []Column
 }
 
+// NumColumn returns the number of columns.
+func (tbl *Table) NumColumn() int {
+	return len(tbl.Columns)
+}
+
 // IdColumn returns the ID column which is always the first
 // column. A valid Table must have at least one column so
 // is proper usage this function will never panic with
@@ -321,4 +327,9 @@ func (col *Column) String() string {
 		col.GoName,
 		col.GoType.Name(),
 	)
+}
+
+// Zero returns the zero value of the columns GoType.
+func (col *Column) Zero() any {
+	return reflect.Zero(col.GoType).Interface()
 }
