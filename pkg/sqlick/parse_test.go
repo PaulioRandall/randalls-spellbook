@@ -15,8 +15,8 @@ func Test_Parse_1(t *testing.T) {
 	type TestEntity struct {
 		Alice   string
 		Bob     int
-		Charlie float64
 		dave    string
+		Charlie float64
 	}
 
 	v := TestEntity{}
@@ -29,16 +29,19 @@ func Test_Parse_1(t *testing.T) {
 		GoName: "TestEntity",
 		Columns: []Column{
 			Column{
-				GoName: "Alice",
-				GoType: "string",
+				GoName:  "Alice",
+				GoType:  strType,
+				GoIndex: 0,
 			},
 			Column{
-				GoName: "Bob",
-				GoType: "int",
+				GoName:  "Bob",
+				GoType:  intType,
+				GoIndex: 1,
 			},
 			Column{
-				GoName: "Charlie",
-				GoType: "float64",
+				GoName:  "Charlie",
+				GoType:  floType,
+				GoIndex: 3,
 			},
 		},
 	}
@@ -48,8 +51,7 @@ func Test_Parse_1(t *testing.T) {
 
 func Test_Parse_2(t *testing.T) {
 	// Error when object is not a struct.
-	var v int
-	_, e := Parse(v)
+	_, e := Parse(intZero)
 	require.ErrorIs(t, e, ErrNotStruct)
 }
 
@@ -62,7 +64,7 @@ func Test_Parse_3(t *testing.T) {
 
 	v := TestEntity{}
 	_, e := Parse(v)
-	require.ErrorIs(t, e, ErrBadFieldType)
+	require.ErrorIs(t, e, ErrBadFieldKind)
 }
 
 func Test_Parse_4(t *testing.T) {
@@ -74,7 +76,7 @@ func Test_Parse_4(t *testing.T) {
 
 	v := TestEntity{}
 	_, e := Parse(v)
-	require.ErrorIs(t, e, ErrMissingFields)
+	require.ErrorIs(t, e, ErrMissFields)
 }
 
 func Test_Parse_5(t *testing.T) {

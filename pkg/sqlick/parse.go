@@ -15,15 +15,16 @@ var (
 	// ErrNotPublic is used when a struct is not public.
 	ErrNotPublic = errors.New("Struct must be public")
 
-	// ErrBadFieldType is used when a struct field's type
-	// has no mappable SQL type, i.e. cannot be used.
-	ErrBadFieldType = errors.New(
-		"Struct has unsupported field type",
+	// ErrBadFieldKind is used when a struct field's
+	// kind is not supported.
+	ErrBadFieldKind = errors.New(
+		"Struct has unsupported field kind",
 	)
 
-	// ErrMissingFields is used when a struct has no public
-	// fields. Every table must have at least one column.
-	ErrMissingFields = errors.New(
+	// ErrMissFields is used when a struct has no
+	// public fields. Every table must have at least one
+	// column.
+	ErrMissFields = errors.New(
 		"Struct must have at least one public field",
 	)
 )
@@ -34,25 +35,22 @@ var (
 // struct, the struct is not public, the struct contains
 // no public fields, or a field's type is unsupported.
 func Parse(object any) (Table, error) {
-	tbl := Table{
-		GoType: reflect.TypeOf(object),
-	}
+	tbl := Table{}
+	typ := reflect.TypeOf(object)
 
-	e := parseTable(&tbl)
+	e := parseTable(&tbl, typ)
 	if e == nil {
 		return tbl, nil
 	}
 
 	return Table{}, fmt.Errorf(
 		"Parse error with struct/table '%s': %w",
-		tbl.GoType.Name(),
+		typ.Name(),
 		e,
 	)
 }
 
-func parseTable(tbl *Table) error {
-	typ := tbl.GoType
-
+func parseTable(tbl *Table, typ reflect.Type) error {
 	if typ.Kind() != reflect.Struct {
 		return ErrNotStruct
 	}
@@ -61,35 +59,18 @@ func parseTable(tbl *Table) error {
 		return ErrNotPublic
 	}
 
-	tbl.GoName = typ.Name()
-
-	e := parseColumns(tbl)
+	columns, e := parseColumns(tbl, typ)
 	if e != nil {
 		return e
 	}
 
-	if len(tbl.Columns) == 0 {
-		return ErrMissingFields
+	if len(columns) == 0 {
+		return ErrMissFields
 	}
 
-	return nil
-}
-
-func parseColumns(tbl *Table) error {
-	for field := range tbl.GoType.Fields() {
-		if !isPublicName(field.Name) {
-			continue
-		}
-
-		if e := parseColumn(tbl, field); e != nil {
-			return fmt.Errorf(
-				"Parse error with field/column '%s': %w",
-				field.Name,
-				e,
-			)
-		}
-	}
-
+	tbl.GoType = typ
+	tbl.GoName = typ.Name()
+	tbl.Columns = columns
 	return nil
 }
 
@@ -98,37 +79,46 @@ func isPublicName(name string) bool {
 	return unicode.IsUpper(firstLetter)
 }
 
-func parseColumn(
+func parseColumns(
 	tbl *Table,
-	field reflect.StructField,
-) error {
-	col := Column{
-		GoName: field.Name,
+	typ reflect.Type,
+) ([]Column, error) {
+	var columns []Column
+
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+
+		if !field.IsExported() {
+			continue
+		}
+
+		validKind := isSupportedFieldKind(field.Type.Kind())
+		if !validKind {
+			return nil, fmt.Errorf(
+				"Failed to parse struct field '%s': %w",
+				field.Name,
+				ErrBadFieldKind,
+			)
+		}
+
+		col := Column{
+			GoName:  field.Name,
+			GoType:  field.Type,
+			GoIndex: i,
+		}
+
+		columns = append(columns, col)
 	}
 
-	e := parseColumnType(&col, field)
-	if e != nil {
-		return e
-	}
-
-	tbl.Columns = append(tbl.Columns, col)
-	return nil
+	return columns, nil
 }
 
-func parseColumnType(
-	col *Column,
-	field reflect.StructField,
-) error {
-	switch field.Type.Kind() {
-	case reflect.String:
-		col.GoType = "string"
-	case reflect.Int:
-		col.GoType = "int"
-	case reflect.Float64:
-		col.GoType = "float64"
-	default:
-		return ErrBadFieldType
+func isSupportedFieldKind(kind reflect.Kind) bool {
+	for _, k := range validKinds {
+		if k == kind {
+			return true
+		}
 	}
 
-	return nil
+	return false
 }

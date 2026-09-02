@@ -2,6 +2,7 @@ package sqlick
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -9,6 +10,12 @@ import (
 // the SPQlite3 SQL dialect.
 type sqliteGenerator struct {
 	// Empty.
+}
+
+var goKindToSqliteTypeMappings = map[reflect.Kind]string{
+	reflect.String:  "TEXT",
+	reflect.Int:     "INTEGER",
+	reflect.Float64: "REAL",
 }
 
 // NewSqliteGenerator returns a SqlGenerator for generating
@@ -29,7 +36,7 @@ func NewSqliteGenerator() SqlGenerator {
 func (sg sqliteGenerator) TableCreate(
 	tbl Table,
 ) (string, error) {
-	qb := queryBuilder{}
+	fb := fmtBuilder{}
 
 	s := joinLines(
 		"CREATE TABLE IF NOT EXISTS %s (",
@@ -47,45 +54,26 @@ func (sg sqliteGenerator) TableCreate(
 		)
 	}
 
-	qb.WriteFmt(s, tbl.GoName, strCols, tbl.IdColumn().GoName)
-	return qb.String(), nil
+	fb.WriteFmt(s, tbl.GoName, strCols, tbl.IdColumn().GoName)
+	return fb.String(), nil
 }
 
 func (sg sqliteGenerator) genColumnDef(
 	_ int,
 	col Column,
 ) (string, error) {
-	sqlType, e := sg.mapGoToSqlType(col.GoType)
+	sqlType := goKindToSqliteTypeMappings[col.GoType.Kind()]
 
-	if e != nil {
+	if sqlType == "" {
 		return "", fmt.Errorf(
 			"Failed to generate SQL for column '%s': %w",
 			col.GoName,
-			e,
+			ErrNoSqlType,
 		)
 	}
 
 	s := fmt.Sprintf("  %s %s NOT NULL", col.GoName, sqlType)
 	return s, nil
-}
-
-func (sg sqliteGenerator) mapGoToSqlType(
-	goType string,
-) (string, error) {
-	sqlType := ""
-
-	switch goType {
-	case "string":
-		sqlType = "TEXT"
-	case "int":
-		sqlType = "INTEGER"
-	case "float64":
-		sqlType = "REAL"
-	default:
-		return "", ErrNoSqlType
-	}
-
-	return sqlType, nil
 }
 
 // TableInsert satisfies the SqlGenerator interface.
@@ -101,7 +89,7 @@ func (sg sqliteGenerator) TableInsert(
 		)
 	}
 
-	qb := queryBuilder{}
+	fb := fmtBuilder{}
 
 	columns, _ := genList(tbl.Columns, sg.genColumn)
 	values, _ := genList(tbl.Columns, sg.genQuestionMark)
@@ -120,8 +108,8 @@ func (sg sqliteGenerator) TableInsert(
 	sv = fmt.Sprintf(sv, values)
 	sv = strings.Repeat(sv, rows)
 
-	qb.WriteFmt(s, tbl.GoName, columns, sv)
-	return qb.String(), nil
+	fb.WriteFmt(s, tbl.GoName, columns, sv)
+	return fb.String(), nil
 }
 
 func (sg sqliteGenerator) genColumn(
@@ -142,7 +130,7 @@ func (sg sqliteGenerator) genQuestionMark(
 func (sg sqliteGenerator) TableSelectAll(
 	tbl Table,
 ) (string, error) {
-	qb := queryBuilder{}
+	fb := fmtBuilder{}
 
 	columns, _ := genList(tbl.Columns, sg.genColumn)
 
@@ -153,15 +141,15 @@ func (sg sqliteGenerator) TableSelectAll(
 		"  %s",
 	)
 
-	qb.WriteFmt(s, columns, tbl.GoName)
-	return qb.String(), nil
+	fb.WriteFmt(s, columns, tbl.GoName)
+	return fb.String(), nil
 }
 
 // TableSelectById satisfies the SqlGenerator interface.
 func (sg sqliteGenerator) TableSelectById(
 	tbl Table,
 ) (string, error) {
-	qb := queryBuilder{}
+	fb := fmtBuilder{}
 
 	columns, _ := genList(tbl.Columns, sg.genColumn)
 
@@ -174,15 +162,15 @@ func (sg sqliteGenerator) TableSelectById(
 		"  %s = ?",
 	)
 
-	qb.WriteFmt(s, columns, tbl.GoName, tbl.IdColumn().GoName)
-	return qb.String(), nil
+	fb.WriteFmt(s, columns, tbl.GoName, tbl.IdColumn().GoName)
+	return fb.String(), nil
 }
 
 // TableUpdateById satisfies the SqlGenerator interface.
 func (sg sqliteGenerator) TableUpdateById(
 	tbl Table,
 ) (string, error) {
-	qb := queryBuilder{}
+	fb := fmtBuilder{}
 
 	nonIdColumns := tbl.NonIdColumns()
 	setters, _ := genList(nonIdColumns, sg.genColumnSetter)
@@ -196,8 +184,8 @@ func (sg sqliteGenerator) TableUpdateById(
 		"  %s = ?",
 	)
 
-	qb.WriteFmt(s, tbl.GoName, setters, tbl.IdColumn().GoName)
-	return qb.String(), nil
+	fb.WriteFmt(s, tbl.GoName, setters, tbl.IdColumn().GoName)
+	return fb.String(), nil
 }
 
 func (sg sqliteGenerator) genColumnSetter(
@@ -211,22 +199,22 @@ func (sg sqliteGenerator) genColumnSetter(
 func (sg sqliteGenerator) TableDeleteAll(
 	tbl Table,
 ) (string, error) {
-	qb := queryBuilder{}
+	fb := fmtBuilder{}
 
 	s := joinLines(
 		"DELETE FROM",
 		"  %s",
 	)
 
-	qb.WriteFmt(s, tbl.GoName)
-	return qb.String(), nil
+	fb.WriteFmt(s, tbl.GoName)
+	return fb.String(), nil
 }
 
 // TableDeleteById satisfies the SqlGenerator interface.
 func (sg sqliteGenerator) TableDeleteById(
 	tbl Table,
 ) (string, error) {
-	qb := queryBuilder{}
+	fb := fmtBuilder{}
 
 	s := joinLines(
 		"DELETE FROM",
@@ -235,6 +223,6 @@ func (sg sqliteGenerator) TableDeleteById(
 		"  %s = ?",
 	)
 
-	qb.WriteFmt(s, tbl.GoName, tbl.IdColumn().GoName)
-	return qb.String(), nil
+	fb.WriteFmt(s, tbl.GoName, tbl.IdColumn().GoName)
+	return fb.String(), nil
 }

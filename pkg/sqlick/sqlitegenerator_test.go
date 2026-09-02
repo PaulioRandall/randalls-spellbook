@@ -6,30 +6,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var testColUserId = Column{
+	GoName: "UserId",
+	GoType: intType,
+}
+
+var testColName = Column{
+	GoName: "Name",
+	GoType: strType,
+}
+
+var testColHeight = Column{
+	GoName: "Height",
+	GoType: floType,
+}
+
+var testTableEntity = Table{
+	GoName: "Entity",
+	Columns: []Column{
+		testColUserId,
+		testColName,
+		testColHeight,
+	},
+}
+
 func Test_sqliteGenerator_TableCreate_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
-	given := Table{
-		GoName: "TestEntity",
-		Columns: []Column{
-			Column{
-				GoName: "UserId",
-				GoType: "int",
-			},
-			Column{
-				GoName: "Name",
-				GoType: "string",
-			},
-			Column{
-				GoName: "Height",
-				GoType: "float64",
-			},
-		},
-	}
-
 	exp := joinLines(
-		"CREATE TABLE IF NOT EXISTS TestEntity (",
+		"CREATE TABLE IF NOT EXISTS Entity (",
 		"  UserId INTEGER NOT NULL,",
 		"  Name TEXT NOT NULL,",
 		"  Height REAL NOT NULL,",
@@ -37,7 +43,7 @@ func Test_sqliteGenerator_TableCreate_1(t *testing.T) {
 		")",
 	)
 
-	act, e := sqlGen.TableCreate(given)
+	act, e := sqlGen.TableCreate(testTableEntity)
 	require.Equal(t, nil, e)
 	require.Equal(t, exp, act)
 }
@@ -48,11 +54,11 @@ func Test_sqliteGenerator_TableCreate_2(t *testing.T) {
 	sqlGen := NewSqliteGenerator()
 
 	given := Table{
-		GoName: "TestEntity",
+		GoName: "Entity",
 		Columns: []Column{
 			Column{
 				GoName: "UserId",
-				GoType: "[]int",
+				GoType: intArrType,
 			},
 		},
 	}
@@ -65,26 +71,8 @@ func Test_sqliteGenerator_TableInsert_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
-	table := Table{
-		GoName: "TestEntity",
-		Columns: []Column{
-			Column{
-				GoName: "UserId",
-				GoType: "int",
-			},
-			Column{
-				GoName: "Name",
-				GoType: "string",
-			},
-			Column{
-				GoName: "Height",
-				GoType: "float64",
-			},
-		},
-	}
-
 	exp := joinLines(
-		"INSERT INTO TestEntity (",
+		"INSERT INTO Entity (",
 		"  UserId,",
 		"  Name,",
 		"  Height",
@@ -103,7 +91,7 @@ func Test_sqliteGenerator_TableInsert_1(t *testing.T) {
 		")",
 	)
 
-	act, e := sqlGen.TableInsert(table, 3)
+	act, e := sqlGen.TableInsert(testTableEntity, 3)
 	require.Equal(t, nil, e)
 	require.Equal(t, exp, act)
 }
@@ -119,34 +107,16 @@ func Test_sqliteGenerator_TableSelectAll_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
-	table := Table{
-		GoName: "TestEntity",
-		Columns: []Column{
-			Column{
-				GoName: "UserId",
-				GoType: "int",
-			},
-			Column{
-				GoName: "Name",
-				GoType: "string",
-			},
-			Column{
-				GoName: "Height",
-				GoType: "float64",
-			},
-		},
-	}
-
 	exp := joinLines(
 		"SELECT",
 		"  UserId,",
 		"  Name,",
 		"  Height",
 		"FROM",
-		"  TestEntity",
+		"  Entity",
 	)
 
-	act, e := sqlGen.TableSelectAll(table)
+	act, e := sqlGen.TableSelectAll(testTableEntity)
 	require.Equal(t, nil, e)
 	require.Equal(t, exp, act)
 }
@@ -155,36 +125,18 @@ func Test_sqliteGenerator_TableSelectById_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
-	table := Table{
-		GoName: "TestEntity",
-		Columns: []Column{
-			Column{
-				GoName: "UserId",
-				GoType: "int",
-			},
-			Column{
-				GoName: "Name",
-				GoType: "string",
-			},
-			Column{
-				GoName: "Height",
-				GoType: "float64",
-			},
-		},
-	}
-
 	exp := joinLines(
 		"SELECT",
 		"  UserId,",
 		"  Name,",
 		"  Height",
 		"FROM",
-		"  TestEntity",
+		"  Entity",
 		"WHERE",
 		"  UserId = ?",
 	)
 
-	act, e := sqlGen.TableSelectById(table)
+	act, e := sqlGen.TableSelectById(testTableEntity)
 	require.Equal(t, nil, e)
 	require.Equal(t, exp, act)
 }
@@ -193,27 +145,9 @@ func Test_sqliteGenerator_TableUpdateById_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
-	table := Table{
-		GoName: "TestEntity",
-		Columns: []Column{
-			Column{
-				GoName: "UserId",
-				GoType: "int",
-			},
-			Column{
-				GoName: "Name",
-				GoType: "string",
-			},
-			Column{
-				GoName: "Height",
-				GoType: "float64",
-			},
-		},
-	}
-
 	exp := joinLines(
 		"UPDATE",
-		"  TestEntity",
+		"  Entity",
 		"SET",
 		"  Name = ?,",
 		"  Height = ?",
@@ -221,7 +155,7 @@ func Test_sqliteGenerator_TableUpdateById_1(t *testing.T) {
 		"  UserId = ?",
 	)
 
-	act, e := sqlGen.TableUpdateById(table)
+	act, e := sqlGen.TableUpdateById(testTableEntity)
 	require.Equal(t, nil, e)
 	require.Equal(t, exp, act)
 }
@@ -230,16 +164,12 @@ func Test_sqliteGenerator_TableDeleteAll_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
-	table := Table{
-		GoName: "TestEntity",
-	}
-
 	exp := joinLines(
 		"DELETE FROM",
-		"  TestEntity",
+		"  Entity",
 	)
 
-	act, e := sqlGen.TableDeleteAll(table)
+	act, e := sqlGen.TableDeleteAll(testTableEntity)
 	require.Equal(t, nil, e)
 	require.Equal(t, exp, act)
 }
@@ -248,24 +178,14 @@ func Test_sqliteGenerator_TableDeleteById_1(t *testing.T) {
 	// Happy path.
 	sqlGen := NewSqliteGenerator()
 
-	table := Table{
-		GoName: "TestEntity",
-		Columns: []Column{
-			Column{
-				GoName: "UserId",
-				GoType: "int",
-			},
-		},
-	}
-
 	exp := joinLines(
 		"DELETE FROM",
-		"  TestEntity",
+		"  Entity",
 		"WHERE",
 		"  UserId = ?",
 	)
 
-	act, e := sqlGen.TableDeleteById(table)
+	act, e := sqlGen.TableDeleteById(testTableEntity)
 	require.Equal(t, nil, e)
 	require.Equal(t, exp, act)
 }

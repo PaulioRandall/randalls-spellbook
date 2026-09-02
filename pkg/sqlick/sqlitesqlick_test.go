@@ -60,28 +60,34 @@ func Test_Sqlick_Register_1(t *testing.T) {
 		GoName: "TestCheese",
 		Columns: []Column{
 			Column{
-				GoName: "Id",
-				GoType: "int",
+				GoName:  "Id",
+				GoType:  intType,
+				GoIndex: 0,
 			},
 			Column{
-				GoName: "MakerId",
-				GoType: "int",
+				GoName:  "MakerId",
+				GoType:  intType,
+				GoIndex: 1,
 			},
 			Column{
-				GoName: "Name",
-				GoType: "string",
+				GoName:  "Name",
+				GoType:  strType,
+				GoIndex: 2,
 			},
 			Column{
-				GoName: "Strength",
-				GoType: "int",
+				GoName:  "Strength",
+				GoType:  intType,
+				GoIndex: 3,
 			},
 			Column{
-				GoName: "Rating",
-				GoType: "float64",
+				GoName:  "Rating",
+				GoType:  floType,
+				GoIndex: 4,
 			},
 			Column{
-				GoName: "Notes",
-				GoType: "string",
+				GoName:  "Notes",
+				GoType:  strType,
+				GoIndex: 5,
 			},
 		},
 	}
@@ -262,3 +268,44 @@ func Test_Sqlick_Update_1(t *testing.T) {
 
 	require.Equal(t, false, rows.Next())
 }
+
+/*
+func Test_Sqlick_SelectAll_1(t *testing.T) {
+	dropTablesIfExists()
+	db := NewSqliteDB(testDb)
+
+	bobs := TestCheeseMaker{
+		Id:      1,
+		Name:    "Bob's Cheeses",
+		Country: "England",
+	}
+
+	francs := TestCheeseMaker{
+		Id:      2,
+		Name:    "Franc's Fromage",
+		Country: "France",
+	}
+
+	e := db.Open()
+	require.Equal(t, nil, e)
+	defer db.Close()
+
+	e = db.Register(TestCheeseMaker{})
+	require.Equal(t, nil, e)
+
+	e = db.CreateTables()
+	require.Equal(t, nil, e)
+
+	e = db.Insert(bobs)
+	require.Equal(t, nil, e)
+
+	result, e := db.SelectAll(TestCheeseMaker{})
+	require.Equal(t, nil, e)
+
+	act, ok := result.([]TestCheeseMaker)
+	require.Equal(t, true, ok)
+	require.Equal(t, 2, len(act))
+	require.Equal(t, bobs, act[0])
+	require.Equal(t, francs, act[1])
+}
+*/
