@@ -26,41 +26,69 @@ var (
 		reflect.Float64,
 	}
 
-	// ErrNoSqlType is used when there is no mapping from a
-	// Go type to a Sql type.
+	// ErrNotStruct is returned when attempting to use a
+	// model type with a non-struct kind.
+	ErrNotStruct = errors.New("Model must be a struct")
+
+	// ErrNotPublic is returned when a model type is not
+	// public (exported).
+	ErrNotPublic = errors.New("Model struct must be public")
+
+	// ErrBadFieldKind is returned when a model's type
+	// contains an unsupported kind for one of its exported
+	// fields.
+	ErrBadFieldKind = errors.New(
+		"Model struct has unsupported field kind",
+	)
+
+	// ErrMissFields is returned when a model's type has no/
+	// public (exported) fields. Every table must have at
+	// least one column.
+	ErrMissFields = errors.New(
+		"Model struct must have at least one exported field",
+	)
+
+	// ErrNoSqlType is returned when there is no mapping from
+	// a Go type to an database specific Sql type, e.g, for
+	// SQLite 'int => INTEGER' but there is no mapping for
+	// 'error => _'.
 	ErrNoSqlType = errors.New(
 		"No mapping for Go to SQL type",
 	)
 
-	// ErrTooFewRows is used when attempting to generate
-	// INSERT SQL but the number of rows for insert is less
-	// than one.
+	// ErrTooFewRows is returned when passing a non-positive
+	// number to SqlGenerator functions that can generate
+	// queries working with multiple records, e.g. INSERT.
 	ErrTooFewRows = errors.New(
 		"Not enough rows to generate insert",
 	)
 
-	// ErrNoTableForType is used when an object is passed
-	// to a Sqlick function who's type does not map to a
-	// table. This means the type was not added via
-	// Sqlick.Register before use.
+	// ErrNoTableForType is returned when an object is passed
+	// to a function which does not have a registered table
+	// for its type.
 	ErrNoTableForType = errors.New(
 		"No matching table for object type",
 	)
 )
 
+// Sqlick is an interface to the database with intentions
+// for SQL dialect specific implementations.
+//
+// All receiving functions require the database to be open
+// except for Open, IsOpen, and Close.
 type Sqlick interface {
 	// Open opens the database. The path will usually be
 	// provided during object construction.
 	//
 	//		err := db.Open()
-	//		// YUDO Handle error.
+	//		// YUDO: Handle error.
 	//		defer db.Close()
 	Open() error
 
 	// IsOpen returns true if the database is open.
 	//
 	//		if db.IsOpen() {
-	//			// YUDO Whatever you like.
+	//			// YUDO: Whatever you like.
 	//		}
 	IsOpen() bool
 
@@ -68,7 +96,7 @@ type Sqlick interface {
 	// use with defer.
 	//
 	//		err := db.Open()
-	//		// YUDO Handle error.
+	//		// YUDO: Handle error.
 	//		defer db.Close()
 	Close() error
 
@@ -106,7 +134,7 @@ type Sqlick interface {
 	// any time, it's recommended to do it all upfront,
 	// straight after calling Open.
 	//
-	//		// YUDO db.Register of types first.
+	//		// YUDO: db.Register of types first.
 	//		err := db.CreateTables()
 	CreateTables() error
 
@@ -133,7 +161,7 @@ type Sqlick interface {
 	//			Name: "Alice",
 	//		}
 	//		err := db.Insert(object)
-	//		// YUDO Handle error.
+	//		// YUDO: Handle error.
 	//
 	//		object.Name = "Bob"
 	//		err = db.Update(object)
@@ -157,16 +185,6 @@ type Sqlick interface {
 	//		slice, err := SelectById(Model{}, 123)
 	//SelectById(model any, id any) (any, error)
 
-	// SelectByIdInto queries for the record with the given
-	// id from the table associated with the type of the
-	// passed object. The row values are placed in the
-	// object. The model's type must be registered
-	// (Register()) and table created (CreateTables()) for
-	// the select to return without error.
-	//
-	//		err := SelectByIdInto(&object, 123)
-	//SelectByIdInto(object *any, id any) (any, error)
-
 	// Select queries the database for one or many records.
 	// It calls one of the other select functions based on
 	// the arguments. The model's type must be registered
@@ -187,31 +205,10 @@ type Sqlick interface {
 	//		slice, err := Select([]Model{}, nil)
 	//		sliceOfModel := slice.([]Model)
 	//
-	//		// Select all records and append them to the passed
-	//		// slice.
-	//		sliceOfModel := []Model{}
-	//		ptrToSlice, err := Select(&sliceOfModel, nil)
-	//
-	//		// Select a specific record by ID and return it as
-	//		// a slice.
-	//		slice, err := Select([]Model{}, id)
-	//		sliceOfModel := slice.([]Model)
-	//
-	//		// Select a specific record by ID and append it to
-	//		// the passed slice.
-	//		sliceOfModel := []Model{}
-	//		ptrToSlice, err := Select(&sliceOfModel, id)
-	//
 	//		// Select a specific record by ID.
 	//		object, err := Select(Model{}, id)
 	//
-	//		// Select a specific record by ID and put it's
-	//		// values into the passed object.
-	//		object := Model{}
-	//		ptrToObject, err := Select(&object, id)
-	//
-	// Any other configuration produces will produce an
-	// error.
+	// Any other configuration will produce an error.
 	//Select(model any, id any) (any, error)
 }
 
@@ -251,19 +248,17 @@ type SqlGenerator interface {
 	TableDeleteById(Table) (string, error)
 }
 
-// Table represents the base information required to
-// construct a SQL database table. It is derived from a
-// Go struct via the Parse functions.
+// Table holds metadata about a SQL table. It is
+// constructed from and maps to a model struct.
 type Table struct {
-	// GoType is the reflect.Type of the Go struct from which
-	// this table was constructed.
+	// GoType is the struct's type.
 	GoType reflect.Type
 
-	// GoName is the name of the Go struct.
+	// GoName is the struct's name.
 	GoName string
 
-	// Columns is all the parsed public fields in the Go
-	// struct.
+	// Columns holds information about the table's columns,
+	// i.e. all exported fields in the struct.
 	Columns []Column
 }
 
@@ -303,9 +298,8 @@ func (tbl *Table) String() string {
 	return sb.String()
 }
 
-// Column represents the base information required to
-// construct a SQL database table column. It is derived
-// from a Go struct's field via the Parse function.
+// Column holds metadata about a Table column, i.e. an
+// exported field of a model.
 type Column struct {
 	// GoName is the field name of the Go struct field.
 	GoName string

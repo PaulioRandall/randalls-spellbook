@@ -1,32 +1,9 @@
 package sqlick
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"unicode"
-)
-
-var (
-	// ErrNotStruct is used when a non-struct object is
-	// passed when a struct is required.
-	ErrNotStruct = errors.New("Entity must be a struct")
-
-	// ErrNotPublic is used when a struct is not public.
-	ErrNotPublic = errors.New("Struct must be public")
-
-	// ErrBadFieldKind is used when a struct field's
-	// kind is not supported.
-	ErrBadFieldKind = errors.New(
-		"Struct has unsupported field kind",
-	)
-
-	// ErrMissFields is used when a struct has no
-	// public fields. Every table must have at least one
-	// column.
-	ErrMissFields = errors.New(
-		"Struct must have at least one public field",
-	)
 )
 
 // Parse accepts an object (instance of a struct) and

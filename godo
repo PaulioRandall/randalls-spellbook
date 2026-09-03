@@ -15,6 +15,7 @@ printUsage() {
 	println ""
 	println "\t" "Terminal is cleared unless '--noclear' flag is provided."
 	println "\t" "./godo [--noclear] [help]    " "\t\t" "Print usage"
+	println "\t" "./godo [--noclear] docs | doc" "\t\t" "Start documentation server"
 	println "\t" "./godo [--noclear] clean     " "\t\t" "Clean Go caches"
 	println "\t" "./godo [--noclear] tidy      " "\t\t" "Tidy Go mod"
 	println "\t" "./godo [--noclear] fmt       " "\t\t" "Format all Go code"
@@ -36,6 +37,10 @@ println() {
 runCmd() {
 	println "$1"
 	$1
+}
+
+godoDocs() {
+	runCmd "godoc -http=:3001 -notes='TODO'"
 }
 
 godoClean() {
@@ -76,6 +81,11 @@ godoUiBuildlessAudit() {
 
 if [[ "$1" == "" || "$1" == "help" ]]; then
 	printUsage
+	exit 0
+fi
+
+if [[ "$1" == "doc"  || "$1" == "docs" ]]; then
+	godoDocs
 	exit 0
 fi
 
