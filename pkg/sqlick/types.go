@@ -69,6 +69,19 @@ var (
 	ErrNoTableForType = errors.New(
 		"No matching table for object type",
 	)
+
+	// ErrBadIdType is returned when an ID passed to a
+	// function, e.g. SelectById, is not of the same type as
+	// the ID field of the associated model type. This may
+	// be returned even for compatible types like int when
+	// int64 is expected.
+	ErrBadIdType = errors.New(
+		"ID type must match model's ID field type",
+	)
+
+	// ErrRecordNotFound is returned when an record could not
+	// be found with a given ID, e.g. SelectById.
+	ErrRecordNotFound = errors.New("Record not found")
 )
 
 // Sqlick is an interface to the database with intentions
@@ -177,13 +190,14 @@ type Sqlick interface {
 	SelectAll(model any) (any, error)
 
 	// SelectById returns the record with the given id from
-	// the table associated with the passed model. The
+	// the table associated with the passed model. If no
+	// record is found then an error is returned. The
 	// model's type must be registered (Register()) and table
 	// created (CreateTables()) for the select to return
 	// without error.
 	//
 	//		slice, err := SelectById(Model{}, 123)
-	//SelectById(model any, id any) (any, error)
+	SelectById(model any, id any) (any, error)
 
 	// Select queries the database for one or many records.
 	// It calls one of the other select functions based on

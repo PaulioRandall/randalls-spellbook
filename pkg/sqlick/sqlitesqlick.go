@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strings"
 
 	_ "github.com/glebarez/go-sqlite"
 )
@@ -288,10 +289,9 @@ func (ss *sqliteSqlick) selectAllOfType(
 		return nil, e
 	}
 
-	value := reflect.Zero(typ)
 	fieldValues := ss.listOrderedFieldValues(
 		table.Columns,
-		value,
+		reflect.Zero(typ),
 	)
 
 	return ss.querySelectAll(table, fieldValues)
@@ -416,4 +416,116 @@ func toSliceOfType(
 	}
 
 	return sliceValue.Interface()
+}
+
+// SelectById satisfies the Sqlick interface.
+func (ss *sqliteSqlick) SelectById(
+	model any,
+	id any,
+) (any, error) {
+	typ := reflect.TypeOf(model)
+	result, e := ss.selectByIdOfType(typ, id)
+	if e == nil {
+		return result, nil
+	}
+
+	return nil, fmt.Errorf(
+		"Failed to select by ID from database: %w",
+		e,
+	)
+}
+
+func (ss *sqliteSqlick) selectByIdOfType(
+	typ reflect.Type,
+	id any,
+) (any, error) {
+	tbl, e := ss.findTableForOrError(typ)
+	if e != nil {
+		return nil, e
+	}
+
+	e = ss.validateModelIdType(tbl, id)
+	if e != nil {
+		return nil, e
+	}
+
+	return ss.querySelectById(tbl, id)
+}
+
+func (ss *sqliteSqlick) validateModelIdType(
+	tbl Table,
+	id any,
+) error {
+	idTyp := reflect.TypeOf(id)
+
+	if tbl.IdColumn().GoType.Kind() != idTyp.Kind() {
+		return ErrBadIdType
+	}
+
+	return nil
+}
+
+func (ss *sqliteSqlick) querySelectById(
+	tbl Table,
+	id any,
+) (any, error) {
+	query, e := ss.gen.TableSelectById(tbl)
+	if e != nil {
+		return nil, fmt.Errorf(
+			"Could not generate select by ID query for table '%s': %w",
+			tbl.GoName,
+			e,
+		)
+	}
+
+	rows, e := ss.db.Query(query, id)
+	if e != nil {
+		return nil, fmt.Errorf(
+			"Failed to select by ID from table '%s': %w",
+			tbl.GoName,
+			e,
+		)
+	}
+
+	result, e := ss.scanSelectedRows(tbl, rows)
+	if e != nil {
+		return nil, e
+	}
+
+	object, ok := getFirstItemIfArray(result)
+	if !ok {
+		return nil, fmt.Errorf(
+			"Failed to select by ID '%v' from table '%s': %w",
+			id,
+			tbl.GoName,
+			ErrRecordNotFound,
+		)
+	}
+
+	return object, nil
+}
+
+func getFirstItemIfArray(v any) (any, bool) {
+	rv := reflect.ValueOf(v)
+
+	isArray := rv.Kind() == reflect.Array
+	isSlice := rv.Kind() == reflect.Slice
+
+	if !isArray && !isSlice {
+		return nil, false
+	}
+
+	if rv.Len() > 0 {
+		return rv.Index(0).Interface(), true
+	}
+
+	return nil, false
+}
+
+func printQuery(query string, values []any) {
+	for _, v := range values {
+		vs := fmt.Sprintf("%v", v)
+		query = strings.Replace(query, "?", vs, 1)
+	}
+	println(query)
 }

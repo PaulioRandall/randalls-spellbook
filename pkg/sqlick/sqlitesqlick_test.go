@@ -24,6 +24,18 @@ type TestCheese struct {
 	Notes    string  // E.g. "Nutty after taste"
 }
 
+var bobs = TestCheeseMaker{
+	Id:      1,
+	Name:    "Bob's Cheeses",
+	Country: "England",
+}
+
+var francs = TestCheeseMaker{
+	Id:      2,
+	Name:    "Franc's Fromage",
+	Country: "France",
+}
+
 const testDb string = "../../testdata/test.sqlite"
 
 func dropTablesIfExists() {
@@ -161,18 +173,6 @@ func Test_Sqlick_Insert_1(t *testing.T) {
 	dropTablesIfExists()
 	db := NewSqliteDB(testDb)
 
-	bobs := TestCheeseMaker{
-		Id:      1,
-		Name:    "Bob's Cheeses",
-		Country: "England",
-	}
-
-	francs := TestCheeseMaker{
-		Id:      2,
-		Name:    "Franc's Fromage",
-		Country: "France",
-	}
-
 	e := db.Open()
 	require.Equal(t, nil, e)
 	defer db.Close()
@@ -217,14 +217,10 @@ func Test_Sqlick_Insert_1(t *testing.T) {
 }
 
 func Test_Sqlick_Update_1(t *testing.T) {
+	// TODO: Add francs and check that francs does not get
+	//       updated.
 	dropTablesIfExists()
 	db := NewSqliteDB(testDb)
-
-	bobs := TestCheeseMaker{
-		Id:      1,
-		Name:    "Bob's Cheeses",
-		Country: "England",
-	}
 
 	e := db.Open()
 	require.Equal(t, nil, e)
@@ -237,6 +233,9 @@ func Test_Sqlick_Update_1(t *testing.T) {
 	require.Equal(t, nil, e)
 
 	e = db.Insert(bobs)
+	require.Equal(t, nil, e)
+
+	e = db.Insert(francs)
 	require.Equal(t, nil, e)
 
 	bobsUpdated := TestCheeseMaker{
@@ -266,24 +265,17 @@ func Test_Sqlick_Update_1(t *testing.T) {
 	require.Equal(t, nil, e)
 	require.Equal(t, bobsUpdated, act)
 
+	require.Equal(t, true, rows.Next())
+	e = rows.Scan(&act.Id, &act.Name, &act.Country)
+	require.Equal(t, nil, e)
+	require.Equal(t, francs, act)
+
 	require.Equal(t, false, rows.Next())
 }
 
 func Test_Sqlick_SelectAll_1(t *testing.T) {
 	dropTablesIfExists()
 	db := NewSqliteDB(testDb)
-
-	bobs := TestCheeseMaker{
-		Id:      1,
-		Name:    "Bob's Cheeses",
-		Country: "England",
-	}
-
-	francs := TestCheeseMaker{
-		Id:      2,
-		Name:    "Franc's Fromage",
-		Country: "France",
-	}
 
 	e := db.Open()
 	require.Equal(t, nil, e)
@@ -309,4 +301,32 @@ func Test_Sqlick_SelectAll_1(t *testing.T) {
 	require.Equal(t, 2, len(act))
 	require.Equal(t, bobs, act[0])
 	require.Equal(t, francs, act[1])
+}
+
+func Test_Sqlick_SelectById_1(t *testing.T) {
+	dropTablesIfExists()
+	db := NewSqliteDB(testDb)
+
+	e := db.Open()
+	require.Equal(t, nil, e)
+	defer db.Close()
+
+	e = db.Register(TestCheeseMaker{})
+	require.Equal(t, nil, e)
+
+	e = db.CreateTables()
+	require.Equal(t, nil, e)
+
+	e = db.Insert(bobs)
+	require.Equal(t, nil, e)
+
+	e = db.Insert(francs)
+	require.Equal(t, nil, e)
+
+	result, e := db.SelectById(TestCheeseMaker{}, francs.Id)
+	require.Equal(t, nil, e)
+
+	act, ok := result.(TestCheeseMaker)
+	require.Equal(t, true, ok)
+	require.Equal(t, francs, act)
 }
