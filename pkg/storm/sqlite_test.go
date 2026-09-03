@@ -3,7 +3,6 @@ package storm
 import (
 	"database/sql"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -61,57 +60,9 @@ func panicOnError(e error) {
 	}
 }
 
-func Test_Sqlick_Register_1(t *testing.T) {
-	dropTablesIfExists()
-	db := NewSqliteDB(testDb)
-
-	e := db.Register(TestCheese{})
-
-	exp := Table{
-		GoType: reflect.TypeOf(TestCheese{}),
-		GoName: "TestCheese",
-		Columns: []Column{
-			Column{
-				GoName:  "Id",
-				GoType:  int64Type,
-				GoIndex: 0,
-			},
-			Column{
-				GoName:  "MakerId",
-				GoType:  int64Type,
-				GoIndex: 1,
-			},
-			Column{
-				GoName:  "Name",
-				GoType:  strType,
-				GoIndex: 2,
-			},
-			Column{
-				GoName:  "Strength",
-				GoType:  int64Type,
-				GoIndex: 3,
-			},
-			Column{
-				GoName:  "Rating",
-				GoType:  float64Type,
-				GoIndex: 4,
-			},
-			Column{
-				GoName:  "Notes",
-				GoType:  strType,
-				GoIndex: 5,
-			},
-		},
-	}
-
-	require.Equal(t, nil, e)
-	require.Equal(t, 1, len(db.tables))
-	require.Equal(t, exp, db.tables[0])
-}
-
 func Test_Sqlick_Open_Close_1(t *testing.T) {
 	dropTablesIfExists()
-	db := NewSqliteDB(testDb)
+	db := New(testDb)
 
 	require.Equal(t, false, db.IsOpen())
 
@@ -124,21 +75,18 @@ func Test_Sqlick_Open_Close_1(t *testing.T) {
 	require.Equal(t, false, db.IsOpen())
 }
 
-func Test_Sqlick_CreateTables_1(t *testing.T) {
+func Test_Sqlick_Create_1(t *testing.T) {
 	dropTablesIfExists()
-	db := NewSqliteDB(testDb)
+	db := New(testDb)
 
 	e := db.Open()
 	require.Equal(t, nil, e)
 	defer db.Close()
 
-	e = db.Register(TestCheeseMaker{})
+	e = db.Create(TestCheeseMaker{})
 	require.Equal(t, nil, e)
 
-	e = db.Register(TestCheese{})
-	require.Equal(t, nil, e)
-
-	e = db.CreateTables()
+	e = db.Create(TestCheese{})
 	require.Equal(t, nil, e)
 
 	rows, e := db.db.Query(`
@@ -171,16 +119,13 @@ func Test_Sqlick_CreateTables_1(t *testing.T) {
 
 func Test_Sqlick_Insert_1(t *testing.T) {
 	dropTablesIfExists()
-	db := NewSqliteDB(testDb)
+	db := New(testDb)
 
 	e := db.Open()
 	require.Equal(t, nil, e)
 	defer db.Close()
 
-	e = db.Register(TestCheeseMaker{})
-	require.Equal(t, nil, e)
-
-	e = db.CreateTables()
+	e = db.Create(TestCheeseMaker{})
 	require.Equal(t, nil, e)
 
 	// Function under test.
@@ -220,16 +165,13 @@ func Test_Sqlick_Update_1(t *testing.T) {
 	// TODO: Add francs and check that francs does not get
 	//       updated.
 	dropTablesIfExists()
-	db := NewSqliteDB(testDb)
+	db := New(testDb)
 
 	e := db.Open()
 	require.Equal(t, nil, e)
 	defer db.Close()
 
-	e = db.Register(TestCheeseMaker{})
-	require.Equal(t, nil, e)
-
-	e = db.CreateTables()
+	e = db.Create(TestCheeseMaker{})
 	require.Equal(t, nil, e)
 
 	e = db.Insert(bobs)
@@ -275,16 +217,13 @@ func Test_Sqlick_Update_1(t *testing.T) {
 
 func Test_Sqlick_SelectAll_1(t *testing.T) {
 	dropTablesIfExists()
-	db := NewSqliteDB(testDb)
+	db := New(testDb)
 
 	e := db.Open()
 	require.Equal(t, nil, e)
 	defer db.Close()
 
-	e = db.Register(TestCheeseMaker{})
-	require.Equal(t, nil, e)
-
-	e = db.CreateTables()
+	e = db.Create(TestCheeseMaker{})
 	require.Equal(t, nil, e)
 
 	e = db.Insert(bobs)
@@ -305,16 +244,13 @@ func Test_Sqlick_SelectAll_1(t *testing.T) {
 
 func Test_Sqlick_SelectById_1(t *testing.T) {
 	dropTablesIfExists()
-	db := NewSqliteDB(testDb)
+	db := New(testDb)
 
 	e := db.Open()
 	require.Equal(t, nil, e)
 	defer db.Close()
 
-	e = db.Register(TestCheeseMaker{})
-	require.Equal(t, nil, e)
-
-	e = db.CreateTables()
+	e = db.Create(TestCheeseMaker{})
 	require.Equal(t, nil, e)
 
 	e = db.Insert(bobs)

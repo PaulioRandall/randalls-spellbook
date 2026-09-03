@@ -93,20 +93,16 @@ func logFatal(e error) {
 
 func sqlick_example_1() {
 	path := "./sqlick.sqlite"
-	db := NewSqliteDB(path)
+	db := New(path)
 
 	e := db.Open()
 	logFatal(e)
 	defer db.Close()
 
-	// Register structs as tables.
-	db.Register(CheeseMaker{})
-	db.Register(Cheese{})
+	e = db.Create(CheeseMaker{})
+	logFatal(e)
 
-	// Create the recently registered tables.
-	// Performs CREATE IF NOT EXISTS for each so CreateTables
-	// can be rerun at anytime.
-	e = db.CreateTables()
+	e = db.Create(Cheese{})
 	logFatal(e)
 
 	// Insert cheese makers and cheeses.

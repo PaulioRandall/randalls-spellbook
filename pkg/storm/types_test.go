@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_SqlickTable_String_1(t *testing.T) {
+func Test_Table_String_1(t *testing.T) {
 	table := Table{
 		GoName: "Person",
 		Columns: []Column{

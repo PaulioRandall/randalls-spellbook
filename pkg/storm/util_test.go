@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_genList_1(t *testing.T) {
+func Test_generateList_1(t *testing.T) {
 	given := []string{
 		"Alice",
 		"Bob",
@@ -20,7 +20,7 @@ func Test_genList_1(t *testing.T) {
 		"  2: Charlie",
 	)
 
-	s, e := genList(
+	s, e := generateList(
 		given,
 		func(i int, item string) (string, error) {
 			return fmt.Sprintf("  %d: %s", i, item), nil

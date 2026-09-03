@@ -15,19 +15,24 @@ var goKindToSqliteTypeMappings = map[reflect.Kind]string{
 	reflect.Float64: "REAL",
 }
 
-type StormSqlite struct {
+type Storm struct {
 	path   string
 	tables []Table
 	db     *sql.DB
 }
 
-func NewSqliteDB(path string) *StormSqlite {
-	return &StormSqlite{
+func New(path string) *Storm {
+	return &Storm{
 		path: path,
 	}
 }
 
-func (ss *StormSqlite) Open() error {
+// Open opens the database.
+//
+//	err := db.Open()
+//	// YUDO: Handle error.
+//	defer db.Close()
+func (ss *Storm) Open() error {
 	db, e := sql.Open("sqlite", ss.path)
 
 	if e != nil {
@@ -41,11 +46,21 @@ func (ss *StormSqlite) Open() error {
 	return nil
 }
 
-func (ss *StormSqlite) IsOpen() bool {
+// IsOpen returns true if the database is open.
+//
+//	if db.IsOpen() {
+//		// YUDO.
+//	}
+func (ss *Storm) IsOpen() bool {
 	return ss.db != nil
 }
 
-func (ss *StormSqlite) Close() error {
+// Close closes the database. Use with defer as usual.
+//
+//	err := db.Open()
+//	// YUDO: Handle error.
+//	defer db.Close()
+func (ss *Storm) Close() error {
 	if !ss.IsOpen() {
 		return nil
 	}
@@ -57,13 +72,76 @@ func (ss *StormSqlite) Close() error {
 	return ss.db.Close()
 }
 
-func (ss *StormSqlite) Register(object any) error {
-	_, found := ss.findTableFor(reflect.TypeOf(object))
+// Create parses the passed model and creates a table
+// of it in the database. Passing a model for a table that
+// already exists does nothing unless the model was passed
+// to Drop first.
+//
+// After passing a model to Create, calls to database
+// interaction functions like Insert and Select can now be
+// made using objects of the same struct type as model.
+//
+// While it's safe to call Create at anytime, it's
+// recommended to create all tables upfront, straight after
+// calling Open. The model must be a struct with at least
+// one exported field or an error is returned. Only
+// exported fields are parsed as part of the Table and
+// field types are currently limited to int64, float64,
+// and string; this will be expanded in future. The first exported
+// field is designated the primary key, regardless of
+// type. It's is recommended to use int64 for primary
+// keys; some databases may require integers while others
+// are less performant with non-int keys, e.g. SQLite
+// works best with integers but the benefits aren't
+// noticable unless you're storing and querying large
+// datasets.
+//
+//	type Person struct {
+//		Id int64
+//		Name string
+//		Height float64
+//		ignored int64 // This field is ignored.
+//	}
+//
+//	err := db.Create(Person{})
+func (ss *Storm) Create(model any) error {
+	e := ss.register(model)
+	if e != nil {
+		return fmt.Errorf(
+			"Failed to create table: %w",
+			e,
+		)
+	}
+
+	typ := reflect.TypeOf(model)
+	table, found := ss.findTableFor(typ)
+	if !found {
+		return fmt.Errorf(
+			"No table exists for struct '%s': %w",
+			typ.Name(),
+			ErrNoTableForType,
+		)
+	}
+
+	e = ss.createTable(table)
+	if e != nil {
+		return fmt.Errorf(
+			"Failed to create table '%s': %w",
+			table.GoName,
+			e,
+		)
+	}
+
+	return nil
+}
+
+func (ss *Storm) register(model any) error {
+	_, found := ss.findTableFor(reflect.TypeOf(model))
 	if found {
 		return nil
 	}
 
-	table, e := Parse(object)
+	table, e := Parse(model)
 
 	if e != nil {
 		return fmt.Errorf(
@@ -76,24 +154,7 @@ func (ss *StormSqlite) Register(object any) error {
 	return nil
 }
 
-func (ss *StormSqlite) CreateTables() error {
-	for _, table := range ss.tables {
-		e := ss.createTable(table)
-		if e == nil {
-			continue
-		}
-
-		return fmt.Errorf(
-			"Failed to create table '%s': %w",
-			table.GoName,
-			e,
-		)
-	}
-
-	return nil
-}
-
-func (ss *StormSqlite) createTable(table Table) error {
+func (ss *Storm) createTable(table Table) error {
 	query, e := ss.generateCreateTableSql(table)
 	if e != nil {
 		return e
@@ -112,7 +173,7 @@ func (ss *StormSqlite) createTable(table Table) error {
 //	int64     => INTEGER
 //	float64 => REAL
 //	string  => TEXT
-func (ss *StormSqlite) generateCreateTableSql(
+func (ss *Storm) generateCreateTableSql(
 	tbl Table,
 ) (string, error) {
 	fb := fmtBuilder{}
@@ -124,7 +185,7 @@ func (ss *StormSqlite) generateCreateTableSql(
 		")",
 	)
 
-	strCols, e := genList(tbl.Columns, ss.genColumnDef)
+	strCols, e := generateList(tbl.Columns, ss.genColumnDef)
 	if e != nil {
 		return "", fmt.Errorf(
 			"Failed to generate CREATE TABLE SQL for table '%s': %w",
@@ -137,7 +198,7 @@ func (ss *StormSqlite) generateCreateTableSql(
 	return fb.String(), nil
 }
 
-func (ss *StormSqlite) genColumnDef(
+func (ss *Storm) genColumnDef(
 	_ int,
 	col Column,
 ) (string, error) {
@@ -155,7 +216,17 @@ func (ss *StormSqlite) genColumnDef(
 	return s, nil
 }
 
-func (ss *StormSqlite) Insert(object any) error {
+// Insert inserts the object into the database. The
+// object's type must match a registered type or an error
+// is returned.
+//
+//	object := Model{
+//		Id: 123,
+//		Name: "Alice",
+//	}
+//
+//	err := db.Insert(object)
+func (ss *Storm) Insert(object any) error {
 	value := reflect.ValueOf(object)
 	e := ss.insertValue(value)
 
@@ -169,7 +240,7 @@ func (ss *StormSqlite) Insert(object any) error {
 	)
 }
 
-func (ss *StormSqlite) insertValue(
+func (ss *Storm) insertValue(
 	value reflect.Value,
 ) error {
 	table, found := ss.findTableFor(value.Type())
@@ -189,7 +260,7 @@ func (ss *StormSqlite) insertValue(
 	return ss.execInsert(table, fieldValues)
 }
 
-func (ss *StormSqlite) findTableFor(
+func (ss *Storm) findTableFor(
 	typ reflect.Type,
 ) (Table, bool) {
 	for _, table := range ss.tables {
@@ -200,7 +271,7 @@ func (ss *StormSqlite) findTableFor(
 	return Table{}, false
 }
 
-func (ss *StormSqlite) findTableForOrError(
+func (ss *Storm) findTableForOrError(
 	typ reflect.Type,
 ) (Table, error) {
 	table, found := ss.findTableFor(typ)
@@ -216,7 +287,7 @@ func (ss *StormSqlite) findTableForOrError(
 	)
 }
 
-func (ss *StormSqlite) listOrderedFieldValues(
+func (ss *Storm) listOrderedFieldValues(
 	columns []Column,
 	value reflect.Value,
 ) []any {
@@ -231,7 +302,7 @@ func (ss *StormSqlite) listOrderedFieldValues(
 	return result
 }
 
-func (ss *StormSqlite) execInsert(
+func (ss *Storm) execInsert(
 	table Table,
 	fieldValues []any,
 ) error {
@@ -256,7 +327,7 @@ func (ss *StormSqlite) execInsert(
 	return nil
 }
 
-func (ss *StormSqlite) generateInsertRecordSql(
+func (ss *Storm) generateInsertRecordSql(
 	tbl Table,
 	rows int,
 ) (string, error) {
@@ -270,8 +341,8 @@ func (ss *StormSqlite) generateInsertRecordSql(
 
 	fb := fmtBuilder{}
 
-	columns, _ := genList(tbl.Columns, ss.genColumn)
-	values, _ := genList(tbl.Columns, ss.genQuestionMark)
+	columns, _ := generateList(tbl.Columns, ss.genColumn)
+	values, _ := generateList(tbl.Columns, ss.genQuestionMark)
 
 	s := joinLines(
 		"INSERT INTO %s (",
@@ -291,21 +362,36 @@ func (ss *StormSqlite) generateInsertRecordSql(
 	return fb.String(), nil
 }
 
-func (ss *StormSqlite) genColumn(
+func (ss *Storm) genColumn(
 	_ int,
 	col Column,
 ) (string, error) {
 	return fmt.Sprintf("  %s", col.GoName), nil
 }
 
-func (ss *StormSqlite) genQuestionMark(
+func (ss *Storm) genQuestionMark(
 	_ int,
 	col Column,
 ) (string, error) {
 	return "  ?", nil
 }
 
-func (ss *StormSqlite) Update(object any) error {
+// Update updates the object within the database. The
+// object's type must match a registered type or an error
+// is returned. All fields are updated except the ID
+// field, which is used to determine which record to
+// update.
+//
+//	object := Model{
+//		Id: 123,
+//		Name: "Alice",
+//	}
+//	err := db.Insert(object)
+//	// YUDO: Handle error.
+//
+//	object.Name = "Bob"
+//	err = db.Update(object)
+func (ss *Storm) Update(object any) error {
 	value := reflect.ValueOf(object)
 	e := ss.updateValue(value)
 
@@ -319,7 +405,7 @@ func (ss *StormSqlite) Update(object any) error {
 	)
 }
 
-func (ss *StormSqlite) updateValue(
+func (ss *Storm) updateValue(
 	value reflect.Value,
 ) error {
 	table, e := ss.findTableForOrError(value.Type())
@@ -337,7 +423,7 @@ func (ss *StormSqlite) updateValue(
 	return ss.execUpdate(table, fieldValues)
 }
 
-func (ss *StormSqlite) execUpdate(
+func (ss *Storm) execUpdate(
 	table Table,
 	fieldValues []any,
 ) error {
@@ -362,13 +448,16 @@ func (ss *StormSqlite) execUpdate(
 	return nil
 }
 
-func (ss *StormSqlite) generateUpdateRecordSql(
+func (ss *Storm) generateUpdateRecordSql(
 	tbl Table,
 ) (string, error) {
 	fb := fmtBuilder{}
 
 	nonIdColumns := tbl.NonIdColumns()
-	setters, _ := genList(nonIdColumns, ss.genColumnSetter)
+	setters, _ := generateList(
+		nonIdColumns,
+		ss.genColumnSetter,
+	)
 
 	s := joinLines(
 		"UPDATE",
@@ -383,15 +472,21 @@ func (ss *StormSqlite) generateUpdateRecordSql(
 	return fb.String(), nil
 }
 
-func (ss *StormSqlite) genColumnSetter(
+func (ss *Storm) genColumnSetter(
 	_ int,
 	col Column,
 ) (string, error) {
 	return fmt.Sprintf("  %s = ?", col.GoName), nil
 }
 
-// SelectAll satisfies the Sqlick interface.
-func (ss *StormSqlite) SelectAll(
+// SelectAll returns all records for the table associated
+// with the passed model. The model's type must be
+// registered (Register()) and table created
+// (CreateTables()) for the select to return without
+// error.
+//
+//	slice, err := SelectAll(Model{})
+func (ss *Storm) SelectAll(
 	model any,
 ) (any, error) {
 	typ := reflect.TypeOf(model)
@@ -407,7 +502,7 @@ func (ss *StormSqlite) SelectAll(
 	)
 }
 
-func (ss *StormSqlite) selectAllOfType(
+func (ss *Storm) selectAllOfType(
 	typ reflect.Type,
 ) (any, error) {
 	table, e := ss.findTableForOrError(typ)
@@ -423,7 +518,7 @@ func (ss *StormSqlite) selectAllOfType(
 	return ss.querySelectAll(table, fieldValues)
 }
 
-func (ss *StormSqlite) querySelectAll(
+func (ss *Storm) querySelectAll(
 	table Table,
 	fieldValues []any,
 ) (any, error) {
@@ -453,12 +548,12 @@ func (ss *StormSqlite) querySelectAll(
 	return result, nil
 }
 
-func (ss *StormSqlite) generateSelectAllRecordsSql(
+func (ss *Storm) generateSelectAllRecordsSql(
 	tbl Table,
 ) (string, error) {
 	fb := fmtBuilder{}
 
-	columns, _ := genList(tbl.Columns, ss.genColumn)
+	columns, _ := generateList(tbl.Columns, ss.genColumn)
 
 	s := joinLines(
 		"SELECT",
@@ -471,7 +566,7 @@ func (ss *StormSqlite) generateSelectAllRecordsSql(
 	return fb.String(), nil
 }
 
-func (ss *StormSqlite) scanSelectedRows(
+func (ss *Storm) scanSelectedRows(
 	table Table,
 	rows *sql.Rows,
 ) (any, error) {
@@ -562,8 +657,15 @@ func toSliceOfType(
 	return sliceValue.Interface()
 }
 
-// SelectById satisfies the Sqlick interface.
-func (ss *StormSqlite) SelectById(
+// SelectById returns the record with the given id from
+// the table associated with the passed model. If no
+// record is found then an error is returned. The
+// model's type must be registered (Register()) and table
+// created (CreateTables()) for the select to return
+// without error.
+//
+//	slice, err := SelectById(Model{}, 123)
+func (ss *Storm) SelectById(
 	model any,
 	id any,
 ) (any, error) {
@@ -579,7 +681,7 @@ func (ss *StormSqlite) SelectById(
 	)
 }
 
-func (ss *StormSqlite) selectByIdOfType(
+func (ss *Storm) selectByIdOfType(
 	typ reflect.Type,
 	id any,
 ) (any, error) {
@@ -596,7 +698,7 @@ func (ss *StormSqlite) selectByIdOfType(
 	return ss.querySelectById(tbl, id)
 }
 
-func (ss *StormSqlite) validateModelIdType(
+func (ss *Storm) validateModelIdType(
 	tbl Table,
 	id any,
 ) error {
@@ -609,7 +711,7 @@ func (ss *StormSqlite) validateModelIdType(
 	return nil
 }
 
-func (ss *StormSqlite) querySelectById(
+func (ss *Storm) querySelectById(
 	tbl Table,
 	id any,
 ) (any, error) {
@@ -649,12 +751,12 @@ func (ss *StormSqlite) querySelectById(
 	return object, nil
 }
 
-func (ss *StormSqlite) generateSelectRecordByIdSql(
+func (ss *Storm) generateSelectRecordByIdSql(
 	tbl Table,
 ) (string, error) {
 	fb := fmtBuilder{}
 
-	columns, _ := genList(tbl.Columns, ss.genColumn)
+	columns, _ := generateList(tbl.Columns, ss.genColumn)
 
 	s := joinLines(
 		"SELECT",
@@ -694,7 +796,7 @@ func printQuery(query string, values []any) {
 	println(query)
 }
 
-func (ss *StormSqlite) generateDeleteAllRecordsSql(
+func (ss *Storm) generateDeleteAllRecordsSql(
 	tbl Table,
 ) (string, error) {
 	fb := fmtBuilder{}
@@ -708,7 +810,7 @@ func (ss *StormSqlite) generateDeleteAllRecordsSql(
 	return fb.String(), nil
 }
 
-func (ss *StormSqlite) generateDeleteRecordByIdSql(
+func (ss *Storm) generateDeleteRecordByIdSql(
 	tbl Table,
 ) (string, error) {
 	fb := fmtBuilder{}
@@ -723,3 +825,29 @@ func (ss *StormSqlite) generateDeleteRecordByIdSql(
 	fb.WriteFmt(s, tbl.GoName, tbl.IdColumn().GoName)
 	return fb.String(), nil
 }
+
+// Select queries the database for one or many records.
+// It calls one of the other select functions based on
+// the arguments. The model's type must be registered
+// (Register()) and table created (CreateTables()) for
+// the select to return without error.
+//
+// The model parameter determines the return type. If
+// it's an array then zero or multiple records may be
+// returned. If it's a struct then either a single
+// record or an empty record is returned.
+//
+// If the id parameter is nil then all records are
+// returned else the record with the specified ID will be
+// returned. Attempting to pass a struct as the model
+// without an id will result in an error.
+//
+//		// Select all records.
+//		slice, err := Select([]Model{}, nil)
+//		sliceOfModel := slice.([]Model)
+//
+//		// Select a specific record by ID.
+//		object, err := Select(Model{}, id)
+//
+// Any other configuration will produce an error.
+//Select(model any, id any) (any, error)

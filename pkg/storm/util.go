@@ -18,7 +18,7 @@ func joinLines(lines ...string) string {
 	return strings.Join(lines, "\n")
 }
 
-func genList[T any](
+func generateList[T any](
 	list []T,
 	itemToStr func(int, T) (string, error),
 ) (string, error) {
