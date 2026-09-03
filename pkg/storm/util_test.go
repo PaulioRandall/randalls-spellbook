@@ -1,4 +1,4 @@
-package sqlick
+package storm
 
 import (
 	"fmt"

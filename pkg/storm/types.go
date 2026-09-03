@@ -1,4 +1,4 @@
-package sqlick
+package storm
 
 import (
 	"errors"
@@ -84,6 +84,7 @@ var (
 	ErrRecordNotFound = errors.New("Record not found")
 )
 
+/*
 // Sqlick is an interface to the database with intentions
 // for SQL dialect specific implementations.
 //
@@ -225,7 +226,7 @@ type Sqlick interface {
 	// Any other configuration will produce an error.
 	//Select(model any, id any) (any, error)
 }
-
+*/
 // SqlGenerator is an interface implemented by specific
 // SQL dialects for generating SQL query strings.
 // Implementations assume that the passed Table is valid.

@@ -1,4 +1,4 @@
-// Package sqlick is a minimalistic ORM based database
+// Package storm is a minimalistic ORM based database
 // API for storing and accessing simple structures/tables.
 //
 // Instead of writing or building query statements, users
@@ -69,4 +69,4 @@
 //
 //	err = db.Drop(Person{})
 //	// YUDO: Handle error.
-package sqlick
+package storm

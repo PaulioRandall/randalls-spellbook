@@ -1,4 +1,4 @@
-package sqlick
+package storm
 
 import (
 	"database/sql"
@@ -9,22 +9,25 @@ import (
 	_ "github.com/glebarez/go-sqlite"
 )
 
-type sqliteSqlick struct {
+var goKindToSqliteTypeMappings = map[reflect.Kind]string{
+	reflect.String:  "TEXT",
+	reflect.Int64:   "INTEGER",
+	reflect.Float64: "REAL",
+}
+
+type StormSqlite struct {
 	path   string
-	gen    SqlGenerator
 	tables []Table
 	db     *sql.DB
 }
 
-func NewSqliteDB(path string) *sqliteSqlick {
-	return &sqliteSqlick{
+func NewSqliteDB(path string) *StormSqlite {
+	return &StormSqlite{
 		path: path,
-		gen:  sqliteGenerator{},
 	}
 }
 
-// Open satisfies the Sqlick interface.
-func (ss *sqliteSqlick) Open() error {
+func (ss *StormSqlite) Open() error {
 	db, e := sql.Open("sqlite", ss.path)
 
 	if e != nil {
@@ -38,13 +41,11 @@ func (ss *sqliteSqlick) Open() error {
 	return nil
 }
 
-// IsOpen satisfies the Sqlick interface.
-func (ss *sqliteSqlick) IsOpen() bool {
+func (ss *StormSqlite) IsOpen() bool {
 	return ss.db != nil
 }
 
-// Close satisfies the Sqlick interface.
-func (ss *sqliteSqlick) Close() error {
+func (ss *StormSqlite) Close() error {
 	if !ss.IsOpen() {
 		return nil
 	}
@@ -56,8 +57,7 @@ func (ss *sqliteSqlick) Close() error {
 	return ss.db.Close()
 }
 
-// Register satisfies the Sqlick interface.
-func (ss *sqliteSqlick) Register(object any) error {
+func (ss *StormSqlite) Register(object any) error {
 	_, found := ss.findTableFor(reflect.TypeOf(object))
 	if found {
 		return nil
@@ -76,8 +76,7 @@ func (ss *sqliteSqlick) Register(object any) error {
 	return nil
 }
 
-// CreateTables satisfies the Sqlick interface.
-func (ss *sqliteSqlick) CreateTables() error {
+func (ss *StormSqlite) CreateTables() error {
 	for _, table := range ss.tables {
 		e := ss.createTable(table)
 		if e == nil {
@@ -94,8 +93,8 @@ func (ss *sqliteSqlick) CreateTables() error {
 	return nil
 }
 
-func (ss *sqliteSqlick) createTable(table Table) error {
-	query, e := ss.gen.TableCreate(table)
+func (ss *StormSqlite) createTable(table Table) error {
+	query, e := ss.generateCreateTableSql(table)
 	if e != nil {
 		return e
 	}
@@ -104,8 +103,59 @@ func (ss *sqliteSqlick) createTable(table Table) error {
 	return e
 }
 
-// Insert satisfies the Sqlick interface.
-func (ss *sqliteSqlick) Insert(object any) error {
+// TableCreate satisfies the SqlGenerator interface. The
+// table name is the GoName, all columns are NOT NULL, and
+// the first column is designated the PRIMARY KEY.
+//
+// Type mappings
+//
+//	int64     => INTEGER
+//	float64 => REAL
+//	string  => TEXT
+func (ss *StormSqlite) generateCreateTableSql(
+	tbl Table,
+) (string, error) {
+	fb := fmtBuilder{}
+
+	s := joinLines(
+		"CREATE TABLE IF NOT EXISTS %s (",
+		"%s,",
+		"  PRIMARY KEY (%s)",
+		")",
+	)
+
+	strCols, e := genList(tbl.Columns, ss.genColumnDef)
+	if e != nil {
+		return "", fmt.Errorf(
+			"Failed to generate CREATE TABLE SQL for table '%s': %w",
+			tbl.GoName,
+			e,
+		)
+	}
+
+	fb.WriteFmt(s, tbl.GoName, strCols, tbl.IdColumn().GoName)
+	return fb.String(), nil
+}
+
+func (ss *StormSqlite) genColumnDef(
+	_ int,
+	col Column,
+) (string, error) {
+	sqlType := goKindToSqliteTypeMappings[col.GoType.Kind()]
+
+	if sqlType == "" {
+		return "", fmt.Errorf(
+			"Failed to generate SQL for column '%s': %w",
+			col.GoName,
+			ErrNoSqlType,
+		)
+	}
+
+	s := fmt.Sprintf("  %s %s NOT NULL", col.GoName, sqlType)
+	return s, nil
+}
+
+func (ss *StormSqlite) Insert(object any) error {
 	value := reflect.ValueOf(object)
 	e := ss.insertValue(value)
 
@@ -119,7 +169,7 @@ func (ss *sqliteSqlick) Insert(object any) error {
 	)
 }
 
-func (ss *sqliteSqlick) insertValue(
+func (ss *StormSqlite) insertValue(
 	value reflect.Value,
 ) error {
 	table, found := ss.findTableFor(value.Type())
@@ -139,7 +189,7 @@ func (ss *sqliteSqlick) insertValue(
 	return ss.execInsert(table, fieldValues)
 }
 
-func (ss *sqliteSqlick) findTableFor(
+func (ss *StormSqlite) findTableFor(
 	typ reflect.Type,
 ) (Table, bool) {
 	for _, table := range ss.tables {
@@ -150,7 +200,7 @@ func (ss *sqliteSqlick) findTableFor(
 	return Table{}, false
 }
 
-func (ss *sqliteSqlick) findTableForOrError(
+func (ss *StormSqlite) findTableForOrError(
 	typ reflect.Type,
 ) (Table, error) {
 	table, found := ss.findTableFor(typ)
@@ -166,7 +216,7 @@ func (ss *sqliteSqlick) findTableForOrError(
 	)
 }
 
-func (ss *sqliteSqlick) listOrderedFieldValues(
+func (ss *StormSqlite) listOrderedFieldValues(
 	columns []Column,
 	value reflect.Value,
 ) []any {
@@ -181,11 +231,11 @@ func (ss *sqliteSqlick) listOrderedFieldValues(
 	return result
 }
 
-func (ss *sqliteSqlick) execInsert(
+func (ss *StormSqlite) execInsert(
 	table Table,
 	fieldValues []any,
 ) error {
-	query, e := ss.gen.TableInsert(table, 1)
+	query, e := ss.generateInsertRecordSql(table, 1)
 	if e != nil {
 		return fmt.Errorf(
 			"Could not generate insert query for table '%s': %w",
@@ -206,8 +256,56 @@ func (ss *sqliteSqlick) execInsert(
 	return nil
 }
 
-// Update satisfies the Sqlick interface.
-func (ss *sqliteSqlick) Update(object any) error {
+func (ss *StormSqlite) generateInsertRecordSql(
+	tbl Table,
+	rows int,
+) (string, error) {
+	if rows < 1 {
+		return "", fmt.Errorf(
+			"Failed to generate SQL for INSERT into table '%s': %w",
+			tbl.GoName,
+			ErrTooFewRows,
+		)
+	}
+
+	fb := fmtBuilder{}
+
+	columns, _ := genList(tbl.Columns, ss.genColumn)
+	values, _ := genList(tbl.Columns, ss.genQuestionMark)
+
+	s := joinLines(
+		"INSERT INTO %s (",
+		"%s",
+		")%s",
+	)
+
+	sv := joinLines(
+		" VALUES (",
+		"%s",
+		")",
+	)
+	sv = fmt.Sprintf(sv, values)
+	sv = strings.Repeat(sv, rows)
+
+	fb.WriteFmt(s, tbl.GoName, columns, sv)
+	return fb.String(), nil
+}
+
+func (ss *StormSqlite) genColumn(
+	_ int,
+	col Column,
+) (string, error) {
+	return fmt.Sprintf("  %s", col.GoName), nil
+}
+
+func (ss *StormSqlite) genQuestionMark(
+	_ int,
+	col Column,
+) (string, error) {
+	return "  ?", nil
+}
+
+func (ss *StormSqlite) Update(object any) error {
 	value := reflect.ValueOf(object)
 	e := ss.updateValue(value)
 
@@ -221,7 +319,7 @@ func (ss *sqliteSqlick) Update(object any) error {
 	)
 }
 
-func (ss *sqliteSqlick) updateValue(
+func (ss *StormSqlite) updateValue(
 	value reflect.Value,
 ) error {
 	table, e := ss.findTableForOrError(value.Type())
@@ -239,11 +337,11 @@ func (ss *sqliteSqlick) updateValue(
 	return ss.execUpdate(table, fieldValues)
 }
 
-func (ss *sqliteSqlick) execUpdate(
+func (ss *StormSqlite) execUpdate(
 	table Table,
 	fieldValues []any,
 ) error {
-	query, e := ss.gen.TableUpdateById(table)
+	query, e := ss.generateUpdateRecordSql(table)
 	if e != nil {
 		return fmt.Errorf(
 			"Could not generate update query for table '%s': %w",
@@ -264,8 +362,36 @@ func (ss *sqliteSqlick) execUpdate(
 	return nil
 }
 
+func (ss *StormSqlite) generateUpdateRecordSql(
+	tbl Table,
+) (string, error) {
+	fb := fmtBuilder{}
+
+	nonIdColumns := tbl.NonIdColumns()
+	setters, _ := genList(nonIdColumns, ss.genColumnSetter)
+
+	s := joinLines(
+		"UPDATE",
+		"  %s",
+		"SET",
+		"%s",
+		"WHERE",
+		"  %s = ?",
+	)
+
+	fb.WriteFmt(s, tbl.GoName, setters, tbl.IdColumn().GoName)
+	return fb.String(), nil
+}
+
+func (ss *StormSqlite) genColumnSetter(
+	_ int,
+	col Column,
+) (string, error) {
+	return fmt.Sprintf("  %s = ?", col.GoName), nil
+}
+
 // SelectAll satisfies the Sqlick interface.
-func (ss *sqliteSqlick) SelectAll(
+func (ss *StormSqlite) SelectAll(
 	model any,
 ) (any, error) {
 	typ := reflect.TypeOf(model)
@@ -281,7 +407,7 @@ func (ss *sqliteSqlick) SelectAll(
 	)
 }
 
-func (ss *sqliteSqlick) selectAllOfType(
+func (ss *StormSqlite) selectAllOfType(
 	typ reflect.Type,
 ) (any, error) {
 	table, e := ss.findTableForOrError(typ)
@@ -297,11 +423,11 @@ func (ss *sqliteSqlick) selectAllOfType(
 	return ss.querySelectAll(table, fieldValues)
 }
 
-func (ss *sqliteSqlick) querySelectAll(
+func (ss *StormSqlite) querySelectAll(
 	table Table,
 	fieldValues []any,
 ) (any, error) {
-	query, e := ss.gen.TableSelectAll(table)
+	query, e := ss.generateSelectAllRecordsSql(table)
 	if e != nil {
 		return nil, fmt.Errorf(
 			"Could not generate select all query for table '%s': %w",
@@ -327,7 +453,25 @@ func (ss *sqliteSqlick) querySelectAll(
 	return result, nil
 }
 
-func (ss *sqliteSqlick) scanSelectedRows(
+func (ss *StormSqlite) generateSelectAllRecordsSql(
+	tbl Table,
+) (string, error) {
+	fb := fmtBuilder{}
+
+	columns, _ := genList(tbl.Columns, ss.genColumn)
+
+	s := joinLines(
+		"SELECT",
+		"%s",
+		"FROM",
+		"  %s",
+	)
+
+	fb.WriteFmt(s, columns, tbl.GoName)
+	return fb.String(), nil
+}
+
+func (ss *StormSqlite) scanSelectedRows(
 	table Table,
 	rows *sql.Rows,
 ) (any, error) {
@@ -419,7 +563,7 @@ func toSliceOfType(
 }
 
 // SelectById satisfies the Sqlick interface.
-func (ss *sqliteSqlick) SelectById(
+func (ss *StormSqlite) SelectById(
 	model any,
 	id any,
 ) (any, error) {
@@ -435,7 +579,7 @@ func (ss *sqliteSqlick) SelectById(
 	)
 }
 
-func (ss *sqliteSqlick) selectByIdOfType(
+func (ss *StormSqlite) selectByIdOfType(
 	typ reflect.Type,
 	id any,
 ) (any, error) {
@@ -452,7 +596,7 @@ func (ss *sqliteSqlick) selectByIdOfType(
 	return ss.querySelectById(tbl, id)
 }
 
-func (ss *sqliteSqlick) validateModelIdType(
+func (ss *StormSqlite) validateModelIdType(
 	tbl Table,
 	id any,
 ) error {
@@ -465,11 +609,11 @@ func (ss *sqliteSqlick) validateModelIdType(
 	return nil
 }
 
-func (ss *sqliteSqlick) querySelectById(
+func (ss *StormSqlite) querySelectById(
 	tbl Table,
 	id any,
 ) (any, error) {
-	query, e := ss.gen.TableSelectById(tbl)
+	query, e := ss.generateSelectRecordByIdSql(tbl)
 	if e != nil {
 		return nil, fmt.Errorf(
 			"Could not generate select by ID query for table '%s': %w",
@@ -505,6 +649,26 @@ func (ss *sqliteSqlick) querySelectById(
 	return object, nil
 }
 
+func (ss *StormSqlite) generateSelectRecordByIdSql(
+	tbl Table,
+) (string, error) {
+	fb := fmtBuilder{}
+
+	columns, _ := genList(tbl.Columns, ss.genColumn)
+
+	s := joinLines(
+		"SELECT",
+		"%s",
+		"FROM",
+		"  %s",
+		"WHERE",
+		"  %s = ?",
+	)
+
+	fb.WriteFmt(s, columns, tbl.GoName, tbl.IdColumn().GoName)
+	return fb.String(), nil
+}
+
 func getFirstItemIfArray(v any) (any, bool) {
 	rv := reflect.ValueOf(v)
 
@@ -528,4 +692,34 @@ func printQuery(query string, values []any) {
 		query = strings.Replace(query, "?", vs, 1)
 	}
 	println(query)
+}
+
+func (ss *StormSqlite) generateDeleteAllRecordsSql(
+	tbl Table,
+) (string, error) {
+	fb := fmtBuilder{}
+
+	s := joinLines(
+		"DELETE FROM",
+		"  %s",
+	)
+
+	fb.WriteFmt(s, tbl.GoName)
+	return fb.String(), nil
+}
+
+func (ss *StormSqlite) generateDeleteRecordByIdSql(
+	tbl Table,
+) (string, error) {
+	fb := fmtBuilder{}
+
+	s := joinLines(
+		"DELETE FROM",
+		"  %s",
+		"WHERE",
+		"  %s = ?",
+	)
+
+	fb.WriteFmt(s, tbl.GoName, tbl.IdColumn().GoName)
+	return fb.String(), nil
 }

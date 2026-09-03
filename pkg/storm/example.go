@@ -1,4 +1,4 @@
-package sqlick
+package storm
 
 import (
 	"log"
@@ -126,33 +126,38 @@ func sqlick_example_1() {
 	e = db.Update(ch)
 	logFatal(e)
 
+	var result any
+	var cheeseList []Cheese
+	var vanillaCharm Cheese
+
+	result, e = db.SelectAll(Cheese{})
+	logFatal(e)
+	cheeseList, _ = result.([]Cheese)
+	_ = cheeseList
+
+	result, e = db.SelectById(Cheese{}, 3)
+	logFatal(e)
+	vanillaCharm, _ = result.(Cheese)
+	_ = vanillaCharm
+
 	/*
-		var result any
-		var cheeseList []Cheese
-
-		result, e = db.SelectAll(Cheese{})
+		// Select a specific cheese from the database. The second
+		// argument must be the ID of the field.
+		cheeseId := 1
+		resultCheese, e = db.Select(Cheese{}, cheeseId)
 		logFatal(e)
-		cheeseList, _ = result.([]Cheese)
+		cheeses, _ = resultCheese.(Cheese)
 
-		_ = cheeseList
-		/*
-			// Select a specific cheese from the database. The second
-			// argument must be the ID of the field.
-			cheeseId := 1
-			resultCheese, e = db.Select(Cheese{}, cheeseId)
-			logFatal(e)
-			cheeses, _ = resultCheese.(Cheese)
+		// Select all cheese from the database.
+		var cheeses []Cheese
+		_, e := db.Select(&cheeses, nil)
+		logFatal(e)
 
-			// Select all cheese from the database.
-			var cheeses []Cheese
-			_, e := db.Select(&cheeses, nil)
-			logFatal(e)
-
-			// Select all cheeses from the database. This approach
-			// requires explicit type casting.
-			result, e := db.Select(Cheese{}, nil)
-			logFatal(e)
-			cheeses, _ = result.([]Cheese)
+		// Select all cheeses from the database. This approach
+		// requires explicit type casting.
+		result, e := db.Select(Cheese{}, nil)
+		logFatal(e)
+		cheeses, _ = result.([]Cheese)
 	*/
 
 	// IDEA: After doing a SELECT, check if model implements
