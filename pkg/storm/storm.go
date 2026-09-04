@@ -876,6 +876,49 @@ func (ss *Storm) generateDeleteRecordByIdSql(
 	return fb.String(), nil
 }
 
+// Drop removes a table from the database, deleting all
+// records in the process. Passing a model for a table that
+// doesn't exists does nothing.
+//
+//	type Person struct {
+//		Id int64
+//		Name string
+//		Height float64
+//		ignored int64 // This field is ignored.
+//	}
+//
+//	err := db.Create(Person{})
+//	// YUDO: Handle error.
+//
+//	err := db.Drop(Person{})
+func (ss *Storm) Drop(model any) error {
+	typ := reflect.TypeOf(model)
+	table, found := ss.findTableFor(typ)
+	if !found {
+		return nil
+	}
+
+	e := ss.dropTable(table)
+	if e != nil {
+		return fmt.Errorf(
+			"Failed to drop table '%s': %w",
+			table.GoName,
+			e,
+		)
+	}
+
+	return nil
+}
+
+func (ss *Storm) dropTable(table Table) error {
+	query := fmt.Sprintf(
+		"DROP TABLE IF EXISTS %s",
+		table.GoName,
+	)
+	_, e := ss.db.Exec(query, table.GoName)
+	return e
+}
+
 // Select queries the database for one or many records.
 // It calls one of the other select functions based on
 // the arguments. The model's type must be registered

@@ -106,11 +106,18 @@ func selectAllTestCheeseMakers(
 func Test_Storm_Open_Close_1(t *testing.T) {
 	dropTablesIfExists()
 	db := New(testDb)
-
 	require.Equal(t, false, db.IsOpen())
 
 	e := db.Open()
 	require.Equal(t, nil, e)
+
+	defer func() {
+		if r := recover(); r != nil {
+			db.Close()
+			panic(r)
+		}
+	}()
+
 	require.Equal(t, true, db.IsOpen())
 
 	e = db.Close()
@@ -270,4 +277,44 @@ func Test_Storm_DeleteById_1(t *testing.T) {
 	records := selectAllTestCheeseMakers(t, db)
 	require.Equal(t, francs, records[0])
 	require.Equal(t, 1, len(records))
+}
+
+func Test_Storm_Drop_1(t *testing.T) {
+	dropTablesIfExists()
+	db := New(testDb)
+
+	e := db.Open()
+	require.Equal(t, nil, e)
+	defer db.Close()
+
+	e = db.Create(TestCheeseMaker{})
+	require.Equal(t, nil, e)
+
+	e = db.Create(TestCheese{})
+	require.Equal(t, nil, e)
+
+	e = db.Drop(TestCheeseMaker{})
+	require.Equal(t, nil, e)
+
+	rows, e := db.db.Query(`
+		SELECT
+			name
+		FROM
+			sqlite_schema
+		WHERE
+			name IN (
+				'TestCheeseMaker',
+				'TestCheese'
+			)
+	`)
+	require.Equal(t, nil, e)
+
+	var act string
+
+	require.Equal(t, true, rows.Next())
+	e = rows.Scan(&act)
+	require.Equal(t, nil, e)
+	require.Equal(t, "TestCheese", act)
+
+	require.Equal(t, false, rows.Next())
 }
