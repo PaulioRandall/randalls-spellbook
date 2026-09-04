@@ -796,18 +796,68 @@ func printQuery(query string, values []any) {
 	println(query)
 }
 
-func (ss *Storm) generateDeleteAllRecordsSql(
-	tbl Table,
-) (string, error) {
-	fb := fmtBuilder{}
+// DeleteById removes the record with the given id from
+// the table associated with the passed model. If no
+// record is found then nothing happens.
+//
+//	e := DeleteById(Model{}, 123)
+func (ss *Storm) DeleteById(
+	model any,
+	id any,
+) error {
+	typ := reflect.TypeOf(model)
+	e := ss.deleteByIdOfType(typ, id)
+	if e == nil {
+		return nil
+	}
 
-	s := joinLines(
-		"DELETE FROM",
-		"  %s",
+	return fmt.Errorf(
+		"Failed to delete by ID from database: %w",
+		e,
 	)
+}
+func (ss *Storm) deleteByIdOfType(
+	typ reflect.Type,
+	id any,
+) error {
+	tbl, e := ss.findTableForOrError(typ)
+	if e != nil {
+		return e
+	}
 
-	fb.WriteFmt(s, tbl.GoName)
-	return fb.String(), nil
+	e = ss.validateModelIdType(tbl, id)
+	if e != nil {
+		return e
+	}
+
+	return ss.execDeleteById(tbl, id)
+}
+
+func (ss *Storm) execDeleteById(
+	tbl Table,
+	id any,
+) error {
+	query, e := ss.generateDeleteRecordByIdSql(tbl)
+	if e != nil {
+		return fmt.Errorf(
+			"Could not generate delete by ID '%v' query for table '%s': %w",
+			id,
+			tbl.GoName,
+			e,
+		)
+	}
+
+	_, e = ss.db.Exec(query, id)
+	if e != nil {
+		return fmt.Errorf(
+			"Failed to delete by ID '%v' from table '%s': %w",
+			id,
+			tbl.GoName,
+			e,
+		)
+	}
+
+	return nil
 }
 
 func (ss *Storm) generateDeleteRecordByIdSql(

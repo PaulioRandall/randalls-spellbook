@@ -60,7 +60,50 @@ func panicOnError(e error) {
 	}
 }
 
-func Test_Sqlick_Open_Close_1(t *testing.T) {
+func openCreateAndInsertTestCheeseMakers(
+	t *testing.T,
+	db *Storm,
+	objects ...TestCheeseMaker,
+) {
+	e := db.Open()
+	require.Equal(t, nil, e)
+
+	e = db.Create(TestCheeseMaker{})
+	require.Equal(t, nil, e)
+
+	for _, obj := range objects {
+		e = db.Insert(obj)
+		require.Equal(t, nil, e)
+	}
+}
+
+func selectAllTestCheeseMakers(
+	t *testing.T,
+	db *Storm,
+) []TestCheeseMaker {
+	rows, e := db.db.Query(`
+		SELECT
+			Id,
+			Name,
+			Country
+		FROM
+			TestCheeseMaker
+	`)
+	require.Equal(t, nil, e)
+
+	var result []TestCheeseMaker
+
+	for rows.Next() {
+		tcm := TestCheeseMaker{}
+		e = rows.Scan(&tcm.Id, &tcm.Name, &tcm.Country)
+		require.Equal(t, nil, e)
+		result = append(result, tcm)
+	}
+
+	return result
+}
+
+func Test_Storm_Open_Close_1(t *testing.T) {
 	dropTablesIfExists()
 	db := New(testDb)
 
@@ -75,7 +118,7 @@ func Test_Sqlick_Open_Close_1(t *testing.T) {
 	require.Equal(t, false, db.IsOpen())
 }
 
-func Test_Sqlick_Create_1(t *testing.T) {
+func Test_Storm_Create_1(t *testing.T) {
 	dropTablesIfExists()
 	db := New(testDb)
 
@@ -117,68 +160,37 @@ func Test_Sqlick_Create_1(t *testing.T) {
 	require.Equal(t, false, rows.Next())
 }
 
-func Test_Sqlick_Insert_1(t *testing.T) {
+func Test_Storm_Insert_1(t *testing.T) {
 	dropTablesIfExists()
 	db := New(testDb)
 
-	e := db.Open()
-	require.Equal(t, nil, e)
+	openCreateAndInsertTestCheeseMakers(
+		t,
+		db,
+		bobs,
+		francs,
+	)
+
 	defer db.Close()
 
-	e = db.Create(TestCheeseMaker{})
-	require.Equal(t, nil, e)
-
-	// Function under test.
-	e = db.Insert(bobs)
-	require.Equal(t, nil, e)
-
-	// Function under test.
-	e = db.Insert(francs)
-	require.Equal(t, nil, e)
-
-	rows, e := db.db.Query(`
-		SELECT
-			Id,
-			Name,
-			Country
-		FROM
-			TestCheeseMaker
-	`)
-	require.Equal(t, nil, e)
-
-	var act TestCheeseMaker
-
-	require.Equal(t, true, rows.Next())
-	e = rows.Scan(&act.Id, &act.Name, &act.Country)
-	require.Equal(t, nil, e)
-	require.Equal(t, bobs, act)
-
-	require.Equal(t, true, rows.Next())
-	e = rows.Scan(&act.Id, &act.Name, &act.Country)
-	require.Equal(t, nil, e)
-	require.Equal(t, francs, act)
-
-	require.Equal(t, false, rows.Next())
+	records := selectAllTestCheeseMakers(t, db)
+	require.Equal(t, bobs, records[0])
+	require.Equal(t, francs, records[1])
+	require.Equal(t, 2, len(records))
 }
 
-func Test_Sqlick_Update_1(t *testing.T) {
-	// TODO: Add francs and check that francs does not get
-	//       updated.
+func Test_Storm_Update_1(t *testing.T) {
 	dropTablesIfExists()
 	db := New(testDb)
 
-	e := db.Open()
-	require.Equal(t, nil, e)
+	openCreateAndInsertTestCheeseMakers(
+		t,
+		db,
+		bobs,
+		francs,
+	)
+
 	defer db.Close()
-
-	e = db.Create(TestCheeseMaker{})
-	require.Equal(t, nil, e)
-
-	e = db.Insert(bobs)
-	require.Equal(t, nil, e)
-
-	e = db.Insert(francs)
-	require.Equal(t, nil, e)
 
 	bobsUpdated := TestCheeseMaker{
 		Id:      bobs.Id,
@@ -186,51 +198,27 @@ func Test_Sqlick_Update_1(t *testing.T) {
 		Country: "United Kingdom",
 	}
 
-	// Function under test.
-	e = db.Update(bobsUpdated)
+	e := db.Update(bobsUpdated)
 	require.Equal(t, nil, e)
 
-	rows, e := db.db.Query(`
-		SELECT
-			Id,
-			Name,
-			Country
-		FROM
-			TestCheeseMaker
-	`)
-	require.Equal(t, nil, e)
-
-	var act TestCheeseMaker
-
-	require.Equal(t, true, rows.Next())
-	e = rows.Scan(&act.Id, &act.Name, &act.Country)
-	require.Equal(t, nil, e)
-	require.Equal(t, bobsUpdated, act)
-
-	require.Equal(t, true, rows.Next())
-	e = rows.Scan(&act.Id, &act.Name, &act.Country)
-	require.Equal(t, nil, e)
-	require.Equal(t, francs, act)
-
-	require.Equal(t, false, rows.Next())
+	records := selectAllTestCheeseMakers(t, db)
+	require.Equal(t, bobsUpdated, records[0])
+	require.Equal(t, francs, records[1])
+	require.Equal(t, 2, len(records))
 }
 
-func Test_Sqlick_SelectAll_1(t *testing.T) {
+func Test_Storm_SelectAll_1(t *testing.T) {
 	dropTablesIfExists()
 	db := New(testDb)
 
-	e := db.Open()
-	require.Equal(t, nil, e)
+	openCreateAndInsertTestCheeseMakers(
+		t,
+		db,
+		bobs,
+		francs,
+	)
+
 	defer db.Close()
-
-	e = db.Create(TestCheeseMaker{})
-	require.Equal(t, nil, e)
-
-	e = db.Insert(bobs)
-	require.Equal(t, nil, e)
-
-	e = db.Insert(francs)
-	require.Equal(t, nil, e)
 
 	result, e := db.SelectAll(TestCheeseMaker{})
 	require.Equal(t, nil, e)
@@ -242,22 +230,18 @@ func Test_Sqlick_SelectAll_1(t *testing.T) {
 	require.Equal(t, francs, act[1])
 }
 
-func Test_Sqlick_SelectById_1(t *testing.T) {
+func Test_Storm_SelectById_1(t *testing.T) {
 	dropTablesIfExists()
 	db := New(testDb)
 
-	e := db.Open()
-	require.Equal(t, nil, e)
+	openCreateAndInsertTestCheeseMakers(
+		t,
+		db,
+		bobs,
+		francs,
+	)
+
 	defer db.Close()
-
-	e = db.Create(TestCheeseMaker{})
-	require.Equal(t, nil, e)
-
-	e = db.Insert(bobs)
-	require.Equal(t, nil, e)
-
-	e = db.Insert(francs)
-	require.Equal(t, nil, e)
 
 	result, e := db.SelectById(TestCheeseMaker{}, francs.Id)
 	require.Equal(t, nil, e)
@@ -265,4 +249,25 @@ func Test_Sqlick_SelectById_1(t *testing.T) {
 	act, ok := result.(TestCheeseMaker)
 	require.Equal(t, true, ok)
 	require.Equal(t, francs, act)
+}
+
+func Test_Storm_DeleteById_1(t *testing.T) {
+	dropTablesIfExists()
+	db := New(testDb)
+
+	openCreateAndInsertTestCheeseMakers(
+		t,
+		db,
+		bobs,
+		francs,
+	)
+
+	defer db.Close()
+
+	e := db.DeleteById(TestCheeseMaker{}, int64(1))
+	require.Equal(t, nil, e)
+
+	records := selectAllTestCheeseMakers(t, db)
+	require.Equal(t, francs, records[0])
+	require.Equal(t, 1, len(records))
 }
