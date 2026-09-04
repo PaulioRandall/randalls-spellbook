@@ -3,6 +3,8 @@ package storm
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -27,14 +29,23 @@ func New(path string) *Storm {
 	}
 }
 
-// Open opens the database.
+// Open opens the database. The directory path is created
+// if it doesn't already exist.
 //
 //	err := db.Open()
 //	// YUDO: Handle error.
 //	defer db.Close()
 func (ss *Storm) Open() error {
-	db, e := sql.Open("sqlite", ss.path)
+	parent := filepath.Dir(ss.path)
+	e := os.MkdirAll(parent, os.ModePerm)
+	if e != nil {
+		return fmt.Errorf(
+			"Unable to check or create directory path to SQLite database: %w",
+			e,
+		)
+	}
 
+	db, e := sql.Open("sqlite", ss.path)
 	if e != nil {
 		return fmt.Errorf(
 			"Unable to open SQLite database: %w",

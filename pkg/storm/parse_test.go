@@ -78,15 +78,3 @@ func Test_Parse_4(t *testing.T) {
 	_, e := Parse(v)
 	require.ErrorIs(t, e, ErrMissFields)
 }
-
-func Test_Parse_5(t *testing.T) {
-	// Error when struct is not public.
-
-	type testEntity struct {
-		Public int64
-	}
-
-	v := testEntity{}
-	_, e := Parse(v)
-	require.ErrorIs(t, e, ErrNotPublic)
-}

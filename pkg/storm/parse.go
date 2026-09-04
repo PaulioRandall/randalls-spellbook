@@ -3,14 +3,13 @@ package storm
 import (
 	"fmt"
 	"reflect"
-	"unicode"
 )
 
 // Parse accepts an object (instance of a struct) and
 // parses the structure into a Table with its public fields
 // as columns. An error is returned if the object is not a
-// struct, the struct is not public, the struct contains
-// no public fields, or a field's type is unsupported.
+// struct, the struct contains no public fields, or a
+// field's type is unsupported.
 func Parse(object any) (Table, error) {
 	tbl := Table{}
 	typ := reflect.TypeOf(object)
@@ -32,10 +31,6 @@ func parseTable(tbl *Table, typ reflect.Type) error {
 		return ErrNotStruct
 	}
 
-	if !isPublicName(typ.Name()) {
-		return ErrNotPublic
-	}
-
 	columns, e := parseColumns(tbl, typ)
 	if e != nil {
 		return e
@@ -49,11 +44,6 @@ func parseTable(tbl *Table, typ reflect.Type) error {
 	tbl.GoName = typ.Name()
 	tbl.Columns = columns
 	return nil
-}
-
-func isPublicName(name string) bool {
-	firstLetter := []rune(name)[0]
-	return unicode.IsUpper(firstLetter)
 }
 
 func parseColumns(
