@@ -29,20 +29,17 @@ func New(path string) *Storm {
 	}
 }
 
-// Open opens the database. The directory path is created
-// if it doesn't already exist.
+// Open opens the database. If not an in-memory path then
+// the missing directories in the directory path are
+// created.
 //
 //	err := db.Open()
 //	// YUDO: Handle error.
 //	defer db.Close()
 func (ss *Storm) Open() error {
-	parent := filepath.Dir(ss.path)
-	e := os.MkdirAll(parent, os.ModePerm)
+	e := ss.mkdirs()
 	if e != nil {
-		return fmt.Errorf(
-			"Unable to check or create directory path to SQLite database: %w",
-			e,
-		)
+		return e
 	}
 
 	db, e := sql.Open("sqlite", ss.path)
@@ -55,6 +52,24 @@ func (ss *Storm) Open() error {
 
 	ss.db = db
 	return nil
+}
+
+func (ss *Storm) mkdirs() error {
+	if ss.path == ":memory" {
+		// SQlite in-memory database. There is no path!
+		return nil
+	}
+
+	parent := filepath.Dir(ss.path)
+	e := os.MkdirAll(parent, os.ModePerm)
+	if e == nil {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"Unable to check or create directory path to SQLite database: %w",
+		e,
+	)
 }
 
 // IsOpen returns true if the database is open.

@@ -1,7 +1,6 @@
 package storm
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,11 +14,11 @@ type testCheeseMaker struct {
 
 type testCheese struct {
 	Id       int64
-	MakerId  int64 // Map to CheeseMaker.Id
+	MakerId  int64
 	Name     string
-	Strength int64   // 1: Mild, 4: Extra Mature
-	Rating   float64 // Out of 5
-	Notes    string  // E.g. "Nutty after taste"
+	Strength int64
+	Rating   float64
+	Notes    string
 }
 
 var bobs = testCheeseMaker{
@@ -34,26 +33,33 @@ var francs = testCheeseMaker{
 	Country: "France",
 }
 
-func createTempDbPath(t *testing.T) string {
-	parent := t.ArtifactDir()
-	return filepath.Join(parent, "db.sqlite")
-}
-
-func openCreateAndInsertTestCheeseMakers(
+func openCreateInsert(
 	t *testing.T,
-	db *Storm,
-	objects ...testCheeseMaker,
-) {
+	models []any,
+	makers []testCheeseMaker,
+) *Storm {
+	db := New(":memory:")
+
 	e := db.Open()
 	require.Equal(t, nil, e)
 
-	e = db.Create(testCheeseMaker{})
-	require.Equal(t, nil, e)
+	defer func() {
+		if r := recover(); r != nil {
+			db.Close()
+		}
+	}()
 
-	for _, obj := range objects {
-		e = db.Insert(obj)
+	for _, m := range models {
+		e = db.Create(m)
 		require.Equal(t, nil, e)
 	}
+
+	for _, m := range makers {
+		e = db.Insert(m)
+		require.Equal(t, nil, e)
+	}
+
+	return db
 }
 
 func selectAllTestCheeseMakers(
@@ -82,44 +88,10 @@ func selectAllTestCheeseMakers(
 	return result
 }
 
-func Test_Storm_Open_Close_1(t *testing.T) {
-	dbFile := createTempDbPath(t)
-
-	db := New(dbFile)
-	require.Equal(t, false, db.IsOpen())
-
-	e := db.Open()
-	require.Equal(t, nil, e)
-
-	defer func() {
-		if r := recover(); r != nil {
-			db.Close()
-			panic(r)
-		}
-	}()
-
-	require.Equal(t, true, db.IsOpen())
-
-	e = db.Close()
-	require.Equal(t, nil, e)
-	require.Equal(t, false, db.IsOpen())
-}
-
-func Test_Storm_Create_1(t *testing.T) {
-	dbFile := createTempDbPath(t)
-
-	db := New(dbFile)
-
-	e := db.Open()
-	require.Equal(t, nil, e)
-	defer db.Close()
-
-	e = db.Create(testCheeseMaker{})
-	require.Equal(t, nil, e)
-
-	e = db.Create(testCheese{})
-	require.Equal(t, nil, e)
-
+func selectTestTableNamesFromSqliteSchema(
+	t *testing.T,
+	db *Storm,
+) []string {
 	rows, e := db.db.Query(`
 		SELECT
 			name
@@ -133,32 +105,54 @@ func Test_Storm_Create_1(t *testing.T) {
 	`)
 	require.Equal(t, nil, e)
 
-	var act string
+	var result []string
 
-	require.Equal(t, true, rows.Next())
-	e = rows.Scan(&act)
+	for rows.Next() {
+		var name string
+		e = rows.Scan(&name)
+		require.Equal(t, nil, e)
+		result = append(result, name)
+	}
+
+	return result
+}
+
+func Test_Storm_Open_Close_1(t *testing.T) {
+	db := openCreateInsert(
+		t,
+		nil,
+		nil,
+	)
+	defer db.Close()
+
+	require.Equal(t, true, db.IsOpen())
+
+	e := db.Close()
 	require.Equal(t, nil, e)
-	require.Equal(t, "testCheeseMaker", act)
+	require.Equal(t, false, db.IsOpen())
+}
 
-	require.Equal(t, true, rows.Next())
-	e = rows.Scan(&act)
-	require.Equal(t, nil, e)
-	require.Equal(t, "testCheese", act)
+func Test_Storm_Create_1(t *testing.T) {
+	db := openCreateInsert(
+		t,
+		[]any{testCheeseMaker{}, testCheese{}},
+		nil,
+	)
+	defer db.Close()
 
-	require.Equal(t, false, rows.Next())
+	tableNames := selectTestTableNamesFromSqliteSchema(t, db)
+
+	require.Equal(t, "testCheeseMaker", tableNames[0])
+	require.Equal(t, "testCheese", tableNames[1])
+	require.Equal(t, 2, len(tableNames))
 }
 
 func Test_Storm_Insert_1(t *testing.T) {
-	dbFile := createTempDbPath(t)
-	db := New(dbFile)
-
-	openCreateAndInsertTestCheeseMakers(
+	db := openCreateInsert(
 		t,
-		db,
-		bobs,
-		francs,
+		[]any{testCheeseMaker{}, testCheese{}},
+		[]testCheeseMaker{bobs, francs},
 	)
-
 	defer db.Close()
 
 	records := selectAllTestCheeseMakers(t, db)
@@ -168,16 +162,11 @@ func Test_Storm_Insert_1(t *testing.T) {
 }
 
 func Test_Storm_Update_1(t *testing.T) {
-	dbFile := createTempDbPath(t)
-	db := New(dbFile)
-
-	openCreateAndInsertTestCheeseMakers(
+	db := openCreateInsert(
 		t,
-		db,
-		bobs,
-		francs,
+		[]any{testCheeseMaker{}, testCheese{}},
+		[]testCheeseMaker{bobs, francs},
 	)
-
 	defer db.Close()
 
 	bobsUpdated := testCheeseMaker{
@@ -196,22 +185,17 @@ func Test_Storm_Update_1(t *testing.T) {
 }
 
 func Test_Storm_SelectAll_1(t *testing.T) {
-	dbFile := createTempDbPath(t)
-	db := New(dbFile)
-
-	openCreateAndInsertTestCheeseMakers(
+	db := openCreateInsert(
 		t,
-		db,
-		bobs,
-		francs,
+		[]any{testCheeseMaker{}, testCheese{}},
+		[]testCheeseMaker{bobs, francs},
 	)
-
 	defer db.Close()
 
-	result, e := db.SelectAll(testCheeseMaker{})
+	records, e := db.SelectAll(testCheeseMaker{})
 	require.Equal(t, nil, e)
 
-	act, ok := result.([]testCheeseMaker)
+	act, ok := records.([]testCheeseMaker)
 	require.Equal(t, true, ok)
 	require.Equal(t, 2, len(act))
 	require.Equal(t, bobs, act[0])
@@ -219,37 +203,27 @@ func Test_Storm_SelectAll_1(t *testing.T) {
 }
 
 func Test_Storm_SelectById_1(t *testing.T) {
-	dbFile := createTempDbPath(t)
-	db := New(dbFile)
-
-	openCreateAndInsertTestCheeseMakers(
+	db := openCreateInsert(
 		t,
-		db,
-		bobs,
-		francs,
+		[]any{testCheeseMaker{}, testCheese{}},
+		[]testCheeseMaker{bobs, francs},
 	)
-
 	defer db.Close()
 
-	result, e := db.SelectById(testCheeseMaker{}, francs.Id)
+	records, e := db.SelectById(testCheeseMaker{}, francs.Id)
 	require.Equal(t, nil, e)
 
-	act, ok := result.(testCheeseMaker)
+	act, ok := records.(testCheeseMaker)
 	require.Equal(t, true, ok)
 	require.Equal(t, francs, act)
 }
 
 func Test_Storm_DeleteById_1(t *testing.T) {
-	dbFile := createTempDbPath(t)
-	db := New(dbFile)
-
-	openCreateAndInsertTestCheeseMakers(
+	db := openCreateInsert(
 		t,
-		db,
-		bobs,
-		francs,
+		[]any{testCheeseMaker{}, testCheese{}},
+		[]testCheeseMaker{bobs, francs},
 	)
-
 	defer db.Close()
 
 	e := db.DeleteById(testCheeseMaker{}, int64(1))
@@ -261,41 +235,18 @@ func Test_Storm_DeleteById_1(t *testing.T) {
 }
 
 func Test_Storm_Drop_1(t *testing.T) {
-	dbFile := createTempDbPath(t)
-	db := New(dbFile)
-
-	e := db.Open()
-	require.Equal(t, nil, e)
+	db := openCreateInsert(
+		t,
+		[]any{testCheeseMaker{}, testCheese{}},
+		nil,
+	)
 	defer db.Close()
 
-	e = db.Create(testCheeseMaker{})
+	e := db.Drop(testCheeseMaker{})
 	require.Equal(t, nil, e)
 
-	e = db.Create(testCheese{})
-	require.Equal(t, nil, e)
+	tableNames := selectTestTableNamesFromSqliteSchema(t, db)
 
-	e = db.Drop(testCheeseMaker{})
-	require.Equal(t, nil, e)
-
-	rows, e := db.db.Query(`
-		SELECT
-			name
-		FROM
-			sqlite_schema
-		WHERE
-			name IN (
-				'testCheeseMaker',
-				'testCheese'
-			)
-	`)
-	require.Equal(t, nil, e)
-
-	var act string
-
-	require.Equal(t, true, rows.Next())
-	e = rows.Scan(&act)
-	require.Equal(t, nil, e)
-	require.Equal(t, "testCheese", act)
-
-	require.Equal(t, false, rows.Next())
+	require.Equal(t, "testCheese", tableNames[0])
+	require.Equal(t, 1, len(tableNames))
 }

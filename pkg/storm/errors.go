@@ -9,10 +9,6 @@ var (
 	// model type with a non-struct kind.
 	ErrNotStruct = errors.New("Model must be a struct")
 
-	// ErrNotPublic is returned when a model type is not
-	// public (exported).
-	ErrNotPublic = errors.New("Model struct must be public")
-
 	// ErrBadFieldKind is returned when a model's type
 	// contains an unsupported kind for one of its exported
 	// fields.
