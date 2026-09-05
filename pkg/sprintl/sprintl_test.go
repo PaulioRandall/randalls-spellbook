@@ -34,7 +34,7 @@ func Test_Sprintl_Fmt_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Sprintl_Range_1(t *testing.T) {
+func Test_Sprintl_Rep_1(t *testing.T) {
 	// Test Rep accepts individual values.
 
 	values := []any{
@@ -48,7 +48,7 @@ func Test_Sprintl_Range_1(t *testing.T) {
 		"  %s",
 		")",
 	).
-		Rep(2, "", values...).
+		Rep(2, values...).
 		String()
 
 	exp := joinLines(
@@ -62,7 +62,7 @@ func Test_Sprintl_Range_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Sprintl_Range_2(t *testing.T) {
+func Test_Sprintl_Rep_2(t *testing.T) {
 	// Test Rep accepts empty values.
 
 	values := []any{
@@ -74,7 +74,7 @@ func Test_Sprintl_Range_2(t *testing.T) {
 		"  %s",
 		")",
 	).
-		Rep(2, "", values...).
+		Rep(2, values...).
 		String()
 
 	exp := joinLines(
@@ -85,7 +85,7 @@ func Test_Sprintl_Range_2(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Sprintl_Range_3(t *testing.T) {
+func Test_Sprintl_Rep_3(t *testing.T) {
 	// Test Rep accepts args as values.
 
 	values := []any{
@@ -99,7 +99,7 @@ func Test_Sprintl_Range_3(t *testing.T) {
 		"  %d: %s",
 		")",
 	).
-		Rep(2, "", values...).
+		Rep(2, values...).
 		String()
 
 	exp := joinLines(
@@ -107,34 +107,6 @@ func Test_Sprintl_Range_3(t *testing.T) {
 		"  1: Name",
 		"  2: Age",
 		"  3: Height",
-		")",
-	)
-
-	require.Equal(t, exp, act)
-}
-
-func Test_Sprintl_Range_4(t *testing.T) {
-	// Test Rep accepts delim values.
-
-	values := []any{
-		"Name",
-		"Age",
-		"Height",
-	}
-
-	act := Lines(
-		"(",
-		"  %s",
-		")",
-	).
-		Rep(2, ",", values...).
-		String()
-
-	exp := joinLines(
-		"(",
-		"  Name,",
-		"  Age,",
-		"  Height",
 		")",
 	)
 
@@ -155,13 +127,13 @@ func Test_Sprintl_Gen_1(t *testing.T) {
 		"  %d",
 		")",
 	).
-		Gen(2, ",", 3, gen).
+		Gen(2, 3, gen).
 		String()
 
 	exp := joinLines(
 		"(",
-		"  1,",
-		"  2,",
+		"  1",
+		"  2",
 		"  3",
 		")",
 	)
@@ -187,15 +159,94 @@ func Test_Sprintl_Gen_2(t *testing.T) {
 		"  %d",
 		")",
 	).
-		Gen(2, ",", 10, gen).
+		Gen(2, 10, gen).
 		String()
 
 	exp := joinLines(
 		"(",
-		"  1,",
-		"  2,",
+		"  1",
+		"  2",
 		"  3",
 		")",
+	)
+
+	require.Equal(t, exp, act)
+}
+
+func Test_Sprintl_Join_1(t *testing.T) {
+	// Test Join applies the delimiter correctly.
+
+	values := []any{
+		"Name",
+		"Age",
+		"Height",
+	}
+
+	act := Lines(
+		"(",
+		"  %s",
+		")",
+	).
+		Rep(2, values...).
+		Join(",").
+		String()
+
+	exp := joinLines(
+		"(",
+		"  Name,",
+		"  Age,",
+		"  Height",
+		")",
+	)
+
+	require.Equal(t, exp, act)
+}
+
+func Test_Sprintl_Marry_1(t *testing.T) {
+	// Test Marry applies the delimiter correctly.
+
+	values := []any{
+		"name",
+		"age",
+		"height",
+	}
+
+	act := Lines(
+		"%s",
+	).
+		Rep(1, values...).
+		Marry("and ").
+		String()
+
+	exp := joinLines(
+		"name",
+		"and age",
+		"and height",
+	)
+
+	require.Equal(t, exp, act)
+}
+
+func Test_Sprintl_Prefix_1(t *testing.T) {
+	// Test Prefix applies the prefix to every line.
+
+	values := []any{
+		"name",
+		"age",
+		"height",
+	}
+
+	act := Lines(
+		"%s",
+	).
+		Rep(1, values...).
+		Prefix("• ").
+		String()
+
+	exp := joinLines(
+		"• name",
+		"• age",
+		"• height",
 	)
 
 	require.Equal(t, exp, act)

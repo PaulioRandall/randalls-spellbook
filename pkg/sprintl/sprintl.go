@@ -18,8 +18,9 @@ type LineFormatter func(
 // through method chaining. Call [Lines] to create an
 // object.
 type Sprintl struct {
-	lines      []string
-	formatters map[int]LineFormat
+	priorLineNum int
+	lines        []string
+	formatters   map[int]LineFormat
 }
 
 // Lines returns a new [Sprintl] object for formatting the
@@ -42,25 +43,23 @@ func (s *Sprintl) Fmt(
 		values:   values,
 		template: s.lines[lineNum-1],
 	}
+	s.priorLineNum = lineNum
 	return s
 }
 
-// Rep repeats the line for each value in values then
-// appends the delim to each, except the last line. The
-// line must contain a single placeholder, e.g. '%v'.
-// Passing an empty values array removes the line
-// completely.
+// Rep repeats the line for each value, or array of args,
+// in values. Passing an empty values array removes the
+// line completely.
 func (s *Sprintl) Rep(
 	lineNum int,
-	delim string,
 	values ...any,
 ) *Sprintl {
 	s.formatters[lineNum] = LineFormat{
 		typ:      "Rep",
-		delim:    delim,
 		values:   values,
 		template: s.lines[lineNum-1],
 	}
+	s.priorLineNum = lineNum
 	return s
 }
 
@@ -70,17 +69,72 @@ func (s *Sprintl) Rep(
 // first call, the line is removed completely.
 func (s *Sprintl) Gen(
 	lineNum int,
-	delim string,
 	max int,
 	generator LineFormatter,
 ) *Sprintl {
 	s.formatters[lineNum] = LineFormat{
 		typ:       "Gen",
-		delim:     delim,
 		max:       max,
 		generator: generator,
 		template:  s.lines[lineNum-1],
 	}
+	s.priorLineNum = lineNum
+	return s
+}
+
+// Join may be called after [Sprintl.Rep] or [Sprintl.Gen]
+// to apply a delimiter to each line generated, except the
+// last line. This enables delimiter separated lists. Most
+// commonly a comma "," is used as the delim value. Join
+// has no effect if called after [Sprintl.Fmt] or other
+// functions.
+func (s *Sprintl) Join(delim string) *Sprintl {
+	if s.priorLineNum == 0 {
+		return s
+	}
+
+	f, ok := s.formatters[s.priorLineNum]
+	if ok {
+		f.delim = delim
+		f.prefixDelim = false
+		s.formatters[s.priorLineNum] = f
+	}
+
+	return s
+}
+
+// Marry is the same as [Sprintl.Join] except the delimiter
+// is applied to the start of all lines except the first.
+func (s *Sprintl) Marry(delim string) *Sprintl {
+	if s.priorLineNum == 0 {
+		return s
+	}
+
+	f, ok := s.formatters[s.priorLineNum]
+	if ok {
+		f.delim = delim
+		f.prefixDelim = true
+		s.formatters[s.priorLineNum] = f
+	}
+
+	return s
+}
+
+// Prefix adds a prefix to each line. This is primarily
+// designed to be used along with [Sprintl.Marry] to insert
+// line indents. It is applied to every line in the
+// repetition after [Sprintl.Marry] is applied.
+func (s *Sprintl) Prefix(prefix string) *Sprintl {
+	if s.priorLineNum == 0 {
+		return s
+	}
+
+	f, ok := s.formatters[s.priorLineNum]
+	if ok {
+		f.prefix = prefix
+		s.formatters[s.priorLineNum] = f
+	}
+
 	return s
 }
 

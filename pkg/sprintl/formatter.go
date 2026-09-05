@@ -8,13 +8,15 @@ import (
 // It is passed to [LineFormatter] functions when using the
 // [Sprintl.Gen] function.
 type LineFormat struct {
-	typ       string
-	delim     string
-	values    []any
-	max       int
-	generator LineFormatter
-	index     int
-	template  string
+	typ         string
+	prefix      string
+	delim       string
+	prefixDelim bool
+	values      []any
+	max         int
+	generator   LineFormatter
+	index       int
+	template    string
 }
 
 // Index returns the current index in the [Sprintl.Gen]
@@ -23,10 +25,23 @@ func (f LineFormat) Index() int {
 	return f.index
 }
 
-// Delim returns the delimiter, which may be an empty
-// string.
+// Prefix returns the prefix that should be prepended to
+// every line in a repetition. It may be empty.
+func (f LineFormat) Prefix() string {
+	return f.prefix
+}
+
+// Delim returns the join delimiter. It may be empty.
 func (f LineFormat) Delim() string {
 	return f.delim
+}
+
+// PrefixDelim returns true if the value returned by
+// [LineFormat.Delim] should be applied to the front of
+// all lines except the first, instead of to the end of all
+// lines except the last.
+func (f LineFormat) PrefixDelim() bool {
+	return f.prefixDelim
 }
 
 // Max returns the max number of times a [LineFormatter]
@@ -73,11 +88,9 @@ func (f LineFormat) applyR() []string {
 	lines := make([]string, lineCount, lineCount)
 
 	for i, v := range f.values {
-		if i > 0 {
-			lines[i-1] += f.delim
-		}
-
+		f.index = i
 		lines[i] = f.format(f.template, v)
+		f.applyLineMods(lines)
 	}
 
 	return lines
@@ -94,11 +107,8 @@ func (f LineFormat) applyG() []string {
 			break
 		}
 
-		if i > 0 {
-			lines[i-1] += f.delim
-		}
-
 		lines = append(lines, line)
+		f.applyLineMods(lines)
 	}
 
 	return lines
@@ -113,4 +123,21 @@ func (f LineFormat) format(
 	} else {
 		return fmt.Sprintf(template, value)
 	}
+}
+
+func (f LineFormat) applyLineMods(lines []string) {
+	i := f.index
+
+	if i <= 0 {
+		lines[i] = f.prefix + lines[i]
+		return
+	}
+
+	if f.prefixDelim {
+		lines[i] = f.prefix + f.delim + lines[i]
+		return
+	}
+
+	lines[i-1] += f.delim
+	lines[i] = f.prefix + lines[i]
 }

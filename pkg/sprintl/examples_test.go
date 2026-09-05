@@ -19,9 +19,10 @@ func Example() {
 		"WHERE",
 		"  %s", // Line 6
 	).
-		Rep(2, ",", "name", "age", "job").
+		Rep(2, "name", "age", "job").
+		Join(",").
 		Fmt(4, "users").
-		Gen(6, "", 2, func(f LineFormat) (string, bool) {
+		Gen(6, 2, func(f LineFormat) (string, bool) {
 			// The 2 above is the max number of repetitions.
 			cond := conditions[f.Index()]
 
@@ -88,7 +89,8 @@ func ExampleSprintl_Rep() {
 		"WHERE",
 		"  %s = ?", // Line 6
 	).
-		Rep(2, ",", "name", "age", "height").
+		Rep(2, "name", "age", "height").
+		Join(",").
 		Fmt(6, "name").
 		String()
 
@@ -111,11 +113,12 @@ func ExampleSprintl_Rep_args() {
 		"FROM",
 		"  users",
 	).
-		Rep(2, ",",
+		Rep(2,
 			[]any{"name", "player"},
 			[]any{"age", "level"},
 			[]any{"job", "role"},
 		).
+		Join(",").
 		String()
 
 	fmt.Println(sql)
@@ -140,7 +143,8 @@ func ExampleSprintl_Gen() {
 		"FROM",
 		"  sales_data",
 	).
-		Gen(2, ",", 5, genYears).
+		Gen(2, 5, genYears).
+		Join(",").
 		String()
 
 	fmt.Println(sql)
@@ -153,4 +157,86 @@ func ExampleSprintl_Gen() {
 	//   2024
 	// FROM
 	//   sales_data
+}
+
+func ExampleSprintl_Join() {
+	sql := Lines(
+		"SELECT",
+		"  %s", // Line 2
+		"FROM",
+		"  users",
+	).
+		Rep(2, "name", "age", "job").
+		Join(",").
+		String()
+
+	fmt.Println(sql)
+	// Output:
+	// SELECT
+	//   name,
+	//   age,
+	//   job
+	// FROM
+	//   users
+}
+
+func ExampleSprintl_Marry() {
+	props := []any{
+		"name",
+		"age",
+		"job",
+	}
+
+	md := Lines(
+		"# Player Properties",
+		"",
+		"%s", // Line 3
+	).
+		Rep(3, props...).
+		Marry("and ").
+		String()
+
+	fmt.Println(md)
+	// Output:
+	// # Player Properties
+	//
+	// name
+	// and age
+	// and job
+}
+
+func ExampleSprintl_Prefix() {
+	filters := []any{
+		"name",
+		"age",
+		"job",
+	}
+
+	sql := Lines(
+		"SELECT",
+		"  name,",
+		"  age,",
+		"  job",
+		"FROM",
+		"  users",
+		"WHERE",
+		"%s = ?", // Line 8
+	).
+		Rep(8, filters...).
+		Marry("AND ").
+		Prefix("  ").
+		String()
+
+	fmt.Println(sql)
+	// Output:
+	// SELECT
+	//   name,
+	//   age,
+	//   job
+	// FROM
+	//   users
+	// WHERE
+	//   name = ?
+	//   AND age = ?
+	//   AND job = ?
 }
