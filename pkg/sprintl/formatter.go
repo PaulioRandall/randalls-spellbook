@@ -4,136 +4,112 @@ import (
 	"fmt"
 )
 
-// Package Sprintl
-// TODO: Use reflect package in R and J functions so RF and
-//       JF can be removed.
-// TODO: Refactor, simplify, and tidy
-
-type lineFormatter struct {
-	typ            string
-	delim          string
-	args           []any
-	values         []any
-	valueArgs      [][]any
-	generator      LineGenerator
-	generatorCount int
+// Formatter holds information about a line formatting.
+// It is passed to [LineFormatter] functions when using the
+// [Sprintl.G] function.
+type Formatter struct {
+	typ       string
+	delim     string
+	values    []any
+	max       int
+	generator LineFormatter
+	index     int
+	template  string
 }
 
-func (lf lineFormatter) apply(line string) []string {
-	switch lf.typ {
+// Index returns the current index in the [Sprintl.G] loop.
+func (f Formatter) Index() int {
+	return f.index
+}
+
+// Delim returns the delimiter, which may be an empty
+// string.
+func (f Formatter) Delim() string {
+	return f.delim
+}
+
+// Max returns the max number of times a [LineFormatter]
+// function will be called for a particular line. Only
+// applicable when using the [Sprintl.G] function.
+func (f Formatter) Max() int {
+	return f.max
+}
+
+// Template returns the template line provided to the
+// [Lines] function.
+func (f Formatter) Template() string {
+	return f.template
+}
+
+// Fmt is a convenience function for calling fmt.Sprintf
+// with the template as the template string.
+func (f Formatter) Fmt(args ...any) string {
+	return fmt.Sprintf(f.template, args...)
+}
+
+func (f Formatter) apply() []string {
+	switch f.typ {
 	case "F":
-		return lf.applyF(line)
+		return f.applyF()
 	case "R":
-		return lf.applyR(line)
-	case "RF":
-		return lf.applyRF(line)
-	case "J":
-		return lf.applyJ(line)
-	case "JF":
-		return lf.applyJF(line)
+		return f.applyR()
 	case "G":
-		return lf.applyG(line)
-	case "GN":
-		return lf.applyGN(line)
+		return f.applyG()
 	default:
-		msg := fmt.Sprintf("Unknown format type '%s'", lf.typ)
+		msg := fmt.Sprintf("Unknown format type '%s'", f.typ)
 		panic(msg)
 	}
 }
 
-func (lf lineFormatter) applyF(
-	templateLine string,
-) []string {
+func (f Formatter) applyF() []string {
 	return []string{
-		fmt.Sprintf(templateLine, lf.args...),
+		fmt.Sprintf(f.template, f.values...),
 	}
 }
 
-func (lf lineFormatter) applyR(
-	templateLine string,
-) []string {
-	lineCount := len(lf.values)
+func (f Formatter) applyR() []string {
+	lineCount := len(f.values)
 	lines := make([]string, lineCount, lineCount)
 
-	for i, v := range lf.values {
-		lines[i] = fmt.Sprintf(templateLine, v)
-	}
-
-	return lines
-}
-
-func (lf lineFormatter) applyRF(
-	templateLine string,
-) []string {
-	lineCount := len(lf.valueArgs)
-	lines := make([]string, lineCount, lineCount)
-
-	for i, args := range lf.valueArgs {
-		lines[i] = fmt.Sprintf(templateLine, args...)
-	}
-
-	return lines
-}
-
-func (lf lineFormatter) applyJ(
-	templateLine string,
-) []string {
-	lineCount := len(lf.values)
-	lines := make([]string, lineCount, lineCount)
-
-	for i, v := range lf.values {
+	for i, v := range f.values {
 		if i > 0 {
-			lines[i-1] += lf.delim
+			lines[i-1] += f.delim
 		}
-		lines[i] = fmt.Sprintf(templateLine, v)
+
+		lines[i] = f.format(f.template, v)
 	}
 
 	return lines
 }
 
-func (lf lineFormatter) applyJF(
-	templateLine string,
-) []string {
-	lineCount := len(lf.valueArgs)
-	lines := make([]string, lineCount, lineCount)
-
-	for i, args := range lf.valueArgs {
-		if i > 0 {
-			lines[i-1] += lf.delim
-		}
-		lines[i] = fmt.Sprintf(templateLine, args...)
-	}
-
-	return lines
-}
-
-func (lf lineFormatter) applyG(
-	templateLine string,
-) []string {
+func (f Formatter) applyG() []string {
 	lines := []string{}
 
-	for i := 0; true; i++ {
-		line, ok := lf.generator(i, templateLine)
+	for i := 0; i < f.max; i++ {
+		f.index = i
+		line, ok := f.generator(f)
+
 		if !ok {
 			break
 		}
+
+		if i > 0 {
+			lines[i-1] += f.delim
+		}
+
 		lines = append(lines, line)
 	}
 
 	return lines
 }
 
-func (lf lineFormatter) applyGN(
-	templateLine string,
-) []string {
-	lines := []string{}
-
-	for i := 0; i < lf.generatorCount; i++ {
-		line, ok := lf.generator(i, templateLine)
-		if ok {
-			lines = append(lines, line)
-		}
+func (f Formatter) format(
+	template string,
+	value any,
+) string {
+	if args, ok := value.([]any); ok {
+		return fmt.Sprintf(template, args...)
+	} else {
+		return fmt.Sprintf(template, value)
 	}
-
-	return lines
 }
