@@ -4,6 +4,48 @@ import (
 	"fmt"
 )
 
+func Example() {
+	conditions := []string{
+		"name = ?",
+		"age = ?",
+		"job = ?",
+	}
+
+	sql := Lines(
+		"SELECT",
+		"  %s", // Line 2
+		"FROM",
+		"  %s", // Line 4
+		"WHERE",
+		"  %s", // Line 6
+	).
+		Rep(2, ",", "name", "age", "job").
+		Fmt(4, "users").
+		Gen(6, "", 2, func(f LineFormat) (string, bool) {
+			// The 2 above is the max number of repetitions.
+			cond := conditions[f.Index()]
+
+			if f.Index() > 0 {
+				cond = "AND " + cond
+			}
+
+			// Returning false will end repetition.
+			return f.Fmt(cond), true
+		})
+
+	fmt.Println(sql)
+	// Output:
+	// SELECT
+	//   name,
+	//   age,
+	//   job
+	// FROM
+	//   users
+	// WHERE
+	//   name = ?
+	//   AND age = ?
+}
+
 func ExampleLines() {
 	var _ *Sprintl = Lines(
 		"SELECT",
@@ -13,7 +55,7 @@ func ExampleLines() {
 	)
 }
 
-func ExampleSprintl_F() {
+func ExampleSprintl_Fmt() {
 	sql := Lines(
 		"SELECT",
 		"  'month_' || '%d' AS %s,", // Line 2
@@ -23,7 +65,7 @@ func ExampleSprintl_F() {
 		"WHERE",
 		"  year = 2025",
 	).
-		F(2, 9, "sept").
+		Fmt(2, 9, "sept").
 		String()
 
 	fmt.Println(sql)
@@ -37,7 +79,7 @@ func ExampleSprintl_F() {
 	//   year = 2025
 }
 
-func ExampleSprintl_R() {
+func ExampleSprintl_Rep() {
 	sql := Lines(
 		"SELECT",
 		"  %s", // Line 2
@@ -46,8 +88,8 @@ func ExampleSprintl_R() {
 		"WHERE",
 		"  %s = ?", // Line 6
 	).
-		R(2, ",", "name", "age", "height").
-		F(6, "name").
+		Rep(2, ",", "name", "age", "height").
+		Fmt(6, "name").
 		String()
 
 	fmt.Println(sql)
@@ -62,8 +104,32 @@ func ExampleSprintl_R() {
 	//   name = ?
 }
 
-func ExampleSprintl_G() {
-	genYears := func(f Formatter) (string, bool) {
+func ExampleSprintl_Rep_args() {
+	sql := Lines(
+		"SELECT",
+		"  %s AS %s", // Line 2
+		"FROM",
+		"  users",
+	).
+		Rep(2, ",",
+			[]any{"name", "player"},
+			[]any{"age", "level"},
+			[]any{"job", "role"},
+		).
+		String()
+
+	fmt.Println(sql)
+	// Output:
+	// SELECT
+	//   name AS player,
+	//   age AS level,
+	//   job AS role
+	// FROM
+	//   users
+}
+
+func ExampleSprintl_Gen() {
+	genYears := func(f LineFormat) (string, bool) {
 		line := f.Fmt(2020 + f.Index())
 		return line, true
 	}
@@ -74,7 +140,7 @@ func ExampleSprintl_G() {
 		"FROM",
 		"  sales_data",
 	).
-		G(2, ",", 5, genYears).
+		Gen(2, ",", 5, genYears).
 		String()
 
 	fmt.Println(sql)

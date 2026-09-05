@@ -11,8 +11,8 @@ func joinLines(lines ...string) string {
 	return strings.Join(lines, "\n")
 }
 
-func Test_Sprintl_F_1(t *testing.T) {
-	// Test F handles multiple formatted lines.
+func Test_Sprintl_Fmt_1(t *testing.T) {
+	// Test Fmt handles multiple formatted lines.
 
 	act := Lines(
 		"SELECT",
@@ -20,8 +20,8 @@ func Test_Sprintl_F_1(t *testing.T) {
 		"FROM",
 		"  %s",
 	).
-		F(2, "Name").
-		F(4, "Users").
+		Fmt(2, "Name").
+		Fmt(4, "Users").
 		String()
 
 	exp := joinLines(
@@ -34,8 +34,8 @@ func Test_Sprintl_F_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Sprintl_R_1(t *testing.T) {
-	// Test R accepts individual values.
+func Test_Sprintl_Range_1(t *testing.T) {
+	// Test Rep accepts individual values.
 
 	values := []any{
 		"Name",
@@ -48,7 +48,7 @@ func Test_Sprintl_R_1(t *testing.T) {
 		"  %s",
 		")",
 	).
-		R(2, "", values...).
+		Rep(2, "", values...).
 		String()
 
 	exp := joinLines(
@@ -62,8 +62,8 @@ func Test_Sprintl_R_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Sprintl_R_2(t *testing.T) {
-	// Test R accepts empty values.
+func Test_Sprintl_Range_2(t *testing.T) {
+	// Test Rep accepts empty values.
 
 	values := []any{
 		// Empty.
@@ -74,7 +74,7 @@ func Test_Sprintl_R_2(t *testing.T) {
 		"  %s",
 		")",
 	).
-		R(2, "", values...).
+		Rep(2, "", values...).
 		String()
 
 	exp := joinLines(
@@ -85,8 +85,8 @@ func Test_Sprintl_R_2(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Sprintl_R_3(t *testing.T) {
-	// Test R accepts args as values.
+func Test_Sprintl_Range_3(t *testing.T) {
+	// Test Rep accepts args as values.
 
 	values := []any{
 		[]any{1, "Name"},
@@ -99,7 +99,7 @@ func Test_Sprintl_R_3(t *testing.T) {
 		"  %d: %s",
 		")",
 	).
-		R(2, "", values...).
+		Rep(2, "", values...).
 		String()
 
 	exp := joinLines(
@@ -113,8 +113,8 @@ func Test_Sprintl_R_3(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Sprintl_R_4(t *testing.T) {
-	// Test R accepts delim values.
+func Test_Sprintl_Range_4(t *testing.T) {
+	// Test Rep accepts delim values.
 
 	values := []any{
 		"Name",
@@ -127,7 +127,7 @@ func Test_Sprintl_R_4(t *testing.T) {
 		"  %s",
 		")",
 	).
-		R(2, ",", values...).
+		Rep(2, ",", values...).
 		String()
 
 	exp := joinLines(
@@ -141,10 +141,10 @@ func Test_Sprintl_R_4(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Sprintl_G_1(t *testing.T) {
-	// Test G LineFormatter max iterations.
+func Test_Sprintl_Gen_1(t *testing.T) {
+	// Test Gen LineFormatter max iterations.
 
-	var gen LineFormatter = func(f Formatter) (string, bool) {
+	var gen LineFormatter = func(f LineFormat) (string, bool) {
 		n := f.Index() + 1
 		s := f.Fmt(n)
 		return s, true
@@ -155,7 +155,7 @@ func Test_Sprintl_G_1(t *testing.T) {
 		"  %d",
 		")",
 	).
-		G(2, ",", 3, gen).
+		Gen(2, ",", 3, gen).
 		String()
 
 	exp := joinLines(
@@ -169,10 +169,10 @@ func Test_Sprintl_G_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Sprintl_G_2(t *testing.T) {
-	// Test G LineFormatter returning false.
+func Test_Sprintl_Gen_2(t *testing.T) {
+	// Test Gen LineFormatter returning false.
 
-	var gen LineFormatter = func(f Formatter) (string, bool) {
+	var gen LineFormatter = func(f LineFormat) (string, bool) {
 		if f.Index() > 2 {
 			return "", false
 		}
@@ -187,7 +187,7 @@ func Test_Sprintl_G_2(t *testing.T) {
 		"  %d",
 		")",
 	).
-		G(2, ",", 10, gen).
+		Gen(2, ",", 10, gen).
 		String()
 
 	exp := joinLines(

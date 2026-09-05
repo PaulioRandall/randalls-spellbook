@@ -4,10 +4,10 @@ import (
 	"strings"
 )
 
-// LineFormatter is passed to the [Sprintl.G] function to
+// LineFormatter is passed to the [Sprintl.Gen] function to
 // enable customised formatting.
 type LineFormatter func(
-	formatter Formatter,
+	formatter LineFormat,
 ) (
 	result string,
 	notEmpty bool,
@@ -19,7 +19,7 @@ type LineFormatter func(
 // object.
 type Sprintl struct {
 	lines      []string
-	formatters map[int]Formatter
+	formatters map[int]LineFormat
 }
 
 // Lines returns a new [Sprintl] object for formatting the
@@ -27,34 +27,36 @@ type Sprintl struct {
 func Lines(lines ...string) *Sprintl {
 	return &Sprintl{
 		lines:      lines,
-		formatters: map[int]Formatter{},
+		formatters: map[int]LineFormat{},
 	}
 }
 
-// F formatters the specified line using the passed values.
-func (s *Sprintl) F(
+// Fmt formatters the specified line using the passed
+// values.
+func (s *Sprintl) Fmt(
 	lineNum int,
 	values ...any,
 ) *Sprintl {
-	s.formatters[lineNum] = Formatter{
-		typ:      "F",
+	s.formatters[lineNum] = LineFormat{
+		typ:      "Fmt",
 		values:   values,
 		template: s.lines[lineNum-1],
 	}
 	return s
 }
 
-// R repeats the line for each value in values then appends
-// the delim to each, except the last line. The line
-// must contain a single placeholder, e.g. '%v'. Passing
-// an empty values array removes the line completely.
-func (s *Sprintl) R(
+// Rep repeats the line for each value in values then
+// appends the delim to each, except the last line. The
+// line must contain a single placeholder, e.g. '%v'.
+// Passing an empty values array removes the line
+// completely.
+func (s *Sprintl) Rep(
 	lineNum int,
 	delim string,
 	values ...any,
 ) *Sprintl {
-	s.formatters[lineNum] = Formatter{
-		typ:      "R",
+	s.formatters[lineNum] = LineFormat{
+		typ:      "Rep",
 		delim:    delim,
 		values:   values,
 		template: s.lines[lineNum-1],
@@ -62,18 +64,18 @@ func (s *Sprintl) R(
 	return s
 }
 
-// G calls generator repeatedly until either
+// Gen calls generator repeatedly until either
 // [LineFormatter] notEmpty return value is false or the
 // max iterations is reached. If notEmpty is false on the
 // first call, the line is removed completely.
-func (s *Sprintl) G(
+func (s *Sprintl) Gen(
 	lineNum int,
 	delim string,
 	max int,
 	generator LineFormatter,
 ) *Sprintl {
-	s.formatters[lineNum] = Formatter{
-		typ:       "G",
+	s.formatters[lineNum] = LineFormat{
+		typ:       "Gen",
 		delim:     delim,
 		max:       max,
 		generator: generator,
