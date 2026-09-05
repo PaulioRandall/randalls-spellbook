@@ -103,8 +103,8 @@ func (s *Sprintl) Gen(
 	return s
 }
 
-// Join may be called after [Sprintl.Rep], [Sprintl.Gen],
-// or [Sprintl.Join] to apply a delimiter to each line
+// Join may be called after [Sprintl.Dup], [Sprintl.Rep],
+// or [Sprintl.Gen] to apply a delimiter to each line
 // generated, except the last. This enables delimiter
 // separated values such as comma "," separated lists. Join
 // has no effect if called after [Sprintl.Fmt].
