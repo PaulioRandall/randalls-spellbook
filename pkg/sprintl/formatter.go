@@ -2,119 +2,150 @@ package sprintl
 
 import (
 	"fmt"
+	"strings"
 )
 
-// LineFormat holds information about a line formatting.
-// It is passed to [LineFormatter] functions when using the
-// [Sprintl.Gen] function.
-type LineFormat struct {
+// LineGenerator is passed to the [Sprintl.Gen] to enable
+// bespoke formatting.
+type LineGenerator func(
+	formatter LineFormatter,
+) (
+	result string,
+	notEmpty bool,
+)
+
+// LineFormatter holds information about a line's
+// formatting needs. It is passed to [LineGenerator]
+// functions when using the [Sprintl.Gen] function.
+type LineFormatter struct {
 	typ         string
 	prefix      string
 	delim       string
 	prefixDelim bool
+	trim        bool
 	values      []any
 	max         int
-	generator   LineFormatter
+	generator   LineGenerator
 	index       int
 	template    string
 }
 
-// Index returns the current index in the [Sprintl.Gen]
-// loop.
-func (f LineFormat) Index() int {
-	return f.index
+// Index returns the current repetition index.
+func (lf LineFormatter) Index() int {
+	return lf.index
 }
 
 // Prefix returns the prefix that should be prepended to
 // every line in a repetition. It may be empty.
-func (f LineFormat) Prefix() string {
-	return f.prefix
+func (lf LineFormatter) Prefix() string {
+	return lf.prefix
 }
 
 // Delim returns the join delimiter. It may be empty.
-func (f LineFormat) Delim() string {
-	return f.delim
+func (lf LineFormatter) Delim() string {
+	return lf.delim
 }
 
 // PrefixDelim returns true if the value returned by
-// [LineFormat.Delim] should be applied to the front of
+// [LineFormatter.Delim] should be applied to the front of
 // all lines except the first, instead of to the end of all
 // lines except the last.
-func (f LineFormat) PrefixDelim() bool {
-	return f.prefixDelim
+func (lf LineFormatter) PrefixDelim() bool {
+	return lf.prefixDelim
 }
 
-// Max returns the max number of times a [LineFormatter]
-// function will be called for a particular line. Only
-// applicable when using the [Sprintl.Gen] function.
-func (f LineFormat) Max() int {
-	return f.max
+// Max returns the max number of times a [LineGenerator]
+// function will be called for a particular line.
+func (lf LineFormatter) Max() int {
+	return lf.max
 }
 
-// Template returns the template line provided to the
-// [Lines] function.
-func (f LineFormat) Template() string {
-	return f.template
+// Template returns the template line of the current
+// iteration. It will be line indexed by
+// [LineFormatter.Index] in the argument passed to [Lines]
+// or [Split].
+func (lf LineFormatter) Template() string {
+	return lf.template
 }
 
 // Fmt is a convenience function for calling fmt.Sprintf
-// with the template as the template string.
-func (f LineFormat) Fmt(args ...any) string {
-	return fmt.Sprintf(f.template, args...)
+// with the template as the template string i.e. only pass
+// the args to this function.
+func (lf LineFormatter) Fmt(args ...any) string {
+	return fmt.Sprintf(lf.template, args...)
 }
 
-func (f LineFormat) apply() []string {
-	switch f.typ {
+func (lf LineFormatter) apply() []string {
+	switch lf.typ {
 	case "Fmt":
-		return f.applyF()
+		return lf.applyFmt()
+	case "Dup":
+		return lf.applyDup()
 	case "Rep":
-		return f.applyR()
+		return lf.applyRep()
 	case "Gen":
-		return f.applyG()
+		return lf.applyGen()
 	default:
-		msg := fmt.Sprintf("Unknown format type '%s'", f.typ)
+		msg := fmt.Sprintf("Unknown format type '%s'", lf.typ)
 		panic(msg)
 	}
 }
 
-func (f LineFormat) applyF() []string {
-	return []string{
-		fmt.Sprintf(f.template, f.values...),
+func (lf LineFormatter) applyFmt() []string {
+	lines := []string{
+		fmt.Sprintf(lf.template, lf.values...),
 	}
+	lf.trimLine(lines)
+	return lines
 }
 
-func (f LineFormat) applyR() []string {
-	lineCount := len(f.values)
-	lines := make([]string, lineCount, lineCount)
+func (lf LineFormatter) applyDup() []string {
+	lines := make([]string, lf.max, lf.max)
 
-	for i, v := range f.values {
-		f.index = i
-		lines[i] = f.format(f.template, v)
-		f.applyLineMods(lines)
+	for i := 0; i < lf.max; i++ {
+		lf.index = i
+		lines[i] = lf.format(lf.template, lf.values)
+		lf.applyLineMods(lines)
+		lf.trimLine(lines)
 	}
 
 	return lines
 }
 
-func (f LineFormat) applyG() []string {
+func (lf LineFormatter) applyRep() []string {
+	lineCount := len(lf.values)
+	lines := make([]string, lineCount, lineCount)
+
+	for i, v := range lf.values {
+		lf.index = i
+		lines[i] = lf.format(lf.template, v)
+		lf.applyLineMods(lines)
+		lf.trimLine(lines)
+	}
+
+	return lines
+}
+
+func (lf LineFormatter) applyGen() []string {
 	lines := []string{}
 
-	for i := 0; i < f.max; i++ {
-		f.index = i
-		line, ok := f.generator(f)
+	for i := 0; i < lf.max; i++ {
+		lf.index = i
+		line, ok := lf.generator(lf)
 
 		if !ok {
 			break
 		}
 
 		lines = append(lines, line)
-		f.applyLineMods(lines)
+		lf.applyLineMods(lines)
+		lf.trimLine(lines)
 	}
 
 	return lines
 }
 
-func (f LineFormat) format(
+func (lf LineFormatter) format(
 	template string,
 	value any,
 ) string {
@@ -125,19 +156,26 @@ func (f LineFormat) format(
 	}
 }
 
-func (f LineFormat) applyLineMods(lines []string) {
-	i := f.index
+func (lf LineFormatter) applyLineMods(lines []string) {
+	i := lf.index
 
 	if i <= 0 {
-		lines[i] = f.prefix + lines[i]
+		lines[i] = lf.prefix + lines[i]
 		return
 	}
 
-	if f.prefixDelim {
-		lines[i] = f.prefix + f.delim + lines[i]
+	if lf.prefixDelim {
+		lines[i] = lf.prefix + lf.delim + lines[i]
 		return
 	}
 
-	lines[i-1] += f.delim
-	lines[i] = f.prefix + lines[i]
+	lines[i-1] += lf.delim
+	lines[i] = lf.prefix + lines[i]
+}
+
+func (lf LineFormatter) trimLine(lines []string) {
+	if lf.trim {
+		i := lf.index
+		lines[i] = strings.TrimSpace(lines[i])
+	}
 }

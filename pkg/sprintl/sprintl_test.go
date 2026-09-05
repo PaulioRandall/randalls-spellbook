@@ -114,11 +114,11 @@ func Test_Sprintl_Rep_3(t *testing.T) {
 }
 
 func Test_Sprintl_Gen_1(t *testing.T) {
-	// Test Gen LineFormatter max iterations.
+	// Test Gen LineGenerator max iterations.
 
-	var gen LineFormatter = func(f LineFormat) (string, bool) {
-		n := f.Index() + 1
-		s := f.Fmt(n)
+	var gen LineGenerator = func(lf LineFormatter) (string, bool) {
+		n := lf.Index() + 1
+		s := lf.Fmt(n)
 		return s, true
 	}
 
@@ -142,15 +142,15 @@ func Test_Sprintl_Gen_1(t *testing.T) {
 }
 
 func Test_Sprintl_Gen_2(t *testing.T) {
-	// Test Gen LineFormatter returning false.
+	// Test Gen LineGenerator returning false.
 
-	var gen LineFormatter = func(f LineFormat) (string, bool) {
-		if f.Index() > 2 {
+	var gen LineGenerator = func(lf LineFormatter) (string, bool) {
+		if lf.Index() > 2 {
 			return "", false
 		}
 
-		n := f.Index() + 1
-		s := f.Fmt(n)
+		n := lf.Index() + 1
+		s := lf.Fmt(n)
 		return s, true
 	}
 
@@ -215,38 +215,36 @@ func Test_Sprintl_Marry_1(t *testing.T) {
 		"%s",
 	).
 		Rep(1, values...).
-		Marry("and ").
+		Marry("• ", "and ").
 		String()
 
 	exp := joinLines(
-		"name",
-		"and age",
-		"and height",
+		"• name",
+		"• and age",
+		"• and height",
 	)
 
 	require.Equal(t, exp, act)
 }
 
-func Test_Sprintl_Prefix_1(t *testing.T) {
-	// Test Prefix applies the prefix to every line.
-
-	values := []any{
-		"name",
-		"age",
-		"height",
-	}
+func Test_Sprintl_Trim_1(t *testing.T) {
+	// Test Trim applies correctly.
 
 	act := Lines(
-		"%s",
+		"  %s %s %s  ", // Line 1
+		"  %s  ",       // Line 2
 	).
-		Rep(1, values...).
-		Prefix("• ").
+		Fmt(1, "A", "B", "C").
+		Trim().
+		Dup(2, 3, "D").
+		Trim().
 		String()
 
 	exp := joinLines(
-		"• name",
-		"• age",
-		"• height",
+		"A B C",
+		"D",
+		"D",
+		"D",
 	)
 
 	require.Equal(t, exp, act)

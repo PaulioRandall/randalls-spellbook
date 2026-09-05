@@ -5,10 +5,40 @@ import (
 )
 
 func Example() {
-	conditions := []string{
+	md := Lines(
+		"# TODO %s", // Line 1
+		"",
+		"• %s", // Line 3
+	).
+		Fmt(1, "Today").
+		Rep(3, "Play", "Eat", "Read", "Sleep").
+		String()
+
+	fmt.Println(md)
+	// Output:
+	// # TODO Today
+	//
+	// • Play
+	// • Eat
+	// • Read
+	// • Sleep
+}
+
+// Example usage with lots of parameters to show off
+// features. Most query formatting is not this complex.
+func Example_complex() {
+	props := []any{
+		"name",
+		"age",
+		"job",
+	}
+
+	table := "users"
+
+	filters := []any{
 		"name = ?",
-		"age = ?",
-		"job = ?",
+		"age < ?",
+		"job LIKE 'Master %'",
 	}
 
 	sql := Lines(
@@ -17,22 +47,14 @@ func Example() {
 		"FROM",
 		"  %s", // Line 4
 		"WHERE",
-		"  %s", // Line 6
+		"%s", // Line 6
 	).
-		Rep(2, "name", "age", "job").
+		Rep(2, props...).
 		Join(",").
-		Fmt(4, "users").
-		Gen(6, 2, func(f LineFormat) (string, bool) {
-			// The 2 above is the max number of repetitions.
-			cond := conditions[f.Index()]
-
-			if f.Index() > 0 {
-				cond = "AND " + cond
-			}
-
-			// Returning false will end repetition.
-			return f.Fmt(cond), true
-		})
+		Fmt(4, table).
+		Rep(6, filters...).
+		Marry("  ", "AND ").
+		String()
 
 	fmt.Println(sql)
 	// Output:
@@ -44,7 +66,8 @@ func Example() {
 	//   users
 	// WHERE
 	//   name = ?
-	//   AND age = ?
+	//   AND age < ?
+	//   AND job LIKE 'Master %'
 }
 
 func ExampleLines() {
@@ -80,6 +103,40 @@ func ExampleSprintl_Fmt() {
 	//   year = 2025
 }
 
+func ExampleSprintl_Dup() {
+	sql := Lines(
+		"SELECT",
+		"  name,",
+		"  age,",
+		"  job",
+		"FROM",
+		"  users",
+		"WHERE",
+		"  name IN [",
+		"    %s", // Line 9
+		"  ]",
+	).
+		Dup(9, 4, "?").
+		Join(",").
+		String()
+
+	fmt.Println(sql)
+	// Output:
+	// SELECT
+	//   name,
+	//   age,
+	//   job
+	// FROM
+	//   users
+	// WHERE
+	//   name IN [
+	//     ?,
+	//     ?,
+	//     ?,
+	//     ?
+	//   ]
+}
+
 func ExampleSprintl_Rep() {
 	sql := Lines(
 		"SELECT",
@@ -89,7 +146,7 @@ func ExampleSprintl_Rep() {
 		"WHERE",
 		"  %s = ?", // Line 6
 	).
-		Rep(2, "name", "age", "height").
+		Rep(2, "name", "age", "job").
 		Join(",").
 		Fmt(6, "name").
 		String()
@@ -99,7 +156,7 @@ func ExampleSprintl_Rep() {
 	// SELECT
 	//   name,
 	//   age,
-	//   height
+	//   job
 	// FROM
 	//   users
 	// WHERE
@@ -132,7 +189,7 @@ func ExampleSprintl_Rep_args() {
 }
 
 func ExampleSprintl_Gen() {
-	genYears := func(f LineFormat) (string, bool) {
+	genYears := func(f LineFormatter) (string, bool) {
 		line := f.Fmt(2020 + f.Index())
 		return line, true
 	}
@@ -181,31 +238,6 @@ func ExampleSprintl_Join() {
 }
 
 func ExampleSprintl_Marry() {
-	props := []any{
-		"name",
-		"age",
-		"job",
-	}
-
-	md := Lines(
-		"# Player Properties",
-		"",
-		"%s", // Line 3
-	).
-		Rep(3, props...).
-		Marry("and ").
-		String()
-
-	fmt.Println(md)
-	// Output:
-	// # Player Properties
-	//
-	// name
-	// and age
-	// and job
-}
-
-func ExampleSprintl_Prefix() {
 	filters := []any{
 		"name",
 		"age",
@@ -223,8 +255,7 @@ func ExampleSprintl_Prefix() {
 		"%s = ?", // Line 8
 	).
 		Rep(8, filters...).
-		Marry("AND ").
-		Prefix("  ").
+		Marry("  ", "AND ").
 		String()
 
 	fmt.Println(sql)
@@ -239,4 +270,64 @@ func ExampleSprintl_Prefix() {
 	//   name = ?
 	//   AND age = ?
 	//   AND job = ?
+}
+
+func ExampleSprintl_TrimSpace() {
+	sql := Lines(
+		"",
+		"SELECT",
+		"  name",
+		"FROM",
+		"  users",
+		"",
+	).
+		TrimSpace().
+		String()
+
+	fmt.Println(sql)
+	// Output:
+	// SELECT
+	//   name
+	// FROM
+	//   users
+}
+
+func ExampleSprintl_TrimLines() {
+	sql := Lines(
+		"  SELECT  ",
+		"  name  ",
+		"  FROM  ",
+		"  users  ",
+	).
+		TrimLines().
+		String()
+
+	fmt.Println(sql)
+	// Output:
+	// SELECT
+	// name
+	// FROM
+	// users
+}
+
+func ExampleSprintl_PruneLines() {
+	sql := Lines(
+		"   ",
+		"SELECT",
+		"  name",
+		"\f",
+		"		",
+		"FROM",
+		"  users",
+		"\r\n",
+	).
+		PruneLines().
+		String()
+
+	fmt.Println(sql)
+	// Output:
+	// SELECT
+	//   name
+	// FROM
+	//   users
 }
