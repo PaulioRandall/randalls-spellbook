@@ -2,7 +2,6 @@ package sprintl
 
 import (
 	"fmt"
-	"strings"
 )
 
 func Example() {
@@ -331,57 +330,4 @@ func ExampleSprintl_PruneLines() {
 	//   name
 	// FROM
 	//   users
-}
-
-// ********************************************************
-// ********************************************************
-// ********************************************************
-// findneedle
-
-func ExampleFindNeedle() {
-	haystack := `
-		alice,
-		bob,
-		charlie
-	`
-
-	nih := FindNeedle(haystack, "bob", 0)
-
-	msg := strings.Join(
-		[]string{
-			"'%s' appears in haystack at:",
-			"  Line: %d",
-			"  Line number: %d",
-			"  Line start: %d",
-			"  Line end: %d",
-			"  Needle start: %d",
-			"  Needle end: %d",
-			"  Inline start: %d",
-			"  Inline end: %d",
-		},
-		"\n",
-	)
-
-	fmt.Printf(
-		msg,
-		nih.Needle,
-		nih.LineIndex,
-		nih.LineNum(),
-		nih.LineStart,
-		nih.LineEnd,
-		nih.Start,
-		nih.End,
-		nih.InlineStart(),
-		nih.InlineEnd(),
-	)
-	// Output:
-	// 'bob' appears in haystack at:
-	//   Line: 2
-	//   Line number: 3
-	//   Line start: 10
-	//   Line end: 16
-	//   Needle start: 12
-	//   Needle end: 15
-	//   Inline start: 2
-	//   Inline end: 5
 }
