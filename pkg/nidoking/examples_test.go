@@ -7,38 +7,42 @@ import (
 
 func Example() {
 	haystack := `
-		alice,
-		bob,
-		charlie
-	`
+	alice,
+	😁bob,
+	charlie
+`
 
 	nih := FindNeedle(haystack, "bob", 0)
 	fmt.Println(nih.String())
-
 	// Output:
 	// NeedleInHaystack{
 	//   LineIndex: 2,
-	//   LineStart: 10,
-	//   LineEnd: 16,
-	//   Start: 12,
-	//   End: 15,
-	//   Needle: bob,
+	//   LineStart: 9,
+	//   LineEnd: 18,
+	//   Start: 14,
+	//   End: 17,
+	//   Needle: 'bob',
 	//   Haystack: <not printed>,
 	//   LineNum(): 3,
-	//   InlineStart(): 2,
-	//   InlineEnd(): 5,
+	//   InlineStart(): 5,
+	//   InlineEnd(): 8,
+	//   RuneLineStart(): 9,
+	//   RuneLineEnd(): 15,
+	//   RuneStart(): 11,
+	//   RuneEnd(): 14,
+	//   RuneInlineStart(): 2,
+	//   RuneInlineEnd(): 5,
 	// }
 }
 
 func ExampleNeedleInHaystack_FindNext() {
-	// The first and last lines are whitespace only.
-	// I missed it too when writing this example!
+	// Note: the first and last lines are whitespace only!
 	haystack := `
-		alice, bob, charlie,
-		bob, alice, charlie,
-		alice, charlie, bob
-		alice, bob, charlie
-	`
+	alice, bob, charlie,
+	bob, alice, charlie,
+	alice, charlie, bob
+	alice, bob, charlie
+`
 
 	var matches []NeedleInHaystack
 
@@ -62,18 +66,15 @@ func ExampleNeedleInHaystack_FindNext() {
 			nih.InlineEnd(),
 		)
 	}
-
 	// Output:
 	// Found 4 instances of 'bob'
-	// [0] line: 2 [9:12]
-	// [1] line: 3 [2:5]
-	// [2] line: 4 [18:21]
-	// [3] line: 5 [9:12]
+	// [0] line: 2 [8:11]
+	// [1] line: 3 [1:4]
+	// [2] line: 4 [17:20]
+	// [3] line: 5 [8:11]
 }
 
-func ExampleNeedleInHaystack_ReplaceNeedleFindNext() {
-	// The first and last lines are whitespace only.
-	// I missed it too when writing this example!
+func ExampleNeedleInHaystack_ReplaceFindNext() {
 	haystack := `
 		alice, bob, charlie,
 		bob, alice, charlie,
@@ -82,17 +83,12 @@ func ExampleNeedleInHaystack_ReplaceNeedleFindNext() {
 	`
 
 	nih := FindNeedle(haystack, "bob", 0)
-
 	for nih != (NeedleInHaystack{}) {
-		haystack = nih.ReplaceNeedle("dave")
-
-		// Calling nih.FindNext will not produce the same
-		// result because it won't use the updated haystack!
-		nih = nih.ReplaceNeedleFindNext("dave")
+		haystack = nih.Replace("dave")
+		nih = nih.ReplaceFindNext("dave")
 	}
 
 	fmt.Print(trimLines(haystack))
-
 	// Output:
 	// alice, dave, charlie,
 	// dave, alice, charlie,
@@ -100,35 +96,30 @@ func ExampleNeedleInHaystack_ReplaceNeedleFindNext() {
 	// alice, dave, charlie
 }
 
-func ExampleNeedleInHaystack_ReplaceNeedleFindNext_diff() {
-	// The first and last lines are whitespace only.
-	// I missed it too when writing this example!
-	haystack := `
-		alice, bob, charlie
-		bob, alice, charlie
-	`
-
-	nih := FindNeedle(haystack, "bob", 0)
-
+// Shows how the haystack differs between the result
+// objects of ReplaceFindNext and FindNext.
+func ExampleNeedleInHaystack_ReplaceFindNext_diff() {
 	getTrimmedFirstLine := func(haystack string) string {
 		haystack = strings.TrimSpace(haystack)
 		return strings.Split(haystack, "\n")[0]
 	}
 
-	a := nih.ReplaceNeedle("dave") // Returns new haystack
-	b := nih.ReplaceNeedleFindNext("dave").Haystack
-	c := nih.FindNext().Haystack
+	haystack := `
+	alice, bob, charlie
+	bob, alice, charlie
+`
+
+	nih := FindNeedle(haystack, "bob", 0)
+
+	a := nih.ReplaceFindNext("dave").Haystack
+	b := nih.FindNext().Haystack
 
 	a = getTrimmedFirstLine(a)
 	b = getTrimmedFirstLine(b)
-	c = getTrimmedFirstLine(c)
 
-	fmt.Printf("'%s' (ReplaceNeedle)\n", a)
-	fmt.Printf("'%s' (ReplaceNeedleFindNext)\n", b)
-	fmt.Printf("'%s'  (FindNext)\n", c)
-
+	fmt.Printf("'%s' (ReplaceFindNext)\n", a)
+	fmt.Printf("'%s'  (FindNext)\n", b)
 	// Output:
-	// 'alice, dave, charlie' (ReplaceNeedle)
-	// 'alice, dave, charlie' (ReplaceNeedleFindNext)
+	// 'alice, dave, charlie' (ReplaceFindNext)
 	// 'alice, bob, charlie'  (FindNext)
 }

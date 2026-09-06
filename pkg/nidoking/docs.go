@@ -1,4 +1,3 @@
-// Package nidoking is a simple string search package with
-// functionality focusing on the line that search results
-// are found on.
+// Package nidoking provides string searching with
+// additional functionality operating on lines and runes.
 package nidoking
