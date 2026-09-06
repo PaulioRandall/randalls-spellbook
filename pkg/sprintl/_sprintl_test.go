@@ -249,3 +249,63 @@ func Test_Sprintl_Trim_1(t *testing.T) {
 
 	require.Equal(t, exp, act)
 }
+
+func Test_Sprintl_Map_1(t *testing.T) {
+	// Test Map inserts basic values.
+
+	act := Split(`
+		SELECT
+			{{field_name}}
+		FROM
+			{{table_name}}
+		LIMIT
+			{{max_rows}}
+	`).
+		Map("field_name", "name").
+		Map("table_name", "players").
+		Map("max_rows", 10).
+		String()
+
+	exp := `
+		SELECT
+			name
+		FROM
+			players
+		LIMIT
+			10
+	`
+
+	require.Equal(t, exp, act)
+}
+
+func Test_Sprintl_Map_2(t *testing.T) {
+	// Test Map inserts array or slice values.
+	// Test values delimited by delimiter.
+
+	fields := []string{
+		"name",
+		"age",
+		"job",
+	}
+
+	act := Split(`
+		SELECT
+			{{fields}}
+		FROM
+			players
+	`).
+		Map("fields", fields).
+		MapJoin(",").
+		String()
+
+	exp := `
+		SELECT
+			name,
+			age,
+			job
+		FROM
+			players
+	`
+
+	require.Equal(t, exp, act)
+}

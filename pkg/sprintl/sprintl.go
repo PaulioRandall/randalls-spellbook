@@ -1,8 +1,20 @@
 package sprintl
 
 import (
+	"fmt"
+	"reflect"
+	"regexp"
 	"strings"
 )
+
+type stringer interface {
+	String() string
+}
+
+type mapValue struct {
+	value any
+	delim string
+}
 
 // Sprintl is the core type. It's public so you can pass it
 // around if need, but it's intended for quick local use
@@ -15,6 +27,9 @@ type Sprintl struct {
 	prune        bool
 	lines        []string
 	formatters   map[int]LineFormatter
+	// Mappings
+	priorMapName string
+	mappings     map[string]mapValue
 }
 
 // Lines returns a new [Sprintl] object for formatting the
@@ -23,6 +38,7 @@ func Lines(lines ...string) *Sprintl {
 	return &Sprintl{
 		lines:      lines,
 		formatters: map[int]LineFormatter{},
+		mappings:   map[string]mapValue{},
 	}
 }
 
@@ -32,7 +48,39 @@ func Split(s string) *Sprintl {
 	return &Sprintl{
 		lines:      strings.Split(s, "\n"),
 		formatters: map[int]LineFormatter{},
+		mappings:   map[string]mapValue{},
 	}
+}
+
+// Map maps a value to a name which is referenceable within
+// the template string.
+//
+// If the value is a struct then only its exported fields
+// can be referenced. If the value is an array or slice
+// then it can only be used in loop blocks. When replacing
+// a value it is first checked for a String function. If
+// it doesn't have one it will be stringified via
+// fmt.Sprintf("%v", value).
+func (s *Sprintl) Map(name string, value any) *Sprintl {
+	s.mappings[name] = mapValue{
+		value: value,
+	}
+	s.priorMapName = name
+	return s
+}
+
+// MapJoin sets the join delimiter for the last mapping
+// set via the [Sprintl.Map] function. If the function has
+// yet to be called then panic ensues.
+func (s *Sprintl) MapJoin(delim string) *Sprintl {
+	if s.priorMapName == "" {
+		panic("Sprintl.Map must be called before Sprintl.MapJoin")
+	}
+
+	mv := s.mappings[s.priorMapName]
+	mv.delim = delim
+	s.mappings[s.priorMapName] = mv
+	return s
 }
 
 // Fmt format the specified line using the passed
@@ -199,6 +247,8 @@ func (s *Sprintl) String() string {
 	}
 
 	str := strings.Join(lines, "\n")
+	str = s.applyMappings(str)
+
 	if s.trim {
 		return strings.TrimSpace(str)
 	}
@@ -225,6 +275,72 @@ func applyLineFormatters(
 	}
 
 	return result
+}
+
+func (s *Sprintl) applyMappings(text string) string {
+	for name, mapValue := range s.mappings {
+		text = applyMapping(text, name, mapValue)
+	}
+	return text
+}
+
+func applyMapping(
+	text string,
+	name string,
+	mv mapValue,
+) string {
+	p := "\\{\\{" + name + "\\}\\}"
+	r := regexp.MustCompile(p)
+	var s string
+
+	if IsArrayOrSlice(mv.value) {
+		//s = repeatLine(text, name, mv)
+	} else {
+		s = stringifyValue(mv.value)
+	}
+
+	return r.ReplaceAllString(text, s)
+}
+
+func IsArrayOrSlice(v any) bool {
+	k := reflect.TypeOf(v).Kind()
+	return k == reflect.Array || k == reflect.Slice
+}
+
+func repeatLine(mv mapValue) string {
+	strValues := stringifyMapValues(mv)
+	return strings.Join(strValues, mv.delim+"\n")
+}
+
+func stringifyMapValues(mv mapValue) []string {
+	refValue := reflect.ValueOf(mv.value)
+	result := make([]string, refValue.Len())
+
+	for i := 0; i < refValue.Len(); i++ {
+		v := refValue.Index(i).Interface()
+		result[i] = stringifyValue(v)
+	}
+
+	return result
+}
+
+func toAnySlice(values any) []any {
+	refValue := reflect.ValueOf(values)
+	result := make([]any, refValue.Len())
+
+	for i := 0; i < refValue.Len(); i++ {
+		result[i] = refValue.Index(i).Interface()
+	}
+
+	return result
+}
+
+func stringifyValue(value any) string {
+	if obj, ok := value.(stringer); ok {
+		return obj.String()
+	}
+
+	return fmt.Sprintf("%v", value)
 }
 
 func trimLines(lines []string) {
