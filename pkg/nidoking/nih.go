@@ -166,6 +166,26 @@ func (nih NeedleInHaystack) ReplaceLine(
 	return hay[:nih.LineStart] + text + hay[nih.LineEnd:]
 }
 
+// ReplaceList makes a copy of the line and replaces the
+// needle for each string in texts. The original line is
+// removed.
+func (nih NeedleInHaystack) ReplaceList(
+	texts []string,
+) string {
+	lines := make([]string, len(texts), len(texts))
+	inStart := nih.InlineStart()
+	inEnd := nih.InlineEnd()
+	line := nih.LineText()
+
+	for i, s := range texts {
+		lines[i] = line[:inStart] + s + line[inEnd:]
+	}
+
+	newValue := strings.Join(lines, "\n")
+	hay := nih.Haystack
+	return hay[:nih.LineStart] + newValue + hay[nih.LineEnd:]
+}
+
 // RemoveLine removes the whole line the needle was found
 // on and returns the updated haystack.
 func (nih NeedleInHaystack) RemoveLine() string {

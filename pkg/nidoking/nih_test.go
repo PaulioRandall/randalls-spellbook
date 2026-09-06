@@ -90,6 +90,25 @@ func Test_NeedleInHaystack_ReplaceLine_1(t *testing.T) {
 	require.Equal(t, exp, nihBob.ReplaceLine("****dave****,"))
 }
 
+func Test_NeedleInHaystack_ReplaceList_1(t *testing.T) {
+	// NeedleInHaystack.ReplaceList happy path.
+	list := []string{
+		"jen",
+		"frank",
+		"ruby",
+	}
+
+	exp := `
+		alice,
+		jen,
+		frank,
+		ruby,
+		charlie
+	`
+
+	require.Equal(t, exp, nihBob.ReplaceList(list))
+}
+
 func Test_NeedleInHaystack_RemoveLine_1(t *testing.T) {
 	// NeedleInHaystack.RemoveLine happy path.
 	exp := `

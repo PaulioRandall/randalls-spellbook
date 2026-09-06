@@ -3,8 +3,9 @@ package sprintl
 import (
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 )
 
 type stringer interface {
@@ -279,6 +280,7 @@ func applyLineFormatters(
 
 func (s *Sprintl) applyMappings(text string) string {
 	for name, mapValue := range s.mappings {
+
 		text = applyMapping(text, name, mapValue)
 	}
 	return text
@@ -289,17 +291,46 @@ func applyMapping(
 	name string,
 	mv mapValue,
 ) string {
-	p := "\\{\\{" + name + "\\}\\}"
-	r := regexp.MustCompile(p)
-	var s string
-
 	if IsArrayOrSlice(mv.value) {
-		//s = repeatLine(text, name, mv)
-	} else {
-		s = stringifyValue(mv.value)
+		return applyLineMapping(text, name, mv)
+	}
+	return applyValueMapping(text, name, mv)
+}
+
+func createSearchString(name string) string {
+	return "{{" + name + "}}"
+}
+
+func applyValueMapping(
+	text, name string,
+	mv mapValue,
+) string {
+	needle := createSearchString(name)
+	value := stringifyValue(mv.value)
+	nih := nidoking.FindNeedle(text, needle, 0)
+
+	for nih != (nidoking.NeedleInHaystack{}) {
+		nih = nih.ReplaceFindNext(value)
 	}
 
-	return r.ReplaceAllString(text, s)
+	return text
+}
+
+func applyLineMapping(
+	text, name string,
+	mv mapValue,
+) string {
+	needle := createSearchString(name)
+	//values := stringifySliceValues(mv)
+	nih := nidoking.FindNeedle(text, needle, 0)
+
+	// TODO
+
+	for nih != (nidoking.NeedleInHaystack{}) {
+		//nih = nih.ReplaceLineFindNext(line)
+	}
+
+	return ""
 }
 
 func IsArrayOrSlice(v any) bool {
@@ -307,12 +338,7 @@ func IsArrayOrSlice(v any) bool {
 	return k == reflect.Array || k == reflect.Slice
 }
 
-func repeatLine(mv mapValue) string {
-	strValues := stringifyMapValues(mv)
-	return strings.Join(strValues, mv.delim+"\n")
-}
-
-func stringifyMapValues(mv mapValue) []string {
+func stringifySliceValues(mv mapValue) []string {
 	refValue := reflect.ValueOf(mv.value)
 	result := make([]string, refValue.Len())
 
