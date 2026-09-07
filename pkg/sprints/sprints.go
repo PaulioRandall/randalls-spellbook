@@ -3,7 +3,6 @@ package sprints
 import (
 	"fmt"
 	"reflect"
-	"slices"
 	"strings"
 )
 
@@ -11,63 +10,102 @@ const (
 	OptionShowUnexported = "OptionShowUnexported"
 )
 
-type fmtOptions struct {
+var (
+	ErrBadIndentCount = fmt.Errorf(
+		"Integer must follow OptionIndent",
+	)
+)
+
+type fmtCtx struct {
 	unexported bool
 }
 
-func parseOptions(options []string) fmtOptions {
-	opts := fmtOptions{}
+func parseOptions(options []string) fmtCtx {
+	ctx := fmtCtx{}
 
-	if slices.Contains(options, OptionShowUnexported) {
-		opts.unexported = true
+	for i := 0; i < len(options); i++ {
+		op := options[i]
+
+		if op == OptionShowUnexported {
+			ctx.unexported = true
+			continue
+		}
 	}
 
-	return opts
+	return ctx
 }
 
 type strb struct {
-	strings.Builder
+	builder strings.Builder
 }
 
 func (sb *strb) fmt(msg string, args ...any) {
 	s := fmt.Sprintf(msg, args...)
-	sb.WriteString(s)
+	sb.builder.WriteString(s)
+}
+
+func (sb *strb) lnfmt(msg string, args ...any) {
+	s := fmt.Sprintf(msg, args...)
+	sb.builder.WriteRune('\n')
+	sb.builder.WriteString(s)
+}
+
+func (sb *strb) lnstr(s string) {
+	sb.builder.WriteRune('\n')
+	sb.builder.WriteString(s)
+}
+
+func (sb *strb) String() string {
+	return sb.builder.String()
 }
 
 // Print stringifies the object and prints it to terminal.
 func Print(object any, options ...string) {
-	s := stringifyObject(object, parseOptions(options))
-	fmt.Print(s)
+	sb := strb{}
+	stringifyObject(
+		&sb,
+		object,
+		parseOptions(options),
+	)
+	fmt.Print(sb.String())
 }
 
 // Println stringifies the object and prints it to
 // terminal followed by a linefeed.
 func Println(object any, options ...string) {
-	s := stringifyObject(object, parseOptions(options))
-	fmt.Println(s)
+	sb := strb{}
+	stringifyObject(
+		&sb,
+		object,
+		parseOptions(options),
+	)
+	fmt.Println(sb.String())
 }
 
 // String formats an objects into a string form similar
 // to the object's definition or instantiation. If a
 // non-struct kind is passed then panic ensues.
 func String(object any, options ...string) string {
-	return stringifyObject(
+	sb := strb{}
+	stringifyObject(
+		&sb,
 		object,
 		parseOptions(options),
 	)
+	return sb.String()
 }
 
-func stringifyObject(object any, opts fmtOptions) string {
+func stringifyObject(
+	sb *strb,
+	object any,
+	ctx fmtCtx,
+) {
 	val := reflect.ValueOf(object)
 	checkObjectType(val)
 
-	sb := &strb{}
-
-	sb.fmt("type %s struct {", val.Type().Name())
-	writeFields(sb, val, opts)
-	sb.WriteString("\n}")
-
-	return sb.String()
+	sb.fmt("%s {", val.Type().Name())
+	writeFields(sb, val, ctx)
+	sb.lnstr("}")
 }
 
 func checkObjectType(val reflect.Value) {
@@ -84,17 +122,20 @@ func checkObjectType(val reflect.Value) {
 func writeFields(
 	sb *strb,
 	structVal reflect.Value,
-	opts fmtOptions,
+	ctx fmtCtx,
 ) {
 	for field, fieldVal := range structVal.Fields() {
-		if !field.IsExported() && !opts.unexported {
+		if !field.IsExported() && !ctx.unexported {
 			continue
 		}
 
-		sb.fmt(
-			"\n\t%s: %v,",
+		sb.lnfmt(
+			"\t%s: %v,",
 			field.Name,
-			getPrintableValue(field, fieldVal),
+			getPrintableValue(
+				field,
+				fieldVal,
+			),
 		)
 	}
 }
@@ -108,6 +149,8 @@ func getPrintableValue(
 	}
 
 	switch field.Type.Kind() {
+	case reflect.Struct:
+		return field.Type.Name() + "{...}"
 	case reflect.String:
 		// TODO: If string is longer than say 40 bytes
 		//       then cut it off and append ...

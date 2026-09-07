@@ -15,12 +15,21 @@ type Player struct {
 	Name       string
 	Level      int
 	difficulty string
+	Role       Role
+}
+
+type Role struct {
+	Name      string
+	Strength  uint8
+	Stamina   uint8
+	Intellect uint8
 }
 
 var p = Player{
 	Name:       "Bob",
 	Level:      69,
 	difficulty: "Easy",
+	Role:       Role{},
 }
 
 func Test_Sprints_1(t *testing.T) {
@@ -29,9 +38,10 @@ func Test_Sprints_1(t *testing.T) {
 	act := String(p)
 
 	exp := joinLines(
-		`type Player struct {`,
+		`Player {`,
 		`	Name: "Bob",`,
 		`	Level: int(69),`,
+		`	Role: Role{...},`,
 		`}`,
 	)
 
@@ -44,10 +54,11 @@ func Test_Sprints_2(t *testing.T) {
 	act := String(p, OptionShowUnexported)
 
 	exp := joinLines(
-		`type Player struct {`,
+		`Player {`,
 		`	Name: "Bob",`,
 		`	Level: int(69),`,
 		`	difficulty: <unexported>,`,
+		`	Role: Role{...},`,
 		`}`,
 	)
 
