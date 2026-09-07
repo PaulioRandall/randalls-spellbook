@@ -15,7 +15,25 @@ func (sb *strb) fmt(msg string, args ...any) {
 	sb.WriteString(s)
 }
 
-func Sprints(object any) string {
+// Print stringifies the object and prints it to terminal.
+func Print(object any) {
+	fmt.Print(String(object))
+}
+
+// Println stringifies the object and prints it to
+// terminal followed by a linefeed.
+func Println(object any) {
+	fmt.Println(String(object))
+}
+
+// String formats an objects into a string form similar
+// to the object's definition or instantiation. If a
+// non-struct kind is passed then panic ensues.
+func String(object any) string {
+	return stringifyObject(object)
+}
+
+func stringifyObject(object any) string {
 	val := reflect.ValueOf(object)
 	checkObjectType(val)
 

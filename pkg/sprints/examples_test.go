@@ -15,7 +15,7 @@ func Example() {
 		unexported string
 	}
 
-	t := Types{
+	object := Types{
 		String:     "text",
 		Int:        69,
 		Int32:      69,
@@ -25,8 +25,10 @@ func Example() {
 		unexported: "Alright then, keep your secrets",
 	}
 
-	s := Sprints(t)
-	fmt.Print(s)
+	s := String(object)
+
+	// Alternatively use Println(object)
+	fmt.Println(s)
 	// Output:
 	// type Types struct {
 	// 	String: "text",

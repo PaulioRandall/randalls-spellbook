@@ -24,7 +24,7 @@ func Test_Sprints_1(t *testing.T) {
 		difficulty: "Hard",
 	}
 
-	act := Sprints(p)
+	act := String(p)
 
 	exp := joinLines(
 		`type Player struct {`,
