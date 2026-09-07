@@ -51,11 +51,6 @@ func ExampleNeedleInHaystack_FindNext() {
 		nih = nih.FindNext()
 	}
 
-	fmt.Printf(
-		"Found %d instances of 'bob'\n",
-		len(matches),
-	)
-
 	for i, nih := range matches {
 		fmt.Printf(
 			"[%d] line: %d [%d:%d]\n",
@@ -66,7 +61,6 @@ func ExampleNeedleInHaystack_FindNext() {
 		)
 	}
 	// Output:
-	// Found 4 instances of 'bob'
 	// [0] line: 2 [8:11]
 	// [1] line: 3 [1:4]
 	// [2] line: 4 [17:20]

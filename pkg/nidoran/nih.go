@@ -8,23 +8,27 @@ import (
 // Replacement is the result of a replacement function
 // being called on [NeedleInHaystack].
 type Replacement struct {
-	// Nih is the original [NeedleInHaystack].
+	// Nih is the original NeedleInHaystack object.
 	Nih NeedleInHaystack
 
 	// Start is the byte index of the start of the replaced
-	// content within Haystack.
+	// content within Haystack. For line replacements this
+	// will be the start of the line. For inline replacements
+	// this will be the start of the needle.
 	Start int
 
 	// End is the byte index of the end of the replaced
-	// content within Haystack.
+	// content within Haystack. For line replacements this
+	// will be the end of the last added line. For inline
+	// replacements this will be the end of the new text.
 	End int
 
-	// The result of the replacement.
+	// The updated haystack.
 	Haystack string
 }
 
 // FindNext finds the next instance of the needle in the
-// haystack.
+// updated haystack.
 func (rep Replacement) FindNext() NeedleInHaystack {
 	return Find(rep.Haystack, rep.Nih.Needle, rep.End)
 }
@@ -41,15 +45,15 @@ type NeedleInHaystack struct {
 	// Byte index of the first character of the line.
 	LineStart int
 
-	// Byte index one past the last character of the line
-	// (exclusive, not including '\n').
+	// Byte index one past the last character of the line,
+	// i.e. not including '\n'.
 	LineEnd int
 
 	// Byte index of the first character of the search term.
 	Start int
 
 	// Byte index one past the last character of the search
-	// term (exclusive).
+	// term.
 	End int
 
 	// The substring.
@@ -160,15 +164,6 @@ func (nih NeedleInHaystack) RuneInlineEnd() int {
 	return nih.runeIndexLine(nih.InlineEnd())
 }
 
-// ReplaceInline replaces the instance of the needle with
-// text and returns a [Replacement] object.
-func (nih NeedleInHaystack) ReplaceInline(
-	text string,
-) Replacement {
-	nih.panicIfEmpty()
-	return nih.replacement(nih.Start, nih.End, text)
-}
-
 // ReplaceLine replaces the line the needle was found on
 // with text and returns a [Replacement] object.
 func (nih NeedleInHaystack) ReplaceLine(
@@ -187,12 +182,15 @@ func (nih NeedleInHaystack) ReplaceJoin(
 	delim string,
 ) Replacement {
 	nih.panicIfEmpty()
+	length := len(texts)
+
+	if length == 0 {
+		return nih.RemoveLine()
+	}
 
 	start := nih.InlineStart()
 	end := nih.InlineEnd()
 	line := nih.LineText()
-
-	length := len(texts)
 	lines := make([]string, length, length)
 
 	for i, s := range texts {
@@ -214,11 +212,14 @@ func (nih NeedleInHaystack) ReplaceRepeat(
 ) Replacement {
 	nih.panicIfEmpty()
 
+	if n == 0 {
+		return nih.RemoveLine()
+	}
+
 	start := nih.InlineStart()
 	end := nih.InlineEnd()
 	line := nih.LineText()
 	line = line[:start] + text + line[end:]
-
 	lines := make([]string, n, n)
 
 	for i := 0; i < n; i++ {
@@ -227,6 +228,15 @@ func (nih NeedleInHaystack) ReplaceRepeat(
 
 	s := strings.Join(lines, delim+"\n")
 	return nih.replacement(nih.LineStart, nih.LineEnd, s)
+}
+
+// ReplaceInline replaces the instance of the needle with
+// text and returns a [Replacement] object.
+func (nih NeedleInHaystack) ReplaceInline(
+	text string,
+) Replacement {
+	nih.panicIfEmpty()
+	return nih.replacement(nih.Start, nih.End, text)
 }
 
 // ReplaceInlineJoin joins a list of texts appending the
