@@ -61,6 +61,18 @@ func (tbl *Table) NonIdColumns() []Column {
 	return tbl.Columns[1:]
 }
 
+// ColumnNames returns all column names.
+func (tbl *Table) ColumnNames() []string {
+	count := len(tbl.Columns)
+	names := make([]string, count, count)
+
+	for i, col := range tbl.Columns {
+		names[i] = col.GoName
+	}
+
+	return names
+}
+
 // String returns the human readable string representation
 // of a Table.
 func (tbl *Table) String() string {

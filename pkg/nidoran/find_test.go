@@ -1,4 +1,4 @@
-package nidoking
+package nidoran
 
 import (
 	"testing"
@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_FindNeedle_1(t *testing.T) {
-	// FindNeedle finds the first needle given zero start.
+func Test_Find_1(t *testing.T) {
+	// Find finds the first needle given zero start.
 
 	haystack := `
 		alice,
@@ -15,7 +15,7 @@ func Test_FindNeedle_1(t *testing.T) {
 		charlie
 	`
 
-	act := FindNeedle(haystack, "bob", 0)
+	act := Find(haystack, "bob", 0)
 	exp := NeedleInHaystack{
 		LineIndex: 2,
 		LineStart: 10,
@@ -29,8 +29,8 @@ func Test_FindNeedle_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_FindNeedle_2(t *testing.T) {
-	// FindNeedle finds the first needle given non-zero
+func Test_Find_2(t *testing.T) {
+	// Find finds the first needle given non-zero
 	// start.
 
 	haystack := `
@@ -40,7 +40,7 @@ func Test_FindNeedle_2(t *testing.T) {
 		charlie
 	`
 
-	act := FindNeedle(haystack, "bob", 10)
+	act := Find(haystack, "bob", 10)
 	exp := NeedleInHaystack{
 		LineIndex: 3,
 		LineStart: 17,

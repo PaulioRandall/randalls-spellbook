@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoran"
 )
 
 type stringer interface {
@@ -307,9 +307,9 @@ func applyValueMapping(
 ) string {
 	needle := createSearchString(name)
 	//value := stringifyValue(mv.value)
-	nih := nidoking.FindNeedle(text, needle, 0)
+	nih := nidoran.Find(text, needle, 0)
 
-	for nih != (nidoking.NeedleInHaystack{}) {
+	for nih != (nidoran.NeedleInHaystack{}) {
 		//nih = nih.ReplaceFindNext(value)
 	}
 
@@ -322,11 +322,11 @@ func applyLineMapping(
 ) string {
 	needle := createSearchString(name)
 	//values := stringifySliceValues(mv)
-	nih := nidoking.FindNeedle(text, needle, 0)
+	nih := nidoran.Find(text, needle, 0)
 
 	// TODO
 
-	for nih != (nidoking.NeedleInHaystack{}) {
+	for nih != (nidoran.NeedleInHaystack{}) {
 		//nih = nih.ReplaceLineFindNext(line)
 	}
 

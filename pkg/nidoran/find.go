@@ -1,13 +1,14 @@
-package nidoking
+package nidoran
 
 import (
 	"strings"
 )
 
-// FindNeedle locates needle within haystack and returns a
+// Find locates needle within haystack and returns a
 // NeedleInHaystack. If no match is found then an empty
-// NeedleInHaystack is returned.
-func FindNeedle(
+// NeedleInHaystack is returned. If the needle contains
+// any linefeeds then panic ensues.
+func Find(
 	haystack, needle string,
 	startingAt int,
 ) NeedleInHaystack {

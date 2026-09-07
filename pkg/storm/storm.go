@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	_ "github.com/glebarez/go-sqlite"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoran"
 )
 
 var goKindToSqliteTypeMappings = map[reflect.Kind]string{
@@ -202,26 +204,29 @@ func (ss *Storm) createTable(table Table) error {
 func (ss *Storm) generateCreateTableSql(
 	tbl Table,
 ) (string, error) {
-	fb := fmtBuilder{}
-
-	s := joinLines(
-		"CREATE TABLE IF NOT EXISTS %s (",
-		"%s,",
-		"  PRIMARY KEY (%s)",
-		")",
-	)
-
-	strCols, e := generateList(tbl.Columns, ss.genColumnDef)
-	if e != nil {
-		return "", fmt.Errorf(
-			"Failed to generate CREATE TABLE SQL for table '%s': %w",
-			tbl.GoName,
-			e,
+	query := `
+		CREATE TABLE IF NOT EXISTS {{table}} (
+			{{columns}},
+		  PRIMARY KEY ({{id_column}})
 		)
-	}
+	`
 
-	fb.WriteFmt(s, tbl.GoName, strCols, tbl.IdColumn().GoName)
-	return fb.String(), nil
+	query = nidoran.
+		Find(query, "{{table}}", 0).
+		Replace(tbl.GoName).
+		Haystack
+
+	query = nidoran.
+		Find(query, "{{columns}}", 0).
+		ReplaceJoin(tbl.ColumnNames(), "").
+		Haystack
+
+	query = nidoran.
+		Find(query, "{{id_column}}", 0).
+		Replace(tbl.IdColumn().GoName).
+		Haystack
+
+	return query, nil
 }
 
 func (ss *Storm) genColumnDef(
@@ -365,27 +370,38 @@ func (ss *Storm) generateInsertRecordSql(
 		)
 	}
 
-	fb := fmtBuilder{}
+	// TODO: Temp
+	if rows > 1 {
+		panic("TODO: multiple inserts not yet supported")
+	}
 
-	columns, _ := generateList(tbl.Columns, ss.genColumn)
-	values, _ := generateList(tbl.Columns, ss.genQuestionMark)
+	query := `
+		INSERT INTO {{table}} (
+		  {{columns}}
+		)
+		VALUES (
+			{{values}}
+		)
+	`
 
-	s := joinLines(
-		"INSERT INTO %s (",
-		"%s",
-		")%s",
-	)
+	columns := tbl.ColumnNames()
 
-	sv := joinLines(
-		" VALUES (",
-		"%s",
-		")",
-	)
-	sv = fmt.Sprintf(sv, values)
-	sv = strings.Repeat(sv, rows)
+	query = nidoran.
+		Find(query, "{{table}}", 0).
+		Replace(tbl.GoName).
+		Haystack
 
-	fb.WriteFmt(s, tbl.GoName, columns, sv)
-	return fb.String(), nil
+	query = nidoran.
+		Find(query, "{{columns}}", 0).
+		ReplaceJoin(columns, ",").
+		Haystack
+
+	query = nidoran.
+		Find(query, "{{values}}", 0).
+		ReplaceRepeat("?", len(columns), ",").
+		Haystack
+
+	return query, nil
 }
 
 func (ss *Storm) genColumn(
@@ -477,32 +493,30 @@ func (ss *Storm) execUpdate(
 func (ss *Storm) generateUpdateRecordSql(
 	tbl Table,
 ) (string, error) {
-	fb := fmtBuilder{}
+	query := `
+		UPDATE
+			{{table}}
+		SET
+			{{columns}} = ?
+		WHERE
+			{{id_column}} = ?
+	`
+	query = nidoran.
+		Find(query, "{{table}}", 0).
+		Replace(tbl.GoName).
+		Haystack
 
-	nonIdColumns := tbl.NonIdColumns()
-	setters, _ := generateList(
-		nonIdColumns,
-		ss.genColumnSetter,
-	)
+	query = nidoran.
+		Find(query, "{{columns}}", 0).
+		ReplaceJoin(tbl.ColumnNames()[1:], ",").
+		Haystack
 
-	s := joinLines(
-		"UPDATE",
-		"  %s",
-		"SET",
-		"%s",
-		"WHERE",
-		"  %s = ?",
-	)
+	query = nidoran.
+		Find(query, "{{id_column}}", 0).
+		Replace(tbl.IdColumn().GoName).
+		Haystack
 
-	fb.WriteFmt(s, tbl.GoName, setters, tbl.IdColumn().GoName)
-	return fb.String(), nil
-}
-
-func (ss *Storm) genColumnSetter(
-	_ int,
-	col Column,
-) (string, error) {
-	return fmt.Sprintf("  %s = ?", col.GoName), nil
+	return query, nil
 }
 
 // SelectAll returns all records for the table associated
@@ -577,19 +591,24 @@ func (ss *Storm) querySelectAll(
 func (ss *Storm) generateSelectAllRecordsSql(
 	tbl Table,
 ) (string, error) {
-	fb := fmtBuilder{}
+	query := `
+		SELECT
+			{{columns}}
+		FROM
+			{{table}}
+	`
 
-	columns, _ := generateList(tbl.Columns, ss.genColumn)
+	query = nidoran.
+		Find(query, "{{columns}}", 0).
+		ReplaceJoin(tbl.ColumnNames(), ",").
+		Haystack
 
-	s := joinLines(
-		"SELECT",
-		"%s",
-		"FROM",
-		"  %s",
-	)
+	query = nidoran.
+		Find(query, "{{table}}", 0).
+		Replace(tbl.GoName).
+		Haystack
 
-	fb.WriteFmt(s, columns, tbl.GoName)
-	return fb.String(), nil
+	return query, nil
 }
 
 func (ss *Storm) scanSelectedRows(
@@ -780,21 +799,31 @@ func (ss *Storm) querySelectById(
 func (ss *Storm) generateSelectRecordByIdSql(
 	tbl Table,
 ) (string, error) {
-	fb := fmtBuilder{}
+	query := `
+		SELECT
+			{{columns}}
+		FROM
+			{{table}}
+		WHERE
+			{{id_column}} = ?
+	`
 
-	columns, _ := generateList(tbl.Columns, ss.genColumn)
+	query = nidoran.
+		Find(query, "{{columns}}", 0).
+		ReplaceJoin(tbl.ColumnNames(), ",").
+		Haystack
 
-	s := joinLines(
-		"SELECT",
-		"%s",
-		"FROM",
-		"  %s",
-		"WHERE",
-		"  %s = ?",
-	)
+	query = nidoran.
+		Find(query, "{{table}}", 0).
+		Replace(tbl.GoName).
+		Haystack
 
-	fb.WriteFmt(s, columns, tbl.GoName, tbl.IdColumn().GoName)
-	return fb.String(), nil
+	query = nidoran.
+		Find(query, "{{id_column}}", 0).
+		Replace(tbl.IdColumn().GoName).
+		Haystack
+
+	return query, nil
 }
 
 func getFirstItemIfArray(v any) (any, bool) {
@@ -889,17 +918,24 @@ func (ss *Storm) execDeleteById(
 func (ss *Storm) generateDeleteRecordByIdSql(
 	tbl Table,
 ) (string, error) {
-	fb := fmtBuilder{}
+	query := `
+		DELETE FROM
+			{{table}}
+		WHERE
+			{{id_column}} = ?
+	`
 
-	s := joinLines(
-		"DELETE FROM",
-		"  %s",
-		"WHERE",
-		"  %s = ?",
-	)
+	query = nidoran.
+		Find(query, "{{table}}", 0).
+		Replace(tbl.GoName).
+		Haystack
 
-	fb.WriteFmt(s, tbl.GoName, tbl.IdColumn().GoName)
-	return fb.String(), nil
+	query = nidoran.
+		Find(query, "{{id_column}}", 0).
+		Replace(tbl.IdColumn().GoName).
+		Haystack
+
+	return query, nil
 }
 
 // Drop removes a table from the database, deleting all
@@ -936,12 +972,15 @@ func (ss *Storm) Drop(model any) error {
 	return nil
 }
 
-func (ss *Storm) dropTable(table Table) error {
-	query := fmt.Sprintf(
-		"DROP TABLE IF EXISTS %s",
-		table.GoName,
-	)
-	_, e := ss.db.Exec(query, table.GoName)
+func (ss *Storm) dropTable(tbl Table) error {
+	query := `DROP TABLE IF EXISTS {{table}}`
+
+	query = nidoran.
+		Find(query, "{{table}}", 0).
+		Replace(tbl.GoName).
+		Haystack
+
+	_, e := ss.db.Exec(query)
 	return e
 }
 

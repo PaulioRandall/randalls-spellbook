@@ -1,4 +1,4 @@
-package nidoking
+package nidoran
 
 import (
 	"fmt"
@@ -26,14 +26,14 @@ type Replacement struct {
 // FindNext finds the next instance of the needle in the
 // haystack.
 func (rep Replacement) FindNext() NeedleInHaystack {
-	return FindNeedle(rep.Haystack, rep.Nih.Needle, rep.End)
+	return Find(rep.Haystack, rep.Nih.Needle, rep.End)
 }
 
 // NeedleInHaystack holds byte position information about
 // a substring (needle) within a bigger string (haystack).
-// It is returned by [FindNeedle], and provides functions
+// It is returned by [Find], and provides functions
 // for accessing rune and line positions, and a few
-// additional functions for common activities.
+// for replacing and removing the needle or its line.
 type NeedleInHaystack struct {
 	// Line index.
 	LineIndex int
@@ -165,6 +165,7 @@ func (nih NeedleInHaystack) RuneInlineEnd() int {
 func (nih NeedleInHaystack) Replace(
 	text string,
 ) Replacement {
+	nih.panicIfEmpty()
 	return nih.replacement(nih.Start, nih.End, text)
 }
 
@@ -173,27 +174,59 @@ func (nih NeedleInHaystack) Replace(
 func (nih NeedleInHaystack) ReplaceLine(
 	text string,
 ) Replacement {
+	nih.panicIfEmpty()
 	return nih.replacement(nih.LineStart, nih.LineEnd, text)
 }
 
-// ReplaceRepeat copies the line and replaces the needle
-// for each string in texts. The original line is removed.
-// Returns a [Replacement] object.
-func (nih NeedleInHaystack) ReplaceRepeat(
+// ReplaceJoin copies the line and replaces the needle
+// for each string in texts then adds the delim to the end
+// of the line, except the last. The original line is
+// removed. Returns a [Replacement] object.
+func (nih NeedleInHaystack) ReplaceJoin(
 	texts []string,
+	delim string,
 ) Replacement {
-	lines := make([]string, len(texts), len(texts))
+	nih.panicIfEmpty()
 
 	start := nih.InlineStart()
 	end := nih.InlineEnd()
 	line := nih.LineText()
 
+	length := len(texts)
+	lines := make([]string, length, length)
+
 	for i, s := range texts {
 		lines[i] = line[:start] + s + line[end:]
 	}
 
-	text := strings.Join(lines, "\n")
+	text := strings.Join(lines, delim+"\n")
 	return nih.replacement(nih.LineStart, nih.LineEnd, text)
+}
+
+// ReplaceRepeat copies the line n times, replaces the
+// needle with text, and adds the delim to the end of each
+// line, except the last. The original line is removed.
+// Returns a [Replacement] object.
+func (nih NeedleInHaystack) ReplaceRepeat(
+	text string,
+	n int,
+	delim string,
+) Replacement {
+	nih.panicIfEmpty()
+
+	start := nih.InlineStart()
+	end := nih.InlineEnd()
+	line := nih.LineText()
+	line = line[:start] + text + line[end:]
+
+	lines := make([]string, n, n)
+
+	for i := 0; i < n; i++ {
+		lines[i] = line
+	}
+
+	s := strings.Join(lines, delim+"\n")
+	return nih.replacement(nih.LineStart, nih.LineEnd, s)
 }
 
 // RemoveLine removes the whole line the needle was found
@@ -201,6 +234,8 @@ func (nih NeedleInHaystack) ReplaceRepeat(
 // removed using [NeedleInHaystack.ReplaceLine] function
 // as it doesn't remove linefeeds.
 func (nih NeedleInHaystack) RemoveLine() Replacement {
+	nih.panicIfEmpty()
+
 	rep := Replacement{
 		Nih:   nih,
 		Start: nih.LineStart,
@@ -228,7 +263,8 @@ func (nih NeedleInHaystack) RemoveLine() Replacement {
 // FindNext finds the next instance of the needle in the
 // haystack.
 func (nih NeedleInHaystack) FindNext() NeedleInHaystack {
-	return FindNeedle(nih.Haystack, nih.Needle, nih.End)
+	nih.panicIfEmpty()
+	return Find(nih.Haystack, nih.Needle, nih.End)
 }
 
 func (nih NeedleInHaystack) replacement(
@@ -253,6 +289,12 @@ func (nih NeedleInHaystack) runeIndexLine(end int) int {
 	return len([]rune(
 		nih.Haystack[nih.LineStart : nih.LineStart+end],
 	))
+}
+
+func (nih NeedleInHaystack) panicIfEmpty() {
+	if nih == (NeedleInHaystack{}) {
+		panic("Can't operate on empty NeedleInHaystack")
+	}
 }
 
 func joinLines(lines ...string) string {

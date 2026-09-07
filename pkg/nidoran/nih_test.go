@@ -1,4 +1,4 @@
-package nidoking
+package nidoran
 
 import (
 	"testing"
@@ -111,28 +111,76 @@ func Test_NeedleInHaystack_ReplaceLine_1(t *testing.T) {
 	require.Equal(t, exp, nihBob.ReplaceLine("****dave****,"))
 }
 
-func Test_NeedleInHaystack_ReplaceRepeat_1(t *testing.T) {
-	// NeedleInHaystack.ReplaceRepeat happy path.
-	list := []string{
-		"jen",
-		"frank",
-		"ruby",
+func Test_NeedleInHaystack_ReplaceJoin_1(t *testing.T) {
+	// NeedleInHaystack.ReplaceJoin happy path.
+	fields := []string{
+		"name",
+		"level",
+		"role",
 	}
 
+	haystack := `
+		SELECT
+			{{fields}}
+		FROM
+			players
+	`
+
+	nih := Find(haystack, "{{fields}}", 0)
+	rep := nih.ReplaceJoin(fields, ",")
+
 	exp := Replacement{
-		Nih:   nihBob,
+		Nih:   nih,
 		Start: 10,
-		End:   33,
+		End:   36,
 		Haystack: `
-		alice,
-		jen,
-		frank,
-		ruby,
-		charlie
+		SELECT
+			name,
+			level,
+			role
+		FROM
+			players
 	`,
 	}
 
-	require.Equal(t, exp, nihBob.ReplaceRepeat(list))
+	require.Equal(t, exp, rep)
+}
+
+func Test_NeedleInHaystack_ReplaceRepeat_1(t *testing.T) {
+	// NeedleInHaystack.ReplaceRepeat happy path.
+	haystack := `
+		INSERT INTO players (
+			name,
+			level,
+			role
+		)
+		VALUES (
+			{{values}}
+		)
+	`
+
+	nih := Find(haystack, "{{values}}", 0)
+	rep := nih.ReplaceRepeat("?", 3, ",")
+
+	exp := Replacement{
+		Nih:   nih,
+		Start: 67,
+		End:   83,
+		Haystack: `
+		INSERT INTO players (
+			name,
+			level,
+			role
+		)
+		VALUES (
+			?,
+			?,
+			?
+		)
+	`,
+	}
+
+	require.Equal(t, exp, rep)
 }
 
 func Test_NeedleInHaystack_RemoveLine_1(t *testing.T) {
@@ -159,7 +207,7 @@ func Test_NeedleInHaystack_FindNext_1(t *testing.T) {
 		alice, bob, charlie
 	`
 
-	nih := FindNeedle(haystack, "bob", 0)
+	nih := Find(haystack, "bob", 0)
 
 	exp := NeedleInHaystack{
 		LineIndex: 4,

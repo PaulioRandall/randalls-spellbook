@@ -1,4 +1,4 @@
-package nidoking
+package nidoran
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ func Example() {
 	charlie
 `
 
-	nih := FindNeedle(haystack, "bob", 0)
+	nih := Find(haystack, "bob", 0)
 	fmt.Println(nih.String())
 	// Output:
 	// NeedleInHaystack{
@@ -45,7 +45,7 @@ func ExampleNeedleInHaystack_FindNext() {
 
 	var matches []NeedleInHaystack
 
-	nih := FindNeedle(haystack, "bob", 0)
+	nih := Find(haystack, "bob", 0)
 	for nih != (NeedleInHaystack{}) {
 		matches = append(matches, nih)
 		nih = nih.FindNext()
@@ -84,7 +84,7 @@ func ExampleNeedleInHaystack_Replace() {
 	var nih NeedleInHaystack
 	var rep Replacement
 
-	nih = FindNeedle(haystack, "bob", 0)
+	nih = Find(haystack, "bob", 0)
 	for nih != (NeedleInHaystack{}) {
 		rep = nih.Replace("dave")
 		nih = rep.FindNext()
@@ -98,30 +98,32 @@ func ExampleNeedleInHaystack_Replace() {
 	// alice, dave, charlie
 }
 
-func ExampleNeedleInHaystack_ReplaceRepeat() {
-	haystack := `
-		alice,
-		bob,
-		charlie
-	`
+func ExampleNeedleInHaystack_ReplaceJoin() {
+	haystack := joinLines(
+		"SELECT",
+		"	{{columns}}",
+		"FROM",
+		"	players",
+	)
 
-	newNames := []string{
-		"jen",
-		"frank",
-		"ruby",
+	columns := []string{
+		"name",
+		"level",
+		"role",
 	}
 
 	var nih NeedleInHaystack
 	var rep Replacement
 
-	nih = FindNeedle(haystack, "bob", 0)
-	rep = nih.ReplaceRepeat(newNames)
+	nih = Find(haystack, "{{columns}}", 0)
+	rep = nih.ReplaceJoin(columns, ",")
 
-	fmt.Print(trimLines(rep.Haystack))
+	fmt.Print(rep.Haystack)
 	// Output:
-	// alice,
-	// jen,
-	// frank,
-	// ruby,
-	// charlie
+	// SELECT
+	// 	name,
+	// 	level,
+	// 	role
+	// FROM
+	// 	players
 }
