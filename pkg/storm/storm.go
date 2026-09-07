@@ -213,7 +213,7 @@ func (ss *Storm) generateCreateTableSql(
 
 	query = nidoran.
 		Find(query, "{{table}}", 0).
-		Replace(tbl.GoName).
+		ReplaceInline(tbl.GoName).
 		Haystack
 
 	query = nidoran.
@@ -223,7 +223,7 @@ func (ss *Storm) generateCreateTableSql(
 
 	query = nidoran.
 		Find(query, "{{id_column}}", 0).
-		Replace(tbl.IdColumn().GoName).
+		ReplaceInline(tbl.IdColumn().GoName).
 		Haystack
 
 	return query, nil
@@ -388,7 +388,7 @@ func (ss *Storm) generateInsertRecordSql(
 
 	query = nidoran.
 		Find(query, "{{table}}", 0).
-		Replace(tbl.GoName).
+		ReplaceInline(tbl.GoName).
 		Haystack
 
 	query = nidoran.
@@ -503,7 +503,7 @@ func (ss *Storm) generateUpdateRecordSql(
 	`
 	query = nidoran.
 		Find(query, "{{table}}", 0).
-		Replace(tbl.GoName).
+		ReplaceInline(tbl.GoName).
 		Haystack
 
 	query = nidoran.
@@ -513,7 +513,7 @@ func (ss *Storm) generateUpdateRecordSql(
 
 	query = nidoran.
 		Find(query, "{{id_column}}", 0).
-		Replace(tbl.IdColumn().GoName).
+		ReplaceInline(tbl.IdColumn().GoName).
 		Haystack
 
 	return query, nil
@@ -605,7 +605,7 @@ func (ss *Storm) generateSelectAllRecordsSql(
 
 	query = nidoran.
 		Find(query, "{{table}}", 0).
-		Replace(tbl.GoName).
+		ReplaceInline(tbl.GoName).
 		Haystack
 
 	return query, nil
@@ -815,12 +815,12 @@ func (ss *Storm) generateSelectRecordByIdSql(
 
 	query = nidoran.
 		Find(query, "{{table}}", 0).
-		Replace(tbl.GoName).
+		ReplaceInline(tbl.GoName).
 		Haystack
 
 	query = nidoran.
 		Find(query, "{{id_column}}", 0).
-		Replace(tbl.IdColumn().GoName).
+		ReplaceInline(tbl.IdColumn().GoName).
 		Haystack
 
 	return query, nil
@@ -927,12 +927,12 @@ func (ss *Storm) generateDeleteRecordByIdSql(
 
 	query = nidoran.
 		Find(query, "{{table}}", 0).
-		Replace(tbl.GoName).
+		ReplaceInline(tbl.GoName).
 		Haystack
 
 	query = nidoran.
 		Find(query, "{{id_column}}", 0).
-		Replace(tbl.IdColumn().GoName).
+		ReplaceInline(tbl.IdColumn().GoName).
 		Haystack
 
 	return query, nil
@@ -977,7 +977,7 @@ func (ss *Storm) dropTable(tbl Table) error {
 
 	query = nidoran.
 		Find(query, "{{table}}", 0).
-		Replace(tbl.GoName).
+		ReplaceInline(tbl.GoName).
 		Haystack
 
 	_, e := ss.db.Exec(query)

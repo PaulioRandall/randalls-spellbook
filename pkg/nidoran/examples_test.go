@@ -73,7 +73,7 @@ func ExampleNeedleInHaystack_FindNext() {
 	// [3] line: 5 [8:11]
 }
 
-func ExampleNeedleInHaystack_Replace() {
+func ExampleNeedleInHaystack_ReplaceInline() {
 	haystack := `
 		alice, bob, charlie,
 		bob, alice, charlie,
@@ -86,7 +86,7 @@ func ExampleNeedleInHaystack_Replace() {
 
 	nih = Find(haystack, "bob", 0)
 	for nih != (NeedleInHaystack{}) {
-		rep = nih.Replace("dave")
+		rep = nih.ReplaceInline("dave")
 		nih = rep.FindNext()
 	}
 

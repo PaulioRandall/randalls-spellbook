@@ -81,8 +81,8 @@ func Test_NeedleInHaystack_RuneInlineEnd_1(t *testing.T) {
 	require.Equal(t, 4, nihJen.RuneInlineEnd())
 }
 
-func Test_NeedleInHaystack_Replace_1(t *testing.T) {
-	// NeedleInHaystack.Replace happy path.
+func Test_NeedleInHaystack_ReplaceInline_1(t *testing.T) {
+	// NeedleInHaystack.ReplaceInline happy path.
 	exp := Replacement{
 		Nih:   nihBob,
 		Start: 12,
@@ -93,7 +93,7 @@ func Test_NeedleInHaystack_Replace_1(t *testing.T) {
 		charlie
 	`,
 	}
-	require.Equal(t, exp, nihBob.Replace("dave"))
+	require.Equal(t, exp, nihBob.ReplaceInline("dave"))
 }
 
 func Test_NeedleInHaystack_ReplaceLine_1(t *testing.T) {

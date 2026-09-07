@@ -160,9 +160,9 @@ func (nih NeedleInHaystack) RuneInlineEnd() int {
 	return nih.runeIndexLine(nih.InlineEnd())
 }
 
-// Replace replaces the instance of the needle with text
-// and returns a [Replacement] object.
-func (nih NeedleInHaystack) Replace(
+// ReplaceInline replaces the instance of the needle with
+// text and returns a [Replacement] object.
+func (nih NeedleInHaystack) ReplaceInline(
 	text string,
 ) Replacement {
 	nih.panicIfEmpty()
