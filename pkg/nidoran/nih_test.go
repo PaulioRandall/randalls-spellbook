@@ -113,7 +113,7 @@ func Test_NeedleInHaystack_ReplaceLine_1(t *testing.T) {
 
 func Test_NeedleInHaystack_ReplaceJoin_1(t *testing.T) {
 	// NeedleInHaystack.ReplaceJoin happy path.
-	fields := []string{
+	columns := []string{
 		"name",
 		"level",
 		"role",
@@ -121,13 +121,13 @@ func Test_NeedleInHaystack_ReplaceJoin_1(t *testing.T) {
 
 	haystack := `
 		SELECT
-			{{fields}}
+			{{columns}}
 		FROM
 			players
 	`
 
-	nih := Find(haystack, "{{fields}}", 0)
-	rep := nih.ReplaceJoin(fields, ",")
+	nih := Find(haystack, "{{columns}}", 0)
+	rep := nih.ReplaceJoin(columns, ",")
 
 	exp := Replacement{
 		Nih:   nih,
@@ -177,6 +177,70 @@ func Test_NeedleInHaystack_ReplaceRepeat_1(t *testing.T) {
 			?,
 			?
 		)
+	`,
+	}
+
+	require.Equal(t, exp, rep)
+}
+
+func Test_NeedleInHaystack_ReplaceInlineJoin_1(t *testing.T) {
+	// NeedleInHaystack.ReplaceInlineJoin happy path.
+	columns := []string{
+		"name",
+		"level",
+		"role",
+	}
+
+	haystack := `
+		SELECT {{columns}}
+		FROM players
+	`
+
+	nih := Find(haystack, "{{columns}}", 0)
+	rep := nih.ReplaceInlineJoin(columns, ", ")
+
+	exp := Replacement{
+		Nih:   nih,
+		Start: 10,
+		End:   27,
+		Haystack: `
+		SELECT name, level, role
+		FROM players
+	`,
+	}
+
+	require.Equal(t, exp, rep)
+}
+
+func Test_NeedleInHaystack_ReplaceInlineRepeat_1(t *testing.T) {
+	// NeedleInHaystack.ReplaceInlineRepeat happy path.
+	haystack := `
+		SELECT
+			name,
+			level,
+			role
+		FROM
+			players
+		WHERE
+			name IN [{{q_mark}}]
+	`
+
+	nih := Find(haystack, "{{q_mark}}", 0)
+	rep := nih.ReplaceInlineRepeat("?", 3, ", ")
+
+	exp := Replacement{
+		Nih:   nih,
+		Start: 75,
+		End:   82,
+		Haystack: `
+		SELECT
+			name,
+			level,
+			role
+		FROM
+			players
+		WHERE
+			name IN [?, ?, ?]
 	`,
 	}
 

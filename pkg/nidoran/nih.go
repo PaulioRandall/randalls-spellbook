@@ -229,6 +229,33 @@ func (nih NeedleInHaystack) ReplaceRepeat(
 	return nih.replacement(nih.LineStart, nih.LineEnd, s)
 }
 
+// ReplaceInlineJoin joins a list of texts appending the
+// delim after each string, except the last, then replaces
+// the needle with the result. Returns a [Replacement]
+// object.
+func (nih NeedleInHaystack) ReplaceInlineJoin(
+	texts []string,
+	delim string,
+) Replacement {
+	nih.panicIfEmpty()
+	s := strings.Join(texts, delim)
+	return nih.replacement(nih.Start, nih.End, s)
+}
+
+// ReplaceInlineRepeat repeats the text n times, joins them
+// with the delim, then replaces the needle with the
+// result. Returns a [Replacement] object.
+func (nih NeedleInHaystack) ReplaceInlineRepeat(
+	text string,
+	n int,
+	delim string,
+) Replacement {
+	nih.panicIfEmpty()
+	s := strings.Repeat(text+delim, n)
+	s = s[:len(s)-len(delim)] // Remove last delim
+	return nih.replacement(nih.Start, nih.End, s)
+}
+
 // RemoveLine removes the whole line the needle was found
 // on and returns the updated haystack. Lines cannot be
 // removed using [NeedleInHaystack.ReplaceLine] function
