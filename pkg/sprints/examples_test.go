@@ -37,6 +37,30 @@ func Example() {
 	// 	Int64: int64(69),
 	// 	Float32: float32(69.69),
 	// 	Float64: float64(69.69),
+	// }
+}
+
+func Example_options() {
+	type Types struct {
+		Name       string
+		Level      int
+		unexported string
+	}
+
+	object := Types{
+		Name:       "Bob",
+		Level:      69,
+		unexported: "Alright then, keep your secrets",
+	}
+
+	Println(
+		object,
+		OptionShowUnexported,
+	)
+	// Output:
+	// type Types struct {
+	// 	Name: "Bob",
+	//	Level: int(69),
 	// 	unexported: <unexported>,
 	// }
 }
