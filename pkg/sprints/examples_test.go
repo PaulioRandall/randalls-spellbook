@@ -5,6 +5,12 @@ import (
 )
 
 func Example() {
+	// Nested and embedded objects are not parsed. Only the
+	// struct name is presented.
+	//
+	// Think about it, the result would be extremely hard
+	// to read given lots of embedding, nesting, or deep
+	// nesting. No, String or Print the object separately.
 	type Nested struct {
 		Meh string
 	}
