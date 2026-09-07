@@ -5,16 +5,28 @@ import (
 	"strings"
 )
 
-func joinLines(lines ...string) string {
-	return strings.Join(lines, "\n")
+// Replacement is the result of a replacement function
+// being called on [NeedleInHaystack].
+type Replacement struct {
+	// Nih is the original [NeedleInHaystack].
+	Nih NeedleInHaystack
+
+	// Start is the byte index of the start of the replaced
+	// content within Haystack.
+	Start int
+
+	// End is the byte index of the end of the replaced
+	// content within Haystack.
+	End int
+
+	// The result of the replacement.
+	Haystack string
 }
 
-func trimLines(s string) string {
-	lines := strings.Split(s, "\n")
-	for i, v := range lines {
-		lines[i] = strings.TrimSpace(v)
-	}
-	return strings.Join(lines, "\n")
+// FindNext finds the next instance of the needle in the
+// haystack.
+func (rep Replacement) FindNext() NeedleInHaystack {
+	return FindNeedle(rep.Haystack, rep.Nih.Needle, rep.End)
 }
 
 // NeedleInHaystack holds byte position information about
@@ -149,60 +161,68 @@ func (nih NeedleInHaystack) RuneInlineEnd() int {
 }
 
 // Replace replaces the instance of the needle with text
-// and returns the new haystack.
+// and returns a [Replacement] object.
 func (nih NeedleInHaystack) Replace(
 	text string,
-) string {
-	hay := nih.Haystack
-	return hay[:nih.Start] + text + hay[nih.End:]
+) Replacement {
+	return nih.replacement(nih.Start, nih.End, text)
 }
 
-// ReplaceLine replaces the whole line the needle was found
-// on with text and returns the updated haystack.
+// ReplaceLine replaces the line the needle was found on
+// with text and returns a [Replacement] object.
 func (nih NeedleInHaystack) ReplaceLine(
 	text string,
-) string {
-	hay := nih.Haystack
-	return hay[:nih.LineStart] + text + hay[nih.LineEnd:]
+) Replacement {
+	return nih.replacement(nih.LineStart, nih.LineEnd, text)
 }
 
-// ReplaceList makes a copy of the line and replaces the
-// needle for each string in texts. The original line is
-// removed.
-func (nih NeedleInHaystack) ReplaceList(
+// ReplaceRepeat copies the line and replaces the needle
+// for each string in texts. The original line is removed.
+// Returns a [Replacement] object.
+func (nih NeedleInHaystack) ReplaceRepeat(
 	texts []string,
-) string {
+) Replacement {
 	lines := make([]string, len(texts), len(texts))
-	inStart := nih.InlineStart()
-	inEnd := nih.InlineEnd()
+
+	start := nih.InlineStart()
+	end := nih.InlineEnd()
 	line := nih.LineText()
 
 	for i, s := range texts {
-		lines[i] = line[:inStart] + s + line[inEnd:]
+		lines[i] = line[:start] + s + line[end:]
 	}
 
-	newValue := strings.Join(lines, "\n")
-	hay := nih.Haystack
-	return hay[:nih.LineStart] + newValue + hay[nih.LineEnd:]
+	text := strings.Join(lines, "\n")
+	return nih.replacement(nih.LineStart, nih.LineEnd, text)
 }
 
 // RemoveLine removes the whole line the needle was found
-// on and returns the updated haystack.
-func (nih NeedleInHaystack) RemoveLine() string {
+// on and returns the updated haystack. Lines cannot be
+// removed using [NeedleInHaystack.ReplaceLine] function
+// as it doesn't remove linefeeds.
+func (nih NeedleInHaystack) RemoveLine() Replacement {
+	rep := Replacement{
+		Nih:   nih,
+		Start: nih.LineStart,
+		End:   nih.LineStart,
+	}
+
 	hay := nih.Haystack
 
 	if nih.LineStart > 0 {
-		// Not first line.
-		return hay[:nih.LineStart-1] + hay[nih.LineEnd:]
+		// When not first line.
+		rep.Haystack = hay[:nih.LineStart-1] + hay[nih.LineEnd:]
+		return rep
 	}
 
 	if len(hay) > nih.LineEnd {
-		// But not last line.
-		return hay[:nih.LineStart] + hay[nih.LineEnd+1:]
+		// When not last line.
+		rep.Haystack = hay[:nih.LineStart] + hay[nih.LineEnd+1:]
+		return rep
 	}
 
-	// Only one line in haystack.
-	return ""
+	// Single line haystack becomes an empty string.
+	return rep
 }
 
 // FindNext finds the next instance of the needle in the
@@ -211,26 +231,18 @@ func (nih NeedleInHaystack) FindNext() NeedleInHaystack {
 	return FindNeedle(nih.Haystack, nih.Needle, nih.End)
 }
 
-// ReplaceFindNext does the same as
-// [NeedleInHaystack.Replace] but finds the next
-// instance of the needle within the haystack.
-func (nih NeedleInHaystack) ReplaceFindNext(
+func (nih NeedleInHaystack) replacement(
+	start, end int,
 	text string,
-) NeedleInHaystack {
-	hay := nih.Replace(text)
-	startingAt := nih.Start + len(text)
-	return FindNeedle(hay, nih.Needle, startingAt)
-}
-
-// ReplaceLineFindNext does the same as
-// [NeedleInHaystack.ReplaceFindNext] but for the
-// line instead of the needle.
-func (nih NeedleInHaystack) ReplaceLineFindNext(
-	text string,
-) NeedleInHaystack {
-	hay := nih.ReplaceLine(text)
-	startingAt := nih.Start + len(text)
-	return FindNeedle(hay, nih.Needle, startingAt)
+) Replacement {
+	return Replacement{
+		Nih:   nih,
+		Start: start,
+		End:   start + len(text),
+		Haystack: nih.Haystack[:start] +
+			text +
+			nih.Haystack[end:],
+	}
 }
 
 func (nih NeedleInHaystack) runeIndex(end int) int {
@@ -241,4 +253,16 @@ func (nih NeedleInHaystack) runeIndexLine(end int) int {
 	return len([]rune(
 		nih.Haystack[nih.LineStart : nih.LineStart+end],
 	))
+}
+
+func joinLines(lines ...string) string {
+	return strings.Join(lines, "\n")
+}
+
+func trimLines(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, v := range lines {
+		lines[i] = strings.TrimSpace(v)
+	}
+	return strings.Join(lines, "\n")
 }

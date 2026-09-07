@@ -306,11 +306,11 @@ func applyValueMapping(
 	mv mapValue,
 ) string {
 	needle := createSearchString(name)
-	value := stringifyValue(mv.value)
+	//value := stringifyValue(mv.value)
 	nih := nidoking.FindNeedle(text, needle, 0)
 
 	for nih != (nidoking.NeedleInHaystack{}) {
-		nih = nih.ReplaceFindNext(value)
+		//nih = nih.ReplaceFindNext(value)
 	}
 
 	return text

@@ -20,6 +20,17 @@ var nihBob = NeedleInHaystack{
 	`,
 }
 
+// 😁 uses 4 bytes
+var nihJen = NeedleInHaystack{
+	LineIndex: 1,
+	LineStart: 6,
+	LineEnd:   14,
+	Start:     10,
+	End:       13,
+	Needle:    "jen",
+	Haystack:  "alice\n😁jen?\ncharlie",
+}
+
 func Test_NeedleInHaystack_LineNum_1(t *testing.T) {
 	// NeedleInHaystack.LineNum happy path.
 	require.Equal(t, 3, nihBob.LineNum())
@@ -72,49 +83,69 @@ func Test_NeedleInHaystack_RuneInlineEnd_1(t *testing.T) {
 
 func Test_NeedleInHaystack_Replace_1(t *testing.T) {
 	// NeedleInHaystack.Replace happy path.
-	exp := `
+	exp := Replacement{
+		Nih:   nihBob,
+		Start: 12,
+		End:   16,
+		Haystack: `
 		alice,
 		dave,
 		charlie
-	`
+	`,
+	}
 	require.Equal(t, exp, nihBob.Replace("dave"))
 }
 
 func Test_NeedleInHaystack_ReplaceLine_1(t *testing.T) {
 	// NeedleInHaystack.ReplaceLine happy path.
-	exp := `
+	exp := Replacement{
+		Nih:   nihBob,
+		Start: 10,
+		End:   23,
+		Haystack: `
 		alice,
 ****dave****,
 		charlie
-	`
+	`,
+	}
 	require.Equal(t, exp, nihBob.ReplaceLine("****dave****,"))
 }
 
-func Test_NeedleInHaystack_ReplaceList_1(t *testing.T) {
-	// NeedleInHaystack.ReplaceList happy path.
+func Test_NeedleInHaystack_ReplaceRepeat_1(t *testing.T) {
+	// NeedleInHaystack.ReplaceRepeat happy path.
 	list := []string{
 		"jen",
 		"frank",
 		"ruby",
 	}
 
-	exp := `
+	exp := Replacement{
+		Nih:   nihBob,
+		Start: 10,
+		End:   33,
+		Haystack: `
 		alice,
 		jen,
 		frank,
 		ruby,
 		charlie
-	`
+	`,
+	}
 
-	require.Equal(t, exp, nihBob.ReplaceList(list))
+	require.Equal(t, exp, nihBob.ReplaceRepeat(list))
 }
 
 func Test_NeedleInHaystack_RemoveLine_1(t *testing.T) {
 	// NeedleInHaystack.RemoveLine happy path.
-	exp := `
+	exp := Replacement{
+		Nih:   nihBob,
+		Start: 10,
+		End:   10,
+		Haystack: `
 		alice,
 		charlie
-	`
+	`,
+	}
 	require.Equal(t, exp, nihBob.RemoveLine())
 }
 
@@ -145,81 +176,4 @@ func Test_NeedleInHaystack_FindNext_1(t *testing.T) {
 
 	nih = nih.FindNext()
 	require.Equal(t, NeedleInHaystack{}, nih)
-}
-
-func Test_NeedleInHaystack_ReplaceFindNext_1(t *testing.T) {
-	// NeedleInHaystack.ReplaceFindNext happy path.
-
-	haystack := `
-		alice,
-		bob,
-		charlie,
-		alice, bob, charlie
-	`
-
-	nih := FindNeedle(haystack, "bob", 0)
-	nih = nih.ReplaceFindNext("dave")
-
-	haystack = `
-		alice,
-		dave,
-		charlie,
-		alice, bob, charlie
-	`
-
-	exp := NeedleInHaystack{
-		LineIndex: 4,
-		LineStart: 29,
-		LineEnd:   50,
-		Start:     38,
-		End:       41,
-		Needle:    "bob",
-		Haystack:  haystack,
-	}
-
-	require.Equal(t, exp, nih)
-}
-
-func Test_NeedleInHaystack_ReplaceLineFindNext_1(t *testing.T) {
-	// NeedleInHaystack.ReplaceLineFindNext happy path.
-
-	haystack := `
-		alice,
-		bob,
-		charlie,
-		alice, bob, charlie
-	`
-
-	nih := FindNeedle(haystack, "bob", 0)
-	nih = nih.ReplaceLineFindNext("****dave****,")
-
-	haystack = `
-		alice,
-****dave****,
-		charlie,
-		alice, bob, charlie
-	`
-
-	exp := NeedleInHaystack{
-		LineIndex: 4,
-		LineStart: 35,
-		LineEnd:   56,
-		Start:     44,
-		End:       47,
-		Needle:    "bob",
-		Haystack:  haystack,
-	}
-
-	require.Equal(t, exp, nih)
-}
-
-// 😁 uses 4 bytes
-var nihJen = NeedleInHaystack{
-	LineIndex: 1,
-	LineStart: 6,
-	LineEnd:   14,
-	Start:     10,
-	End:       13,
-	Needle:    "jen",
-	Haystack:  "alice\n😁jen?\ncharlie",
 }

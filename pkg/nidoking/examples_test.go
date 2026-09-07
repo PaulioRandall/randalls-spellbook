@@ -2,7 +2,6 @@ package nidoking
 
 import (
 	"fmt"
-	"strings"
 )
 
 func Example() {
@@ -74,7 +73,7 @@ func ExampleNeedleInHaystack_FindNext() {
 	// [3] line: 5 [8:11]
 }
 
-func ExampleNeedleInHaystack_ReplaceFindNext() {
+func ExampleNeedleInHaystack_Replace() {
 	haystack := `
 		alice, bob, charlie,
 		bob, alice, charlie,
@@ -82,13 +81,16 @@ func ExampleNeedleInHaystack_ReplaceFindNext() {
 		alice, bob, charlie
 	`
 
-	nih := FindNeedle(haystack, "bob", 0)
+	var nih NeedleInHaystack
+	var rep Replacement
+
+	nih = FindNeedle(haystack, "bob", 0)
 	for nih != (NeedleInHaystack{}) {
-		haystack = nih.Replace("dave")
-		nih = nih.ReplaceFindNext("dave")
+		rep = nih.Replace("dave")
+		nih = rep.FindNext()
 	}
 
-	fmt.Print(trimLines(haystack))
+	fmt.Print(trimLines(rep.Haystack))
 	// Output:
 	// alice, dave, charlie,
 	// dave, alice, charlie,
@@ -96,30 +98,30 @@ func ExampleNeedleInHaystack_ReplaceFindNext() {
 	// alice, dave, charlie
 }
 
-// Shows how the haystack differs between the result
-// objects of ReplaceFindNext and FindNext.
-func ExampleNeedleInHaystack_ReplaceFindNext_diff() {
-	getTrimmedFirstLine := func(haystack string) string {
-		haystack = strings.TrimSpace(haystack)
-		return strings.Split(haystack, "\n")[0]
+func ExampleNeedleInHaystack_ReplaceRepeat() {
+	haystack := `
+		alice,
+		bob,
+		charlie
+	`
+
+	newNames := []string{
+		"jen",
+		"frank",
+		"ruby",
 	}
 
-	haystack := `
-	alice, bob, charlie
-	bob, alice, charlie
-`
+	var nih NeedleInHaystack
+	var rep Replacement
 
-	nih := FindNeedle(haystack, "bob", 0)
+	nih = FindNeedle(haystack, "bob", 0)
+	rep = nih.ReplaceRepeat(newNames)
 
-	a := nih.ReplaceFindNext("dave").Haystack
-	b := nih.FindNext().Haystack
-
-	a = getTrimmedFirstLine(a)
-	b = getTrimmedFirstLine(b)
-
-	fmt.Printf("'%s' (ReplaceFindNext)\n", a)
-	fmt.Printf("'%s'  (FindNext)\n", b)
+	fmt.Print(trimLines(rep.Haystack))
 	// Output:
-	// 'alice, dave, charlie' (ReplaceFindNext)
-	// 'alice, bob, charlie'  (FindNext)
+	// alice,
+	// jen,
+	// frank,
+	// ruby,
+	// charlie
 }

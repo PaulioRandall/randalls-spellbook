@@ -11,6 +11,10 @@ func FindNeedle(
 	haystack, needle string,
 	startingAt int,
 ) NeedleInHaystack {
+	if strings.Contains(needle, "\n") {
+		panic("Needle must not be a multi-line string")
+	}
+
 	start := strings.Index(haystack[startingAt:], needle)
 	if start == -1 {
 		return NeedleInHaystack{}
