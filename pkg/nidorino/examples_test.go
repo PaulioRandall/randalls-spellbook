@@ -1,6 +1,9 @@
 package nidorino
 
-/*
+import (
+	"fmt"
+)
+
 func Example() {
 	columns := []string{
 		"name",
@@ -8,39 +11,27 @@ func Example() {
 		"role",
 	}
 
-	s := Given(`
-		SELECT
-			{{columns}}
-		FROM
-			{{table}}
-		WHERE
-			{{id_column}} = ?
-	`).
+	s := Lines(
+		"SELECT",
+		"	{{columns}}",
+		"FROM",
+		"	{{table}}",
+		"WHERE",
+		"	{{id_column}} = ?",
+	).
 		Join("columns", ",", columns...).
 		Fmt("table", "players").
 		Fmt("id_column", columns[0]).
 		String()
 
-	exp := `
-		SELECT
-			name,
-			level,
-			role
-		FROM
-			players
-		WHERE
-			name = ?
-	`
-
-	Println(s)
+	fmt.Println(s)
 	// Output:
-	//	SELECT
-	//		name,
-	//		level,
-	//		role
-	//	FROM
-	//		players
-	//	WHERE
-	//		name = ?
+	// SELECT
+	//	name,
+	//	level,
+	//	role
+	// FROM
+	//	players
+	// WHERE
+	//	name = ?
 }
-*/
