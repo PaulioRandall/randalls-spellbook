@@ -22,14 +22,18 @@ func Example() {
 		Float64      float64
 		Nested       Nested
 		ArrayOrSlice []string
+		Empty        []int64
+		Nil          []int64
 		Ptr          *bool
 		PtrPtr       **bool
 		unexported   string
 	}
 
-	nonPtr := true
+	var nonPtr bool = true
 	ptr := &nonPtr
-	ptrPtr := &ptr
+
+	var nilPtr *bool = nil
+	ptrNilPtr := &nilPtr
 
 	object := Types{
 		String:  "text",
@@ -44,8 +48,10 @@ func Example() {
 			"Two",
 			"Three",
 		},
+		Empty:      []int64{},
+		Nil:        nil,
 		Ptr:        ptr,
-		PtrPtr:     ptrPtr,
+		PtrPtr:     ptrNilPtr,
 		unexported: "Alright then, keep your secrets",
 	}
 
@@ -61,8 +67,10 @@ func Example() {
 	// 	Float64: float64(69.69),
 	//	Nested: Nested{...},
 	//	ArrayOrSlice: [3]string{...},
+	//	Empty: [0]int64{},
+	//	Nil: []int64,
 	//	Ptr: *bool(true),
-	//	PtrPtr: **bool(true),
+	//	PtrPtr: *⁎bool(false),
 	// }
 }
 

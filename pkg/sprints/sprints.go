@@ -5,6 +5,8 @@ import (
 )
 
 const (
+	// OptionShowUnexported shows unexported field names but
+	// won't show their values.
 	OptionShowUnexported = "OptionShowUnexported"
 )
 

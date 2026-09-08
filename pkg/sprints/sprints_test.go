@@ -31,18 +31,19 @@ var role = Role{
 	Name: "Wizzard",
 }
 
-var clazz = &Class{}
+var ptrClazz *Class = nil
+var clazz **Class = &ptrClazz
 
 var p = Player{
 	Name:       "Bob",
 	Level:      69,
 	difficulty: "Easy",
 	Role:       &role,
-	Class:      &clazz,
+	Class:      clazz,
 }
 
 func Test_Sprints_1(t *testing.T) {
-	// Simple, no options.
+	// Happy path.
 
 	act := String(p)
 
@@ -51,7 +52,7 @@ func Test_Sprints_1(t *testing.T) {
 		`	Name: "Bob",`,
 		`	Level: int(69),`,
 		`	Role: *Role{...},`,
-		`	Class: **Class{},`,
+		`	Class: *⁎Class{},`,
 		`}`,
 	)
 
@@ -69,7 +70,7 @@ func Test_Sprints_2(t *testing.T) {
 		`	Level: int(69),`,
 		`	difficulty: <unexported>,`,
 		`	Role: *Role{...},`,
-		`	Class: **Class{},`,
+		`	Class: *⁎Class{},`,
 		`}`,
 	)
 
@@ -134,6 +135,7 @@ func Test_Sprints_5(t *testing.T) {
 	type Thing struct {
 		Empty    []string
 		NotEmpty []string
+		Nil      []string
 	}
 
 	thing := Thing{
@@ -142,6 +144,7 @@ func Test_Sprints_5(t *testing.T) {
 			"Thing1",
 			"Thing2",
 		},
+		Nil: nil,
 	}
 
 	act := String(&thing)
@@ -150,6 +153,7 @@ func Test_Sprints_5(t *testing.T) {
 		`*Thing {`,
 		`	Empty: [0]string{},`,
 		`	NotEmpty: [2]string{...},`,
+		`	Nil: []string,`,
 		`}`,
 	)
 

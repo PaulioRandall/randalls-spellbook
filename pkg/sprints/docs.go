@@ -12,8 +12,13 @@
 //   - Fields of nested structs are not printed.
 //   - Zero value nested structs are printed as 'Name{}'.
 //   - Non-zero nested structs are printed as 'Name{...}'.
-//   - Nil or empty arrays are printed as '[0]Name{}'.
-//   - Non-empty arrays are printed with their len like '[3]Name{...}'.
+//   - Non-empty arrays and slices are printed like '[3]Name{...}'.
+//   - Empty arrays and slices are printed as '[0]Name{}'.
+//   - Nil arrays and slices are printed as '[]Name'.
 //   - Pointer values are dereferenced to show the actual value.
 //   - Pointer values are preceeded with a single '*' for each level of indirection.
+//   - Pointers to nil are printed as '⁎' (low asterisk) instead of '*'.
+//   - Functions are currently printed as package fmt dictates.
+//
+// TODO: Print function definitions.
 package sprints

@@ -34,7 +34,11 @@ func stringifyObject(
 
 	sb := strings.Builder{}
 
-	s := fmt.Sprintf("%s%s {", prefix, val.Type().Name())
+	s := fmt.Sprintf(
+		"%s%s {",
+		prefix,
+		val.Type().Name(),
+	)
 	sb.WriteString(s)
 	writeFields(&sb, val, ctx)
 	sb.WriteString("\n}")
@@ -95,11 +99,7 @@ func getPrintableValue(
 	case reflect.Struct:
 		result = fmtContainerName(val)
 	case reflect.Array, reflect.Slice:
-		result = fmt.Sprintf(
-			"[%d]%s",
-			val.Len(),
-			fmtCollectionName(val, typ.Elem()),
-		)
+		result = fmtCollectionName(val, typ.Elem())
 	case reflect.String:
 		result = fmtString(val)
 	default:
@@ -116,20 +116,21 @@ func getPrintableValue(
 func dereference(
 	val reflect.Value,
 ) (reflect.Value, string) {
-	derefCount := 0
+	prefix := ""
 
 	for val.Type().Kind() == reflect.Ptr {
-		derefCount++
-
 		if val.IsNil() {
+			prefix += "⁎"
+
 			// Create zero value so we have a real value.
 			val = reflect.New(val.Type().Elem())
+		} else {
+			prefix += "*"
 		}
 
 		val = val.Elem()
 	}
 
-	prefix := strings.Repeat("*", derefCount)
 	return val, prefix
 }
 
@@ -157,8 +158,16 @@ func fmtCollectionName(
 	val reflect.Value,
 	elemTyp reflect.Type,
 ) string {
-	if val.IsZero() || val.IsNil() || val.Len() == 0 {
-		return elemTyp.Name() + "{}"
+	switch {
+	case val.IsNil():
+		return fmt.Sprintf("[]%s", elemTyp.Name())
+	case val.Len() == 0:
+		return fmt.Sprintf("[0]%s{}", elemTyp.Name())
+	default:
+		return fmt.Sprintf(
+			"[%d]%s{...}",
+			val.Len(),
+			elemTyp.Name(),
+		)
 	}
-	return elemTyp.Name() + "{...}"
 }
