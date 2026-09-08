@@ -77,9 +77,48 @@ func (form *Formatter) Fmt(
 	return form
 }
 
-// Join replaces every line contining token named key with
-// a set of lines where the token is replaced values. Each
-// line is suffixed with delim, except the last.
+// FmtJoin replaces every token named key with the list of
+// values. Each instance of value is suffixed with delim,
+// except the last.
+func (form *Formatter) FmtJoin[T any](
+	key, delim string,
+	values ...T,
+) *Formatter {
+	nih := nidoran.Find(form.text, token(key), 0)
+	strs := stringifyValues(values)
+
+	for nih != (emptyNih) {
+		rep := nih.ReplaceInlineJoin(strs, delim)
+		form.text = rep.Haystack
+		nih = rep.FindNext()
+	}
+
+	return form
+}
+
+// FmtRepeat replaces every token named key with value
+// repeated n times. Each instance of value is suffixed
+// with delim, except the last.
+func (form *Formatter) FmtRepeat[T any](
+	key, delim string,
+	value T,
+	n int,
+) *Formatter {
+	nih := nidoran.Find(form.text, token(key), 0)
+	str := stringifyValue(value)
+
+	for nih != (emptyNih) {
+		rep := nih.ReplaceInlineRepeat(str, n, delim)
+		form.text = rep.Haystack
+		nih = rep.FindNext()
+	}
+
+	return form
+}
+
+// Join replaces every line containing a token named key
+// with a set of lines where the token is replaced values.
+// Each line is suffixed with delim, except the last.
 func (form *Formatter) Join[T any](
 	key, delim string,
 	values ...T,
@@ -88,7 +127,27 @@ func (form *Formatter) Join[T any](
 	strs := stringifyValues(values)
 
 	for nih != (emptyNih) {
-		rep := nih.ReplaceJoin(strs, ",")
+		rep := nih.ReplaceJoin(strs, delim)
+		form.text = rep.Haystack
+		nih = rep.FindNext()
+	}
+
+	return form
+}
+
+// Repeat replaces every line containing a token named key
+// with n lines where the token is replaced by value in
+// each. Each line is suffixed with delim, except the last.
+func (form *Formatter) Repeat[T any](
+	key, delim string,
+	value T,
+	n int,
+) *Formatter {
+	nih := nidoran.Find(form.text, token(key), 0)
+	str := stringifyValue(value)
+
+	for nih != (emptyNih) {
+		rep := nih.ReplaceRepeat(str, n, delim)
 		form.text = rep.Haystack
 		nih = rep.FindNext()
 	}
