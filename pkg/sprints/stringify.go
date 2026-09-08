@@ -29,12 +29,12 @@ func stringifyObject(
 	object any,
 	ctx fmtCtx,
 ) string {
-	val := reflect.ValueOf(object)
+	val, prefix := dereference(reflect.ValueOf(object))
 	checkObjectType(val)
 
 	sb := strings.Builder{}
 
-	s := fmt.Sprintf("%s {", val.Type().Name())
+	s := fmt.Sprintf("%s%s {", prefix, val.Type().Name())
 	sb.WriteString(s)
 	writeFields(&sb, val, ctx)
 	sb.WriteString("\n}")
@@ -71,6 +71,7 @@ func writeFields(
 				fieldVal,
 			),
 		)
+
 		sb.WriteRune('\n')
 		sb.WriteString(s)
 	}
@@ -84,18 +85,80 @@ func getPrintableValue(
 		return "<unexported>"
 	}
 
-	switch field.Type.Kind() {
+	var result string
+	var prefix string
+
+	val, prefix = dereference(val)
+	typ := val.Type()
+
+	switch typ.Kind() {
 	case reflect.Struct:
-		return field.Type.Name() + "{...}"
+		result = fmtContainerName(val)
+	case reflect.Array, reflect.Slice:
+		result = fmt.Sprintf(
+			"[%d]%s",
+			val.Len(),
+			fmtCollectionName(val, typ.Elem()),
+		)
 	case reflect.String:
-		// TODO: If string is longer than say 40 bytes
-		//       then cut it off and append ...
-		return fmt.Sprintf(`"%v"`, val.Interface())
+		result = fmtString(val)
 	default:
-		return fmt.Sprintf(
+		result = fmt.Sprintf(
 			"%s(%v)",
-			field.Type.Name(),
+			typ.Name(),
 			val.Interface(),
 		)
 	}
+
+	return prefix + result
+}
+
+func dereference(
+	val reflect.Value,
+) (reflect.Value, string) {
+	derefCount := 0
+
+	for val.Type().Kind() == reflect.Ptr {
+		derefCount++
+
+		if val.IsNil() {
+			// Create zero value so we have a real value.
+			val = reflect.New(val.Type().Elem())
+		}
+
+		val = val.Elem()
+	}
+
+	prefix := strings.Repeat("*", derefCount)
+	return val, prefix
+}
+
+func fmtString(val reflect.Value) string {
+	const maxStringLength = 30
+	s, _ := val.Interface().(string)
+	s = strings.Replace(s, "\n", "\\n", -1)
+
+	r := []rune(s)
+	if len(r) > maxStringLength {
+		s = string(r[:maxStringLength]) + "..."
+	}
+
+	return `"` + string(s) + `"`
+}
+
+func fmtContainerName(val reflect.Value) string {
+	if val.IsZero() {
+		return val.Type().Name() + "{}"
+	}
+	return val.Type().Name() + "{...}"
+}
+
+func fmtCollectionName(
+	val reflect.Value,
+	elemTyp reflect.Type,
+) string {
+	if val.IsZero() || val.IsNil() || val.Len() == 0 {
+		return elemTyp.Name() + "{}"
+	}
+	return elemTyp.Name() + "{...}"
 }

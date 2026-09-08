@@ -8,12 +8,6 @@ const (
 	OptionShowUnexported = "OptionShowUnexported"
 )
 
-var (
-	ErrBadIndentCount = fmt.Errorf(
-		"Integer must follow OptionIndent",
-	)
-)
-
 // Print stringifies the object and prints it to terminal.
 func Print(object any, options ...string) {
 	s := stringifyObject(
@@ -33,9 +27,7 @@ func Println(object any, options ...string) {
 	fmt.Println(s)
 }
 
-// String formats an objects into a string form similar
-// to the object's definition or instantiation. If a
-// non-struct kind is passed then panic ensues.
+// String returns the stringified object.
 func String(object any, options ...string) string {
 	return stringifyObject(
 		object,
