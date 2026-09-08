@@ -106,10 +106,10 @@ func Test_Repeat_1(t *testing.T) {
 			role
 		)
 		VALUES (
-			{{q_mark}}
+			{{q_marks}}
 		)
 	`).
-		Repeat("q_mark", ",", "?", 4).
+		Repeat("q_marks", ",", "?", 4).
 		String()
 
 	exp := `
@@ -129,6 +129,80 @@ func Test_Repeat_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-// TODO: Map(key string, func(i int) string)
-// TODO: Reduce(key string, func(i int, acc string) string)
-// TODO: CopyLines(start, end, to int)
+func Test_Map_1(t *testing.T) {
+	columns := []string{
+		"name",
+		"level",
+		"role",
+	}
+
+	act := Given(`
+		SELECT
+			{{columns}}
+		FROM
+			players
+	`).
+		Map("columns", 6, func(i int) (string, bool) {
+			if i >= len(columns) {
+				return "", false
+			}
+			if i+1 >= len(columns) {
+				return columns[i], true
+			}
+			return columns[i] + ",", true
+		}).
+		String()
+
+	exp := `
+		SELECT
+			name,
+			level,
+			role
+		FROM
+			players
+	`
+
+	require.Equal(t, exp, act)
+}
+
+func Test_CopyLines_1(t *testing.T) {
+	act := Given(`
+		INSERT INTO players (
+			name,
+			level,
+			role
+		)
+		VALUES (
+			?,
+			?,
+			?
+		)
+	`).
+		CopyLines(6, 11, 11, 2).
+		String()
+
+	exp := `
+		INSERT INTO players (
+			name,
+			level,
+			role
+		)
+		VALUES (
+			?,
+			?,
+			?
+		)
+		VALUES (
+			?,
+			?,
+			?
+		)
+		VALUES (
+			?,
+			?,
+			?
+		)
+	`
+
+	require.Equal(t, exp, act)
+}
