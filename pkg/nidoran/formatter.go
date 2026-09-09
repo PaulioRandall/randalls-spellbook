@@ -1,17 +1,13 @@
-package nidorino
+package nidoran
 
 import (
 	"fmt"
 	"slices"
 	"strings"
-
-	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoran"
 )
 
-var emptyNih = nidoran.NeedleInHaystack{}
-
-type stringer interface {
-	String() string
+func token(key string) string {
+	return "{{" + key + "}}"
 }
 
 // Formatter is returned by [Given] and [Lines] and
@@ -64,10 +60,10 @@ func (form *Formatter) Fmt(
 	key string,
 	value any,
 ) *Formatter {
-	nih := nidoran.Find(form.text, token(key), 0)
+	nih := Find(form.text, token(key), 0)
 	str := stringifyValue(value)
 
-	for nih != (emptyNih) {
+	for nih != (NeedleInHaystack{}) {
 		rep := nih.ReplaceInline(str)
 		form.text = rep.Haystack
 		nih = rep.FindNext()
@@ -83,10 +79,10 @@ func (form *Formatter) FmtJoin[T any](
 	key, delim string,
 	values ...T,
 ) *Formatter {
-	nih := nidoran.Find(form.text, token(key), 0)
+	nih := Find(form.text, token(key), 0)
 	strs := stringifyValues(values)
 
-	for nih != (emptyNih) {
+	for nih != (NeedleInHaystack{}) {
 		rep := nih.ReplaceInlineJoin(strs, delim)
 		form.text = rep.Haystack
 		nih = rep.FindNext()
@@ -103,10 +99,10 @@ func (form *Formatter) FmtRepeat[T any](
 	value T,
 	n int,
 ) *Formatter {
-	nih := nidoran.Find(form.text, token(key), 0)
+	nih := Find(form.text, token(key), 0)
 	str := stringifyValue(value)
 
-	for nih != (emptyNih) {
+	for nih != (NeedleInHaystack{}) {
 		rep := nih.ReplaceInlineRepeat(str, n, delim)
 		form.text = rep.Haystack
 		nih = rep.FindNext()
@@ -122,10 +118,10 @@ func (form *Formatter) Join[T any](
 	key, delim string,
 	values ...T,
 ) *Formatter {
-	nih := nidoran.Find(form.text, token(key), 0)
+	nih := Find(form.text, token(key), 0)
 	strs := stringifyValues(values)
 
-	for nih != (emptyNih) {
+	for nih != (NeedleInHaystack{}) {
 		rep := nih.ReplaceJoin(strs, delim)
 		form.text = rep.Haystack
 		nih = rep.FindNext()
@@ -142,10 +138,10 @@ func (form *Formatter) Repeat[T any](
 	value T,
 	n int,
 ) *Formatter {
-	nih := nidoran.Find(form.text, token(key), 0)
+	nih := Find(form.text, token(key), 0)
 	str := stringifyValue(value)
 
-	for nih != (emptyNih) {
+	for nih != (NeedleInHaystack{}) {
 		rep := nih.ReplaceRepeat(str, n, delim)
 		form.text = rep.Haystack
 		nih = rep.FindNext()
@@ -171,7 +167,7 @@ func (form *Formatter) Map[T any](
 	max int,
 	f func(i int) (T, bool),
 ) *Formatter {
-	nih := nidoran.Find(form.text, token(key), 0)
+	nih := Find(form.text, token(key), 0)
 	strs := []string{}
 
 	for i := 0; i < max; i++ {
@@ -184,7 +180,7 @@ func (form *Formatter) Map[T any](
 		strs = append(strs, s)
 	}
 
-	for nih != (emptyNih) {
+	for nih != (NeedleInHaystack{}) {
 		rep := nih.ReplaceJoin(strs, "")
 		form.text = rep.Haystack
 		nih = rep.FindNext()
@@ -219,26 +215,4 @@ func (form *Formatter) CopyLines(
 // prior will have been applied to the string.
 func (form *Formatter) String() string {
 	return form.text
-}
-
-func token(key string) string {
-	return "{{" + key + "}}"
-}
-
-func stringifyValue[T any](value T) string {
-	if st, ok := any(value).(stringer); ok {
-		return st.String()
-	}
-
-	return fmt.Sprintf("%v", value)
-}
-
-func stringifyValues[T any](values []T) []string {
-	strs := make([]string, len(values), len(values))
-
-	for i, v := range values {
-		strs[i] = stringifyValue(v)
-	}
-
-	return strs
 }

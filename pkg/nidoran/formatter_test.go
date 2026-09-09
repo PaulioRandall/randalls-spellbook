@@ -1,4 +1,4 @@
-package nidorino
+package nidoran
 
 import (
 	"testing"

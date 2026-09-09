@@ -333,15 +333,3 @@ func (nih NeedleInHaystack) panicIfEmpty() {
 		panic("Can't operate on empty NeedleInHaystack")
 	}
 }
-
-func joinLines(lines ...string) string {
-	return strings.Join(lines, "\n")
-}
-
-func trimLines(s string) string {
-	lines := strings.Split(s, "\n")
-	for i, v := range lines {
-		lines[i] = strings.TrimSpace(v)
-	}
-	return strings.Join(lines, "\n")
-}

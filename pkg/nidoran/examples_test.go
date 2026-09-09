@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func Example() {
+func ExampleFind() {
 	haystack := `
 	alice,
 	😁bob,
@@ -32,6 +32,45 @@ func Example() {
 	//   RuneInlineStart(): 2,
 	//   RuneInlineEnd(): 5,
 	// }
+}
+
+func ExampleFormatter() {
+	columns := []string{
+		"name",
+		"level",
+		"role",
+	}
+
+	values := []string{
+		"Alice",
+		"Bob",
+		"Charlie",
+	}
+
+	s := Lines(
+		"SELECT",
+		"	{{columns}}",
+		"FROM",
+		"	{{table}}",
+		"WHERE",
+		"	{{id_column}} IN [{{q_marks}}]",
+	).
+		Join("columns", ",", columns...).
+		Fmt("table", "players").
+		Fmt("id_column", columns[0]).
+		FmtRepeat("q_marks", ", ", "?", len(values)).
+		String()
+
+	fmt.Println(s)
+	// Output:
+	// SELECT
+	//	name,
+	//	level,
+	//	role
+	// FROM
+	//	players
+	// WHERE
+	//	name IN [?, ?, ?]
 }
 
 func ExampleNeedleInHaystack_FindNext() {
