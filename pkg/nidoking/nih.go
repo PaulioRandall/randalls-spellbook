@@ -1,4 +1,4 @@
-package nidoran
+package nidoking
 
 import (
 	"fmt"

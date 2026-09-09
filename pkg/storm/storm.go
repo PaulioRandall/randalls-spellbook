@@ -10,7 +10,7 @@ import (
 
 	_ "github.com/glebarez/go-sqlite"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoran"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 )
 
 var goKindToSqliteTypeMappings = map[reflect.Kind]string{
@@ -211,17 +211,17 @@ func (ss *Storm) generateCreateTableSql(
 		)
 	`
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{table}}", 0).
 		ReplaceInline(tbl.GoName).
 		Haystack
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{columns}}", 0).
 		ReplaceJoin(tbl.ColumnNames(), "").
 		Haystack
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{id_column}}", 0).
 		ReplaceInline(tbl.IdColumn().GoName).
 		Haystack
@@ -386,17 +386,17 @@ func (ss *Storm) generateInsertRecordSql(
 
 	columns := tbl.ColumnNames()
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{table}}", 0).
 		ReplaceInline(tbl.GoName).
 		Haystack
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{columns}}", 0).
 		ReplaceJoin(columns, ",").
 		Haystack
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{values}}", 0).
 		ReplaceRepeat("?", len(columns), ",").
 		Haystack
@@ -501,17 +501,17 @@ func (ss *Storm) generateUpdateRecordSql(
 		WHERE
 			{{id_column}} = ?
 	`
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{table}}", 0).
 		ReplaceInline(tbl.GoName).
 		Haystack
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{columns}}", 0).
 		ReplaceJoin(tbl.ColumnNames()[1:], ",").
 		Haystack
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{id_column}}", 0).
 		ReplaceInline(tbl.IdColumn().GoName).
 		Haystack
@@ -598,12 +598,12 @@ func (ss *Storm) generateSelectAllRecordsSql(
 			{{table}}
 	`
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{columns}}", 0).
 		ReplaceJoin(tbl.ColumnNames(), ",").
 		Haystack
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{table}}", 0).
 		ReplaceInline(tbl.GoName).
 		Haystack
@@ -808,17 +808,17 @@ func (ss *Storm) generateSelectRecordByIdSql(
 			{{id_column}} = ?
 	`
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{columns}}", 0).
 		ReplaceJoin(tbl.ColumnNames(), ",").
 		Haystack
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{table}}", 0).
 		ReplaceInline(tbl.GoName).
 		Haystack
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{id_column}}", 0).
 		ReplaceInline(tbl.IdColumn().GoName).
 		Haystack
@@ -925,12 +925,12 @@ func (ss *Storm) generateDeleteRecordByIdSql(
 			{{id_column}} = ?
 	`
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{table}}", 0).
 		ReplaceInline(tbl.GoName).
 		Haystack
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{id_column}}", 0).
 		ReplaceInline(tbl.IdColumn().GoName).
 		Haystack
@@ -975,7 +975,7 @@ func (ss *Storm) Drop(model any) error {
 func (ss *Storm) dropTable(tbl Table) error {
 	query := `DROP TABLE IF EXISTS {{table}}`
 
-	query = nidoran.
+	query = nidoking.
 		Find(query, "{{table}}", 0).
 		ReplaceInline(tbl.GoName).
 		Haystack

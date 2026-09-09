@@ -1,4 +1,4 @@
-// Package nidoran provides string searching and
+// Package nidoking provides string searching and
 // replacement with additional focus on line operations.
 //
 // The lower level API provides string searching and
@@ -24,4 +24,4 @@
 // Both APIs were designed for locally scoped usage with
 // method chaining but types are available for passing
 // around or creating adapters.
-package nidoran
+package nidoking
