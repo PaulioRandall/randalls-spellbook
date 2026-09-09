@@ -165,20 +165,22 @@ func Test_Map_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_CopyLines_1(t *testing.T) {
+func Test_RepeatLines_1(t *testing.T) {
 	act := Given(`
 		INSERT INTO players (
 			name,
 			level,
 			role
 		)
+		{{>>>}}
 		VALUES (
 			?,
 			?,
 			?
 		)
+		{{<<<}}
 	`).
-		CopyLines(6, 11, 11, 2).
+		RepeatLines(">>>", "<<<", 3).
 		String()
 
 	exp := `
@@ -202,6 +204,64 @@ func Test_CopyLines_1(t *testing.T) {
 			?,
 			?
 		)
+	`
+
+	require.Equal(t, exp, act)
+}
+
+func Test_RemoveLines_1(t *testing.T) {
+	act := Given(`
+		SELECT
+			name,
+			level,
+			role
+		FROM
+			players
+		{{>>>}}
+		WEHRE
+			name = ?
+		{{<<<}}
+	`).
+		RemoveLines(">>>", "<<<").
+		String()
+
+	exp := `
+		SELECT
+			name,
+			level,
+			role
+		FROM
+			players
+	`
+
+	require.Equal(t, exp, act)
+}
+
+func Test_KeepLines_1(t *testing.T) {
+	act := Given(`
+		SELECT
+			name,
+			level,
+			role
+		FROM
+			players
+		{{>>>}}
+		WEHRE
+			name = ?
+		{{<<<}}
+	`).
+		KeepLines(">>>", "<<<").
+		String()
+
+	exp := `
+		SELECT
+			name,
+			level,
+			role
+		FROM
+			players
+		WEHRE
+			name = ?
 	`
 
 	require.Equal(t, exp, act)

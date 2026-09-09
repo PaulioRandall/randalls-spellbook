@@ -14,16 +14,15 @@
 // formatting. It's much simpler than the standard
 // 'text/template' but package also less feature rich.
 // Dynamic values are defined using mustache tokens,
-// e.g. '{{key}}', the same as 'text/template' so code
-// editors can highlight tokens within the strings.
+// e.g. '{{key}}', the same as 'text/template' so some code
+// editors will highlight tokens within the strings.
 // However, they are just placeholders; how values are
-// inserted depends on the [Template] functions you call
-// and the arguments you give it. A template can be created
+// inserted depends on the template functions you call
+// and the arguments you give it, and Some functions
+// require pairs of tokens. A [Template] can be created
 // via the [Given] and [Lines] functions.
 //
 // Both APIs were designed for locally scoped usage with
 // method chaining but types are available for passing
 // around or creating adapters.
-//
-// TODO: Template.CutPaste(start, end, to) *Template
 package nidoking

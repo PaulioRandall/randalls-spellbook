@@ -35,6 +35,11 @@ func Lines(lines ...string) *Template {
 	}
 }
 
+// String returns the text with all formatting applied.
+func (tmpl *Template) String() string {
+	return tmpl.text
+}
+
 func (tmpl *Template) replace[T any, S string | []string](
 	key string,
 	value T,
@@ -212,29 +217,81 @@ func (tmpl *Template) Map[T any](
 	)
 }
 
-// CopyLines copies the series of lines from start to end
-// (exclusive) and inserts them in front of line 'at'. No
-// formatting is performed and no lines are overwrtten or
+// RemoveLines removes all lines between startKey and
+// endKey. The lines containing the tokens are also
 // removed.
-func (tmpl *Template) CopyLines(
-	start, end, at, amount int,
+func (tmpl *Template) RemoveLines(
+	startKey, endKey string,
 ) *Template {
-	lines := strings.Split(tmpl.text, "\n")
-	copies := lines[start:end]
+	return tmpl.RepeatLines(startKey, endKey, 0)
+}
 
-	for i := 0; i < amount; i++ {
-		lines = slices.Insert(
-			lines,
-			at,
-			copies...,
-		)
+// KeepLines removes the lines containining startKey and
+// endKey leaving the content.
+func (tmpl *Template) KeepLines(
+	startKey, endKey string,
+) *Template {
+	return tmpl.RepeatLines(startKey, endKey, 1)
+}
+
+// RepeatLines repeats the set of lines between startKey
+// and endKey (exclusive) by amount. The lines containing
+// the tokens are also removed. Passing 0 as the amount
+// will remove all content; same as calling
+// [Template.RemoveLines].
+func (tmpl *Template) RepeatLines(
+	startKey, endKey string,
+	amount int,
+) *Template {
+	start, end := tmpl.locateDelimiterLineIndexes(
+		startKey,
+		endKey,
+	)
+
+	lines := strings.Split(tmpl.text, "\n")
+	copy := lines[start+1 : end]
+
+	lines = append(lines[:start], lines[end+1:]...)
+	if amount == 0 {
+		tmpl.text = strings.Join(lines, "\n")
+		return tmpl
 	}
 
+	copy = slices.Repeat(copy, amount)
+	lines = slices.Insert(lines, start, copy...)
 	tmpl.text = strings.Join(lines, "\n")
 	return tmpl
 }
 
-// String returns the text with all formatting applied.
-func (tmpl *Template) String() string {
-	return tmpl.text
+func (tmpl *Template) locateDelimiterLineIndexes(
+	startKey, endKey string,
+) (int, int) {
+	startNih := Find(tmpl.text, token(startKey), 0)
+	if startNih == (NeedleInHaystack{}) {
+		msg := fmt.Errorf(
+			"Start token key '%s' not found",
+			startKey,
+		)
+		panic(msg)
+	}
+
+	endNih := Find(tmpl.text, token(endKey), startNih.End)
+	if endNih == (NeedleInHaystack{}) {
+		msg := fmt.Errorf(
+			"End token key '%s' not found",
+			endKey,
+		)
+		panic(msg)
+	}
+
+	if startNih.LineIndex == endNih.LineIndex {
+		msg := fmt.Errorf(
+			"Start and end token keys, '%s' and '%s', cannot be on the same line",
+			startKey,
+			endKey,
+		)
+		panic(msg)
+	}
+
+	return startNih.LineIndex, endNih.LineIndex
 }
