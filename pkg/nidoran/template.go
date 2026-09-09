@@ -10,82 +10,82 @@ func token(key string) string {
 	return "{{" + key + "}}"
 }
 
-// Formatter is returned by [Given] and [Lines] and
+// Template is returned by [Given] and [Lines] and
 // provides functions for populating mustache placeholder
-// tokens, e.g. '{{token}}', in text. All formatting and
-// print functions return the Formatter for method
-// chaining.
-type Formatter struct {
+// tokens, e.g. '{{key}}', in text. All formatting and
+// print functions return a reference to the Template for
+// method chaining.
+type Template struct {
 	text string
 }
 
-// Given returns a new Formatter for formatting the given
+// Given returns a new Template for formatting the given
 // template string.
-func Given(template string) *Formatter {
-	return &Formatter{
+func Given(template string) *Template {
+	return &Template{
 		text: template,
 	}
 }
 
-// Given returns a new Formatter for formatting the given
-// lines.
-func Lines(lines ...string) *Formatter {
-	return &Formatter{
+// Given returns a new Template with the template string
+// produced from the given lines.
+func Lines(lines ...string) *Template {
+	return &Template{
 		text: strings.Join(lines, "\n"),
 	}
 }
 
-func (form *Formatter) replace[T any, S string | []string](
+func (tmpl *Template) replace[T any, S string | []string](
 	key string,
 	value T,
 	stringify func(T) S,
 	f func(nih NeedleInHaystack, s S) Replacement,
-) *Formatter {
+) *Template {
 	var nih NeedleInHaystack
 	var rep Replacement
 
 	v := stringify(value)
-	nih = Find(form.text, token(key), 0)
+	nih = Find(tmpl.text, token(key), 0)
 
 	for nih != (NeedleInHaystack{}) {
 		rep = f(nih, v)
 		nih = rep.FindNext()
 	}
 
-	form.text = rep.Haystack
-	return form
+	tmpl.text = rep.Haystack
+	return tmpl
 }
 
 // Print prints the text to terminal primarily for the
 // purposes of debugging. Formatting is performed as
 // formatting functions are called so this function can be
 // called after each format to see how the text evolves.
-func (form *Formatter) Print() *Formatter {
-	fmt.Println(form.text)
-	return form
+func (tmpl *Template) Print() *Template {
+	fmt.Println(tmpl.text)
+	return tmpl
 }
 
-// PrintNamed does the same as [Formatter.Print] except
+// PrintNamed does the same as [Template.Print] except
 // delimiter lines are printed before and after the text,
 // containing the passed label, so it's clearer which
 // output corrisponds to which print statement.
-func (form *Formatter) PrintNamed(label string) *Formatter {
+func (tmpl *Template) PrintNamed(label string) *Template {
 	fmt.Println(">>>" + label + ">>>")
-	fmt.Println(form.text)
+	fmt.Println(tmpl.text)
 	fmt.Println("<<<" + label + "<<<")
-	return form
+	return tmpl
 }
 
 // Fmt populates every token named key with value.
-func (form *Formatter) Fmt(
+func (tmpl *Template) Fmt(
 	key string,
 	value any,
-) *Formatter {
+) *Template {
 	f := func(nih NeedleInHaystack, s string) Replacement {
 		return nih.ReplaceInline(s)
 	}
 
-	return form.replace(
+	return tmpl.replace(
 		key,
 		value,
 		stringifyValue,
@@ -96,15 +96,15 @@ func (form *Formatter) Fmt(
 // FmtJoin replaces every token named key with the list of
 // values. Each instance of value is suffixed with delim,
 // except the last.
-func (form *Formatter) FmtJoin[T any](
+func (tmpl *Template) FmtJoin[T any](
 	key, delim string,
 	values ...T,
-) *Formatter {
+) *Template {
 	f := func(nih NeedleInHaystack, s []string) Replacement {
 		return nih.ReplaceInlineJoin(s, delim)
 	}
 
-	return form.replace(
+	return tmpl.replace(
 		key,
 		values,
 		stringifyValues,
@@ -115,16 +115,16 @@ func (form *Formatter) FmtJoin[T any](
 // FmtRepeat replaces every token named key with value
 // repeated n times. Each instance of value is suffixed
 // with delim, except the last.
-func (form *Formatter) FmtRepeat[T any](
+func (tmpl *Template) FmtRepeat[T any](
 	key, delim string,
 	value T,
 	n int,
-) *Formatter {
+) *Template {
 	f := func(nih NeedleInHaystack, s string) Replacement {
 		return nih.ReplaceInlineRepeat(s, n, delim)
 	}
 
-	return form.replace(
+	return tmpl.replace(
 		key,
 		value,
 		stringifyValue,
@@ -133,17 +133,18 @@ func (form *Formatter) FmtRepeat[T any](
 }
 
 // Join replaces every line containing a token named key
-// with a set of lines where the token is replaced values.
-// Each line is suffixed with delim, except the last.
-func (form *Formatter) Join[T any](
+// with a set of lines where the token is replaced by
+// values. Each line is suffixed with delim, except the
+// last.
+func (tmpl *Template) Join[T any](
 	key, delim string,
 	values ...T,
-) *Formatter {
+) *Template {
 	f := func(nih NeedleInHaystack, s []string) Replacement {
 		return nih.ReplaceJoin(s, delim)
 	}
 
-	return form.replace(
+	return tmpl.replace(
 		key,
 		values,
 		stringifyValues,
@@ -154,16 +155,16 @@ func (form *Formatter) Join[T any](
 // Repeat replaces every line containing a token named key
 // with n lines where the token is replaced by value in
 // each. Each line is suffixed with delim, except the last.
-func (form *Formatter) Repeat[T any](
+func (tmpl *Template) Repeat[T any](
 	key, delim string,
 	value T,
 	n int,
-) *Formatter {
+) *Template {
 	f := func(nih NeedleInHaystack, s string) Replacement {
 		return nih.ReplaceRepeat(s, n, delim)
 	}
 
-	return form.replace(
+	return tmpl.replace(
 		key,
 		value,
 		stringifyValue,
@@ -183,11 +184,11 @@ func (form *Formatter) Repeat[T any](
 // return true from gen. If max is not known, set a higher
 // than expected value for max, e.g. math.MaxUint8, and
 // control iteration exit via gen's return bool.
-func (form *Formatter) Map[T any](
+func (tmpl *Template) Map[T any](
 	key string,
 	max int,
 	gen func(i int) (T, bool),
-) *Formatter {
+) *Template {
 	var values []any
 
 	for i := 0; i < max; i++ {
@@ -203,7 +204,7 @@ func (form *Formatter) Map[T any](
 		return nih.ReplaceJoin(s, "")
 	}
 
-	return form.replace(
+	return tmpl.replace(
 		key,
 		values,
 		stringifyValues,
@@ -215,10 +216,10 @@ func (form *Formatter) Map[T any](
 // (exclusive) and inserts them in front of line 'at'. No
 // formatting is performed and no lines are overwrtten or
 // removed.
-func (form *Formatter) CopyLines(
+func (tmpl *Template) CopyLines(
 	start, end, at, amount int,
-) *Formatter {
-	lines := strings.Split(form.text, "\n")
+) *Template {
+	lines := strings.Split(tmpl.text, "\n")
 	copies := lines[start:end]
 
 	for i := 0; i < amount; i++ {
@@ -229,12 +230,11 @@ func (form *Formatter) CopyLines(
 		)
 	}
 
-	form.text = strings.Join(lines, "\n")
-	return form
+	tmpl.text = strings.Join(lines, "\n")
+	return tmpl
 }
 
-// String returns the text. All formatting functions called
-// prior will have been applied to the string.
-func (form *Formatter) String() string {
-	return form.text
+// String returns the text with all formatting applied.
+func (tmpl *Template) String() string {
+	return tmpl.text
 }

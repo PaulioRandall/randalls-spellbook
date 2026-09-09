@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func ExampleFormatter() {
+func ExampleTemplate() {
 	columns := []string{
 		"name",
 		"level",
@@ -23,11 +23,11 @@ func ExampleFormatter() {
 		"FROM",
 		"	{{table}}",
 		"WHERE",
-		"	{{id_column}} IN [{{q_marks}}]",
+		"	{{filter_column}} IN [{{q_marks}}]",
 	).
 		Join("columns", ",", columns...).
 		Fmt("table", "players").
-		Fmt("id_column", columns[0]).
+		Fmt("filter_column", columns[0]).
 		FmtRepeat("q_marks", ", ", "?", len(values)).
 		String()
 
@@ -59,8 +59,8 @@ func ExampleFind() {
 	//   LineEnd: 18,
 	//   Start: 14,
 	//   End: 17,
-	//   Needle: 'bob',
-	//   Haystack: <not printed>,
+	//   Needle: "bob",
+	//   Haystack: "\n	alice,\n	😁bob,\n	charlie\n",
 	//   LineNum(): 3,
 	//   InlineStart(): 5,
 	//   InlineEnd(): 8,

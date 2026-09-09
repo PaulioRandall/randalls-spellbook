@@ -38,3 +38,15 @@ func stringifyValues[T any](values []T) []string {
 
 	return strs
 }
+
+func fmtPrintString(s string) string {
+	const maxStringLength = 30
+	s = strings.Replace(s, "\n", "\\n", -1)
+
+	r := []rune(s)
+	if len(r) > maxStringLength {
+		s = string(r[:maxStringLength]) + "..."
+	}
+
+	return string(s)
+}
