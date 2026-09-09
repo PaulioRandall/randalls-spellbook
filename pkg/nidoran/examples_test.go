@@ -4,36 +4,6 @@ import (
 	"fmt"
 )
 
-func ExampleFind() {
-	haystack := `
-	alice,
-	😁bob,
-	charlie
-`
-
-	nih := Find(haystack, "bob", 0)
-	fmt.Println(nih.String())
-	// Output:
-	// NeedleInHaystack{
-	//   LineIndex: 2,
-	//   LineStart: 9,
-	//   LineEnd: 18,
-	//   Start: 14,
-	//   End: 17,
-	//   Needle: 'bob',
-	//   Haystack: <not printed>,
-	//   LineNum(): 3,
-	//   InlineStart(): 5,
-	//   InlineEnd(): 8,
-	//   RuneLineStart(): 9,
-	//   RuneLineEnd(): 15,
-	//   RuneStart(): 11,
-	//   RuneEnd(): 14,
-	//   RuneInlineStart(): 2,
-	//   RuneInlineEnd(): 5,
-	// }
-}
-
 func ExampleFormatter() {
 	columns := []string{
 		"name",
@@ -71,6 +41,36 @@ func ExampleFormatter() {
 	//	players
 	// WHERE
 	//	name IN [?, ?, ?]
+}
+
+func ExampleFind() {
+	haystack := `
+	alice,
+	😁bob,
+	charlie
+`
+
+	nih := Find(haystack, "bob", 0)
+	fmt.Println(nih.String())
+	// Output:
+	// NeedleInHaystack{
+	//   LineIndex: 2,
+	//   LineStart: 9,
+	//   LineEnd: 18,
+	//   Start: 14,
+	//   End: 17,
+	//   Needle: 'bob',
+	//   Haystack: <not printed>,
+	//   LineNum(): 3,
+	//   InlineStart(): 5,
+	//   InlineEnd(): 8,
+	//   RuneLineStart(): 9,
+	//   RuneLineEnd(): 15,
+	//   RuneStart(): 11,
+	//   RuneEnd(): 14,
+	//   RuneInlineStart(): 2,
+	//   RuneInlineEnd(): 5,
+	// }
 }
 
 func ExampleNeedleInHaystack_FindNext() {
