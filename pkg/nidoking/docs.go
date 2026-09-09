@@ -24,4 +24,6 @@
 // Both APIs were designed for locally scoped usage with
 // method chaining but types are available for passing
 // around or creating adapters.
+//
+// TODO: Template.CutPaste(start, end, to) *Template
 package nidoking

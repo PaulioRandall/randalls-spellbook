@@ -40,8 +40,8 @@ type Table struct {
 	Columns []Column
 }
 
-// NumColumn returns the number of columns.
-func (tbl *Table) NumColumn() int {
+// ColumnCount returns the number of columns.
+func (tbl *Table) ColumnCount() int {
 	return len(tbl.Columns)
 }
 
