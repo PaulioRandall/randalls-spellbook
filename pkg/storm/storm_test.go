@@ -193,11 +193,8 @@ func Test_Storm_SelectAll_1(t *testing.T) {
 	)
 	defer db.Close()
 
-	records, e := db.SelectAll(testCheeseMaker{})
+	act, e := db.SelectAll(testCheeseMaker{})
 	require.NoError(t, e)
-
-	act, ok := records.([]testCheeseMaker)
-	require.Equal(t, true, ok)
 	require.Equal(t, 2, len(act))
 	require.Equal(t, bobs, act[0])
 	require.Equal(t, francs, act[1])
@@ -222,11 +219,8 @@ func Test_Storm_SelectById_1(t *testing.T) {
 	)
 	defer db.Close()
 
-	records, e := db.SelectById(testCheeseMaker{}, francs.Id)
+	act, e := db.SelectById(testCheeseMaker{}, francs.Id)
 	require.NoError(t, e)
-
-	act, ok := records.(testCheeseMaker)
-	require.Equal(t, true, ok)
 	require.Equal(t, francs, act)
 }
 

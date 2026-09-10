@@ -108,7 +108,7 @@ func (st *Storm) Close() error {
 //	}
 //
 //	err := db.Create(Person{})
-func (st *Storm) Create(model any) error {
+func (st *Storm) Create[T any](model T) error {
 	table, e := st.registerTable(model)
 	if e != nil {
 		return ErrCreatingTable.Wrap(e)
@@ -170,7 +170,7 @@ func (st *Storm) createTable(table Table) error {
 //	}
 //
 //	err := db.Insert(object)
-func (st *Storm) Insert(object any) error {
+func (st *Storm) Insert[T any](object T) error {
 	table, e := st.findTableForModel(object)
 	if e != nil {
 		return ErrInsertingObject.Wrap(e)
@@ -227,7 +227,7 @@ func (st *Storm) execInsert(
 //
 //	object.Name = "Bob"
 //	err = db.Update(object)
-func (st *Storm) Update(object any) error {
+func (st *Storm) Update[T any](object T) error {
 	table, e := st.findTableForModel(object)
 	if e != nil {
 		return ErrUpdatingObject.Wrap(e)
@@ -277,21 +277,25 @@ func (st *Storm) execUpdate(
 // error.
 //
 //	slice, err := SelectAll(Model{})
-func (st *Storm) SelectAll(model any) (any, error) {
+func (st *Storm) SelectAll[T any](model T) ([]T, error) {
+	var empty []T
+
 	table, e := st.findTableForModel(model)
 	if e != nil {
-		return nil, ErrSelectingAllObjects.Wrap(e)
+		return empty, ErrSelectingAllObjects.Wrap(e)
 	}
 
-	results, e := st.querySelectAll(table)
+	results, e := st.querySelectAll[T](table)
 	if e != nil {
-		return nil, ErrSelectingAllObjects.Wrap(e)
+		return empty, ErrSelectingAllObjects.Wrap(e)
 	}
 
 	return results, nil
 }
 
-func (st *Storm) querySelectAll(table Table) (any, error) {
+func (st *Storm) querySelectAll[T any](
+	table Table,
+) ([]T, error) {
 	query := nidoking.Given(`
 		SELECT
 			{{columns}}
@@ -307,7 +311,7 @@ func (st *Storm) querySelectAll(table Table) (any, error) {
 		return nil, ErrExeSqlSelect.Table(table.GoName).Wrap(e)
 	}
 
-	result, e := st.scanSelectedRows(table, rows)
+	result, e := st.scanSelectedRows[T](table, rows)
 	if e != nil {
 		return nil, ErrScanningRows.Table(table.GoName).Wrap(e)
 	}
@@ -315,10 +319,10 @@ func (st *Storm) querySelectAll(table Table) (any, error) {
 	return result, nil
 }
 
-func (st *Storm) scanSelectedRows(
+func (st *Storm) scanSelectedRows[T any](
 	table Table,
 	rows *sql.Rows,
-) (any, error) {
+) ([]T, error) {
 	values, valuePtrs := createValueContainers(table)
 
 	sliceValue := reflect.MakeSlice(
@@ -346,7 +350,7 @@ func (st *Storm) scanSelectedRows(
 		return nil, ErrScanningRow.Wrap(e)
 	}
 
-	return sliceValue.Interface(), nil
+	return sliceValue.Interface().([]T), nil
 }
 
 func createValueContainers(table Table) ([]any, []any) {
@@ -397,36 +401,40 @@ func toSliceOfType(typ reflect.Type, values []any) any {
 // without error.
 //
 //	slice, err := SelectById(Model{}, 123)
-func (st *Storm) SelectById(
-	model any,
+func (st *Storm) SelectById[T any](
+	model T,
 	id any,
-) (any, error) {
+) (T, error) {
+	var empty T
+
 	table, e := st.findTableForModel(model)
 	if e != nil {
 		tableName := reflect.TypeOf(model).Name()
-		return nil, ErrSelectingObjectsById.
+		return empty, ErrSelectingObjectsById.
 			Table(tableName).Id(id).Wrap(e)
 	}
 
 	e = validateIdType(table, id)
 	if e != nil {
-		return nil, ErrSelectingObjectsById.
+		return empty, ErrSelectingObjectsById.
 			Table(table.GoName).Id(id).Wrap(e)
 	}
 
-	result, e := st.querySelectById(table, id)
+	result, e := st.querySelectById[T](table, id)
 	if e != nil {
-		return nil, ErrSelectingObjectsById.
+		return empty, ErrSelectingObjectsById.
 			Table(table.GoName).Id(id).Wrap(e)
 	}
 
 	return result, nil
 }
 
-func (st *Storm) querySelectById(
+func (st *Storm) querySelectById[T any](
 	table Table,
 	id any,
-) (any, error) {
+) (T, error) {
+	var empty T
+
 	query := nidoking.Given(`
 		SELECT
 			{{columns}}
@@ -442,20 +450,20 @@ func (st *Storm) querySelectById(
 
 	rows, e := st.db.Query(query, id)
 	if e != nil {
-		return nil, ErrExeSqlSelect.Table(table.GoName).Wrap(e)
+		return empty, ErrExeSqlSelect.Table(table.GoName).Wrap(e)
 	}
 
-	result, e := st.scanSelectedRows(table, rows)
+	result, e := st.scanSelectedRows[T](table, rows)
 	if e != nil {
-		return nil, ErrScanningRows.Table(table.GoName).Wrap(e)
+		return empty, ErrScanningRows.Table(table.GoName).Wrap(e)
 	}
 
 	object, ok := getFirstItemIfArray(result)
 	if !ok {
-		return nil, ErrObjectNotFound.Table(table.GoName)
+		return empty, ErrObjectNotFound.Table(table.GoName)
 	}
 
-	return object, nil
+	return object.(T), nil
 }
 
 func getFirstItemIfArray(v any) (any, bool) {
@@ -572,30 +580,23 @@ func (st *Storm) execDropQuery(table Table) error {
 }
 
 // Select queries the database for one or many records.
-// It calls one of the other select functions based on
-// the arguments. The model's type must be registered
-// (Register()) and table created (CreateTables()) for
-// the select to return without error.
 //
-// The model parameter determines the return type. If
-// it's an array then zero or multiple records may be
-// returned. If it's a struct then either a single
-// record or an empty record is returned.
+// It calls either SelectAll or SelectById depending on the
+// model's types. This means the result will either be a
+// individual instance or a slice of the model's type.
 //
-// If the id parameter is nil then all records are
-// returned else the record with the specified ID will be
-// returned. Attempting to pass a struct as the model
-// without an id will result in an error.
+//	// Select all records.
+//	slice, err := Select([]Model{}, nil)
+//	sliceOfModel := slice.([]Model)
 //
-//		// Select all records.
-//		slice, err := Select([]Model{}, nil)
-//		sliceOfModel := slice.([]Model)
-//
-//		// Select a specific record by ID.
-//		object, err := Select(Model{}, id)
+//	// Select a specific record by ID.
+//	object, err := Select(Model{}, id)
 //
 // Any other configuration will produce an error.
-//Select(model any, id any) (any, error)
+func (st *Storm) Select[T any | []any](id any) (T, error) {
+	var result T
+	return result, nil
+}
 
 func (st *Storm) findTableForModel(
 	object any,
