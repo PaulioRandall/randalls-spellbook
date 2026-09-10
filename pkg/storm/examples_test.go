@@ -4,152 +4,103 @@ import (
 	"log"
 )
 
-type CheeseMaker struct {
-	Id      int64
-	Name    string
-	Country string
-}
-
-type Cheese struct {
-	Id       int64
-	MakerId  int64 // Maps to CheeseMaker.Id
-	Name     string
-	Strength int64   // 1: Mild, 4: Extra Mature
-	Rating   float64 // Out of 5
-	Notes    string  // E.g. "Nutty after taste"
-}
-
-var generateMakerId = newIntGenerator()
-var generateCheeseId = newIntGenerator()
-
-var cheeseMakers = []CheeseMaker{
-	CheeseMaker{
-		Id:      generateMakerId(),
-		Name:    "Charlie's Cheeses",
-		Country: "England",
-	},
-	CheeseMaker{
-		Id:      generateMakerId(),
-		Name:    "Franc's Sheep Fromage",
-		Country: "France",
-	},
-}
-
-var cheeses = []Cheese{
-	Cheese{
-		Id:       generateCheeseId(),
-		MakerId:  cheeseMakers[0].Id,
-		Name:     "Charlie's Cheddar",
-		Strength: 1,
-		Rating:   3.5,
-		Notes:    "Charlie's standard mild Cheddar cheese",
-	},
-	Cheese{
-		Id:       generateCheeseId(),
-		MakerId:  cheeseMakers[0].Id,
-		Name:     "Charlie's Mature Cheddar",
-		Strength: 4,
-		Rating:   4.8,
-	},
-	Cheese{
-		Id:       generateCheeseId(),
-		MakerId:  cheeseMakers[0].Id,
-		Name:     "Vanilla Charm",
-		Strength: 2,
-		Rating:   4.3,
-		Notes:    "Sweeter than typical Cheddar with strong vanilla tones",
-	},
-	Cheese{
-		Id:       generateCheeseId(),
-		MakerId:  cheeseMakers[1].Id,
-		Name:     "Blue Sheep",
-		Strength: 2,
-		Rating:   4.4,
-		Notes:    "Tangy Roquefort cheese",
-	},
-	Cheese{
-		Id:       generateCheeseId(),
-		MakerId:  cheeseMakers[1].Id,
-		Name:     "Sarda Sheep",
-		Strength: 1,
-		Rating:   3.3,
-		Notes:    "Hard sheep cheese from Sarda, Italy",
-	},
-}
-
-func newIntGenerator() func() int64 {
-	var i int64 = 0
-	return func() int64 {
-		i++
-		return i
-	}
-}
-
-func logFatal(e error) {
-	if e != nil {
-		log.Fatal(e)
-	}
-}
-
 func Example() {
-	path := "./db.sqlite"
+	var idPool int64 = 0
+	generateId := func() int64 {
+		idPool++
+		return idPool
+	}
+
+	logFatal := func(e error) {
+		if e != nil {
+			log.Fatal(e)
+		}
+	}
+
+	type Role struct {
+		Id        int64
+		Name      string
+		Strength  int64
+		Stamina   int64
+		Intellect int64
+		Health    int64
+		Mana      int64
+	}
+
+	var guardian = Role{
+		Id:        generateId(),
+		Name:      "Guardian",
+		Strength:  8,
+		Stamina:   8,
+		Intellect: 2,
+		Health:    1000,
+		Mana:      200,
+	}
+
+	var mage = Role{
+		Id:        generateId(),
+		Name:      "Mage",
+		Strength:  3,
+		Stamina:   6,
+		Intellect: 10,
+		Health:    500,
+		Mana:      1000,
+	}
+
+	type Player struct {
+		Id     int64
+		Name   string
+		RoleId int64
+		role   *Role // This field is ignored.
+	}
+
+	var alice = Player{
+		Id:     generateId(),
+		Name:   "Alice",
+		RoleId: mage.Id,
+		role:   &mage,
+	}
+
+	var bob = Player{
+		Id:     generateId(),
+		Name:   "Bob",
+		RoleId: guardian.Id,
+		role:   &guardian,
+	}
+
+	var charlie = Player{
+		Id:     generateId(),
+		Name:   "Charlie",
+		RoleId: mage.Id,
+		role:   &mage,
+	}
+
+	path := "./game-files.sqlite"
 	db := New(path)
 
 	e := db.Open()
 	logFatal(e)
 	defer db.Close()
 
-	e = db.Create(CheeseMaker{})
+	// Create
+	e = db.Create(Player{}, Role{})
 	logFatal(e)
 
-	e = db.Create(Cheese{})
+	// Insert
+	e = db.Insert[any](guardian, mage, alice, bob, charlie)
 	logFatal(e)
 
-	// Insert cheese makers and cheeses.
-	for _, maker := range cheeseMakers {
-		e = db.Insert(maker)
-		logFatal(e)
-	}
-	for _, ch := range cheeses {
-		e = db.Insert(ch)
-		logFatal(e)
-	}
-
-	// Increase the rating of Charlie's Cheddar cheese then
-	// update it in the database.
-	ch := cheeses[0]
-	ch.Rating += 0.3
-	e = db.Update(ch)
+	// Update
+	alice.Name = "Alicia"
+	e = db.Update(alice)
 	logFatal(e)
 
-	var cheeseList []Cheese
-	var vanillaCharm Cheese
-
-	cheeseList, e = db.SelectAll(Cheese{})
+	// Select (all)
+	players, e := db.SelectAll(Player{})
 	logFatal(e)
 
-	vanillaCharm, e = db.SelectById(Cheese{}, 3)
+	role, e := db.SelectById(Role{}, mage.Id)
 	logFatal(e)
-
-	/*
-		// Select a specific cheese from the database. The second
-		// argument must be the ID of the field.
-		cheeseId := 1
-		resultCheese, e = db.Select(Cheese{}, cheeseId)
-		logFatal(e)
-		cheeses, _ = resultCheese.(Cheese)
-
-		// Select all cheese from the database.
-		var cheeses []Cheese
-		_, e := db.Select(&cheeses, nil)
-		logFatal(e)
-
-		// Select all cheeses from the database. This approach
-		// requires explicit type casting.
-		result, e := db.Select(Cheese{}, nil)
-		logFatal(e)
-		cheeses, _ = result.([]Cheese)
-	*/
 
 	// IDEA: After doing a SELECT, check if model implements
 	//       a Init() function, and call it if it does.
@@ -165,6 +116,6 @@ func Example() {
 	// _, e := db.Select(&cheeses, nil)
 	// logFatal(e)
 
-	_ = cheeseList
-	_ = vanillaCharm
+	_ = players
+	_ = role
 }

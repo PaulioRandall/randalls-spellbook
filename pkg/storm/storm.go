@@ -76,47 +76,55 @@ func (st *Storm) Close() error {
 	return st.db.Close()
 }
 
-// Create parses the passed model and creates a table
-// of it in the database. Passing a model for a table that
-// already exists does nothing unless the model was passed
-// to Drop first.
+// Create parses the passed models and creates tables
+// for each within the database, if a table doesn't already
+// exist.
 //
 // After passing a model to Create, calls to database
-// interaction functions like Insert and Select can now be
-// made using objects of the same struct type as model.
+// interaction functions like [Storm.Insert] and
+// [Storm.Select] can now be made using objects of the same
+// type as model.
 //
 // While it's safe to call Create at anytime, it's
 // recommended to create all tables upfront, straight after
-// calling Open. The model must be a struct with at least
-// one exported field or an error is returned. Only
-// exported fields are parsed as part of the Table and
+// calling [Storm.Open]. The model must be a struct with at
+// least one exported field or an error is returned. Only
+// exported fields are parsed as part of the [Table] and
 // field types are currently limited to int64, float64,
-// and string; this will be expanded in future. The first exported
-// field is designated the primary key, regardless of
-// type. It's is recommended to use int64 for primary
-// keys; some databases may require integers while others
-// are less performant with non-int keys, e.g. SQLite
-// works best with integers but the benefits aren't
-// noticable unless you're storing and querying large
-// datasets.
+// and string; this will be expanded in future. The first
+// exported field is designated the primary key, regardless
+// of type. It's is recommended to use int64 for primary
+// keys but not essential; SQLite works best with integers
+// but the benefits aren't noticable in most use cases.
 //
-//	type Person struct {
+//	type Player struct {
 //		Id int64
 //		Name string
-//		Height float64
-//		ignored int64 // This field is ignored.
+//		RoleId int64
+//		role *Role // This field is ignored.
 //	}
 //
-//	err := db.Create(Person{})
-func (st *Storm) Create[T any](model T) error {
-	table, e := st.registerTable(model)
-	if e != nil {
-		return ErrCreatingTable.Wrap(e)
-	}
+//	type Role struct {
+//		Id int64
+//		Name string
+//		Strength int64
+//		Stamina int64
+//		Intellect int64
+//		Health int64
+//	}
+//
+//	err := db.Create(Person{}, Role{})
+func (st *Storm) Create(models ...any) error {
+	for _, m := range models {
+		table, e := st.registerTable(m)
+		if e != nil {
+			return ErrCreatingTable.Wrap(e)
+		}
 
-	e = st.createTable(table)
-	if e != nil {
-		return ErrCreatingTable.Wrap(e)
+		e = st.createTable(table)
+		if e != nil {
+			return ErrCreatingTable.Wrap(e)
+		}
 	}
 
 	return nil
@@ -160,26 +168,35 @@ func (st *Storm) createTable(table Table) error {
 	return nil
 }
 
-// Insert inserts the object into the database. The
-// object's type must match a registered type or an error
-// is returned.
+// Insert inserts the set of objects into the database. The
+// type of each object must match a type registered via
+// the [Storm.Create] function or an error is returned.
 //
-//	object := Model{
-//		Id: 123,
+//	alice := Player{
+//		Id: 69,
 //		Name: "Alice",
+//		RoleId: 5,
 //	}
 //
-//	err := db.Insert(object)
-func (st *Storm) Insert[T any](object T) error {
-	table, e := st.findTableForModel(object)
-	if e != nil {
-		return ErrInsertingObject.Wrap(e)
-	}
+//	bob := Player{
+//		Id: 42,
+//		Name: "Bob",
+//		RoleId: 3,
+//	}
+//
+//	err := db.Insert(alice, bob)
+func (st *Storm) Insert[T any](objects ...T) error {
+	for _, obj := range objects {
+		table, e := st.findTableForModel(obj)
+		if e != nil {
+			return ErrInsertingObject.Wrap(e)
+		}
 
-	values := extractColumnValues(table.Columns, object)
-	e = st.execInsert(table, values)
-	if e != nil {
-		return ErrInsertingObject.Wrap(e)
+		values := extractColumnValues(table.Columns, obj)
+		e = st.execInsert(table, values)
+		if e != nil {
+			return ErrInsertingObject.Wrap(e)
+		}
 	}
 
 	return nil
@@ -212,34 +229,37 @@ func (st *Storm) execInsert(
 	return nil
 }
 
-// Update updates the object within the database. The
+// Update updates the objects within the database. Each
 // object's type must match a registered type or an error
 // is returned. All fields are updated except the ID
 // field, which is used to determine which record to
 // update.
 //
-//	object := Model{
-//		Id: 123,
+//	alice := Player{
+//		Id: 69,
 //		Name: "Alice",
+//		RoleId: 5,
 //	}
-//	err := db.Insert(object)
+//	err := db.Insert(alice)
 //	// YUDO: Handle error.
 //
-//	object.Name = "Bob"
-//	err = db.Update(object)
-func (st *Storm) Update[T any](object T) error {
-	table, e := st.findTableForModel(object)
-	if e != nil {
-		return ErrUpdatingObject.Wrap(e)
-	}
+//	alice.Name = "Alicia"
+//	err = db.Update(alice)
+func (st *Storm) Update[T any](objects ...T) error {
+	for _, obj := range objects {
+		table, e := st.findTableForModel(obj)
+		if e != nil {
+			return ErrUpdatingObject.Wrap(e)
+		}
 
-	values := extractColumnValues(table.Columns, object)
-	// Move ID value to end (for the WHERE clause)
-	values = append(values[1:], values[0])
+		values := extractColumnValues(table.Columns, obj)
+		// Move ID value to end (for the WHERE clause)
+		values = append(values[1:], values[0])
 
-	e = st.execUpdate(table, values)
-	if e != nil {
-		return ErrUpdatingObject.Wrap(e)
+		e = st.execUpdate(table, values)
+		if e != nil {
+			return ErrUpdatingObject.Wrap(e)
+		}
 	}
 
 	return nil
@@ -271,10 +291,8 @@ func (st *Storm) execUpdate(
 }
 
 // SelectAll returns all records for the table associated
-// with the passed model. The model's type must be
-// registered (Register()) and table created
-// (CreateTables()) for the select to return without
-// error.
+// with the passed model. The model's type must match a
+// registered type or an error is returned.
 //
 //	slice, err := SelectAll(Model{})
 func (st *Storm) SelectAll[T any](model T) ([]T, error) {
@@ -386,12 +404,11 @@ func constructObject[T any](values []any) T {
 
 // SelectById returns the record with the given id from
 // the table associated with the passed model. If no
-// record is found then an error is returned. The
-// model's type must be registered (Register()) and table
-// created (CreateTables()) for the select to return
-// without error.
+// record is found then an error is returned. The model's
+// type must match a registered type or an error is
+// returned.
 //
-//	slice, err := SelectById(Model{}, 123)
+//	object, err := SelectById(Model{}, 123)
 func (st *Storm) SelectById[T, ID any](
 	model T,
 	id ID,
@@ -475,32 +492,35 @@ func getFirstItemIfArray[T any](v any) (T, bool) {
 	return rv.Index(0).Interface().(T), true
 }
 
-// DeleteById removes the record with the given id from
+// DeleteById removes the records with the given ids from
 // the table associated with the passed model. If no
-// record is found then nothing happens.
+// record is found then nothing happens. The model's
+// type must match a registered type or an error is
+// returned.
 //
 //	e := DeleteById(Model{}, 123)
 func (st *Storm) DeleteById[T, ID any](
 	model T,
-	id ID,
+	ids ...ID,
 ) error {
 	table, e := st.findTableForModel(model)
 	if e != nil {
 		tableName := reflect.TypeOf(model).Name()
-		return ErrDeletingObject.
-			Table(tableName).Id(id).Wrap(e)
+		return ErrDeletingObject.Table(tableName).Wrap(e)
 	}
 
-	e = validateIdType(table, id)
-	if e != nil {
-		return ErrDeletingObject.
-			Table(table.GoName).Id(id).Wrap(e)
-	}
+	for _, id := range ids {
+		e = validateIdType(table, id)
+		if e != nil {
+			return ErrDeletingObject.
+				Table(table.GoName).Id(id).Wrap(e)
+		}
 
-	e = st.execDeleteById(table, id)
-	if e != nil {
-		return ErrDeletingObject.
-			Table(table.GoName).Id(id).Wrap(e)
+		e = st.execDeleteById(table, id)
+		if e != nil {
+			return ErrDeletingObject.
+				Table(table.GoName).Id(id).Wrap(e)
+		}
 	}
 
 	return nil
@@ -533,27 +553,32 @@ func (st *Storm) execDeleteById(
 // records in the process. Passing a model for a table that
 // doesn't exists does nothing.
 //
-//	type Person struct {
+//	type Player struct {
 //		Id int64
 //		Name string
-//		Height float64
-//		ignored int64 // This field is ignored.
 //	}
 //
-//	err := db.Create(Person{})
+//	type Role struct {
+//		Id int64
+//		Name string
+//	}
+//
+//	err := db.Create(Person{}, Role{})
 //	// YUDO: Handle error.
 //
-//	err := db.Drop(Person{})
-func (st *Storm) Drop[T any](model T) error {
-	typ := reflect.TypeOf(model)
-	table, found := st.findTableForType(typ)
-	if !found {
-		return nil
-	}
+//	err := db.Drop(Person{}, Role{})
+func (st *Storm) Drop(models ...any) error {
+	for _, m := range models {
+		typ := reflect.TypeOf(m)
+		table, found := st.findTableForType(typ)
+		if !found {
+			return nil
+		}
 
-	e := st.execDropQuery(table)
-	if e != nil {
-		return ErrDroppingTable.Table(table.GoName).Wrap(e)
+		e := st.execDropQuery(table)
+		if e != nil {
+			return ErrDroppingTable.Table(table.GoName).Wrap(e)
+		}
 	}
 
 	return nil

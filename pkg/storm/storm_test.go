@@ -50,15 +50,11 @@ func openCreateInsert(
 		}
 	}()
 
-	for _, m := range models {
-		e = db.Create(m)
-		require.NoError(t, e)
-	}
+	e = db.Create(models...)
+	require.NoError(t, e)
 
-	for _, m := range makers {
-		e = db.Insert(m)
-		require.NoError(t, e)
-	}
+	e = db.Insert(makers...)
+	require.NoError(t, e)
 
 	return db
 }
