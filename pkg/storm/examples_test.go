@@ -91,8 +91,8 @@ func logFatal(e error) {
 	}
 }
 
-func sqlick_example_1() {
-	path := "./sqlick.sqlite"
+func Example() {
+	path := "./db.sqlite"
 	db := New(path)
 
 	e := db.Open()
@@ -122,19 +122,14 @@ func sqlick_example_1() {
 	e = db.Update(ch)
 	logFatal(e)
 
-	var result any
 	var cheeseList []Cheese
 	var vanillaCharm Cheese
 
-	result, e = db.SelectAll(Cheese{})
+	cheeseList, e = db.SelectAll(Cheese{})
 	logFatal(e)
-	cheeseList, _ = result.([]Cheese)
-	_ = cheeseList
 
-	result, e = db.SelectById(Cheese{}, 3)
+	vanillaCharm, e = db.SelectById(Cheese{}, 3)
 	logFatal(e)
-	vanillaCharm, _ = result.(Cheese)
-	_ = vanillaCharm
 
 	/*
 		// Select a specific cheese from the database. The second
@@ -169,4 +164,7 @@ func sqlick_example_1() {
 	// var cheeses []Cheese
 	// _, e := db.Select(&cheeses, nil)
 	// logFatal(e)
+
+	_ = cheeseList
+	_ = vanillaCharm
 }

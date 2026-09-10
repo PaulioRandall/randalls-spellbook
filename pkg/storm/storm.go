@@ -324,12 +324,7 @@ func (st *Storm) scanSelectedRows[T any](
 	rows *sql.Rows,
 ) ([]T, error) {
 	values, valuePtrs := createValueContainers(table)
-
-	sliceValue := reflect.MakeSlice(
-		reflect.SliceOf(table.GoType),
-		0,
-		0,
-	)
+	var result []T
 
 	for rowIdx := 0; rows.Next(); rowIdx++ {
 		e := rows.Scan(valuePtrs...)
@@ -337,20 +332,16 @@ func (st *Storm) scanSelectedRows[T any](
 			return nil, ErrScanningRow.Row(rowIdx).Wrap(e)
 		}
 
-		object := constructObject(table, values)
-
-		sliceValue = reflect.Append(
-			sliceValue,
-			reflect.ValueOf(object),
-		)
+		object := constructObject[T](values)
+		result = append(result, object)
 	}
 
 	e := rows.Err()
 	if e != nil {
-		return nil, ErrScanningRow.Wrap(e)
+		return nil, e
 	}
 
-	return sliceValue.Interface().([]T), nil
+	return result, nil
 }
 
 func createValueContainers(table Table) ([]any, []any) {
@@ -366,31 +357,31 @@ func createValueContainers(table Table) ([]any, []any) {
 	return values, valuePtrs
 }
 
-func constructObject(table Table, values []any) any {
-	object := reflect.New(table.GoType).Elem()
+func constructObject[T any](values []any) T {
+	var result T
 
-	for i, col := range table.Columns {
-		v := reflect.ValueOf(values[i])
-		field := object.Field(col.GoIndex)
-		field.Set(v)
+	objTyp := reflect.TypeOf(result)
+	objVal := reflect.ValueOf(&result).Elem()
+
+	valueIdx := 0
+	fieldIdx := 0
+
+	for fieldIdx < objVal.NumField() {
+		fieldTyp := objTyp.Field(fieldIdx)
+
+		if !fieldTyp.IsExported() {
+			continue
+		}
+
+		v := reflect.ValueOf(values[valueIdx])
+		fieldVal := objVal.Field(valueIdx)
+		fieldVal.Set(v)
+
+		fieldIdx++
+		valueIdx++
 	}
 
-	return object.Interface()
-}
-
-func toSliceOfType(typ reflect.Type, values []any) any {
-	sliceValue := reflect.MakeSlice(
-		reflect.SliceOf(typ),
-		len(values),
-		len(values),
-	)
-
-	for i, v := range values {
-		itemValue := reflect.ValueOf(v)
-		sliceValue.Index(i).Set(itemValue)
-	}
-
-	return sliceValue.Interface()
+	return result
 }
 
 // SelectById returns the record with the given id from
@@ -401,9 +392,9 @@ func toSliceOfType(typ reflect.Type, values []any) any {
 // without error.
 //
 //	slice, err := SelectById(Model{}, 123)
-func (st *Storm) SelectById[T any](
+func (st *Storm) SelectById[T, ID any](
 	model T,
-	id any,
+	id ID,
 ) (T, error) {
 	var empty T
 
@@ -458,29 +449,30 @@ func (st *Storm) querySelectById[T any](
 		return empty, ErrScanningRows.Table(table.GoName).Wrap(e)
 	}
 
-	object, ok := getFirstItemIfArray(result)
+	object, ok := getFirstItemIfArray[T](result)
 	if !ok {
 		return empty, ErrObjectNotFound.Table(table.GoName)
 	}
 
-	return object.(T), nil
+	return object, nil
 }
 
-func getFirstItemIfArray(v any) (any, bool) {
+func getFirstItemIfArray[T any](v any) (T, bool) {
+	var empty T
 	rv := reflect.ValueOf(v)
 
 	isArray := rv.Kind() == reflect.Array
 	isSlice := rv.Kind() == reflect.Slice
 
 	if !isArray && !isSlice {
-		return nil, false
+		return empty, false
 	}
 
-	if rv.Len() > 0 {
-		return rv.Index(0).Interface(), true
+	if rv.Len() == 0 {
+		return empty, false
 	}
 
-	return nil, false
+	return rv.Index(0).Interface().(T), true
 }
 
 // DeleteById removes the record with the given id from
@@ -488,7 +480,10 @@ func getFirstItemIfArray(v any) (any, bool) {
 // record is found then nothing happens.
 //
 //	e := DeleteById(Model{}, 123)
-func (st *Storm) DeleteById(model any, id any) error {
+func (st *Storm) DeleteById[T, ID any](
+	model T,
+	id ID,
+) error {
 	table, e := st.findTableForModel(model)
 	if e != nil {
 		tableName := reflect.TypeOf(model).Name()
@@ -549,7 +544,7 @@ func (st *Storm) execDeleteById(
 //	// YUDO: Handle error.
 //
 //	err := db.Drop(Person{})
-func (st *Storm) Drop(model any) error {
+func (st *Storm) Drop[T any](model T) error {
 	typ := reflect.TypeOf(model)
 	table, found := st.findTableForType(typ)
 	if !found {
@@ -577,25 +572,6 @@ func (st *Storm) execDropQuery(table Table) error {
 	}
 
 	return nil
-}
-
-// Select queries the database for one or many records.
-//
-// It calls either SelectAll or SelectById depending on the
-// model's types. This means the result will either be a
-// individual instance or a slice of the model's type.
-//
-//	// Select all records.
-//	slice, err := Select([]Model{}, nil)
-//	sliceOfModel := slice.([]Model)
-//
-//	// Select a specific record by ID.
-//	object, err := Select(Model{}, id)
-//
-// Any other configuration will produce an error.
-func (st *Storm) Select[T any | []any](id any) (T, error) {
-	var result T
-	return result, nil
 }
 
 func (st *Storm) findTableForModel(
@@ -639,12 +615,14 @@ func extractColumnValues(
 	return result
 }
 
-func validateIdType(table Table, id any) error {
-	idTyp := reflect.TypeOf(id)
-
-	if table.IdColumn().GoType.Kind() != idTyp.Kind() {
+func validateIdType[ID any](table Table, id ID) error {
+	if table.IdColumn().GoType != reflect.TypeOf(id) {
 		return ErrBadIdType.Table(table.GoName).Id(id)
 	}
-
 	return nil
+}
+
+func isArrayOrSlice(model any) bool {
+	k := reflect.TypeOf(model).Kind()
+	return k == reflect.Slice || k == reflect.Array
 }

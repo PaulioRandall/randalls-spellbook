@@ -133,7 +133,7 @@ func (se StormError) Error() string {
 		se.idMsg
 
 	if se.wrapped != nil {
-		s += ":\n\t+ " + se.wrapped.Error()
+		s += ":\n" + se.wrapped.Error()
 	}
 
 	return s
