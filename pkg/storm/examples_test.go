@@ -99,22 +99,9 @@ func Example() {
 	players, e := db.SelectAll(Player{})
 	logFatal(e)
 
+	// Select (by ID)
 	role, e := db.SelectById(Role{}, mage.Id)
 	logFatal(e)
-
-	// IDEA: After doing a SELECT, check if model implements
-	//       a Init() function, and call it if it does.
-	//       Init() can do things like populate private
-	//       fields based on fetched data.
-
-	// IDEA: Pass pointer to array to Select.
-	// Select all cheeses from the database appending them
-	// to the passed slice (note that a pointer to the slice
-	// must be passed). The pointer to the array will be
-	// returned but you'll usually want to ignore it.
-	// var cheeses []Cheese
-	// _, e := db.Select(&cheeses, nil)
-	// logFatal(e)
 
 	_ = players
 	_ = role

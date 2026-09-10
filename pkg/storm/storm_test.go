@@ -13,12 +13,11 @@ type testCheeseMaker struct {
 }
 
 type testCheese struct {
-	Id       int64
-	MakerId  int64
-	Name     string
-	Strength int64
-	Rating   float64
-	Notes    string
+	Id      int64
+	MakerId int64
+	Name    string
+	Rating  float64
+	wasInit bool
 }
 
 var bobs = testCheeseMaker{
@@ -33,10 +32,18 @@ var francs = testCheeseMaker{
 	Country: "France",
 }
 
+var cheddar = testCheese{
+	Id:      3,
+	MakerId: bobs.Id,
+	Name:    "Cheddar",
+	Rating:  7.7,
+	wasInit: false,
+}
+
 func openCreateInsert(
 	t *testing.T,
 	models []any,
-	makers []testCheeseMaker,
+	objects ...any,
 ) *Storm {
 	db := New(":memory:")
 
@@ -53,7 +60,7 @@ func openCreateInsert(
 	e = db.Create(models...)
 	require.NoError(t, e)
 
-	e = db.Insert(makers...)
+	e = db.Insert(objects...)
 	require.NoError(t, e)
 
 	return db
@@ -115,11 +122,7 @@ func selectTestTableNamesFromSqliteSchema(
 }
 
 func Test_Storm_Open_Close_1(t *testing.T) {
-	db := openCreateInsert(
-		t,
-		nil,
-		nil,
-	)
+	db := openCreateInsert(t, nil)
 	defer db.Close()
 
 	require.Equal(t, true, db.IsOpen())
@@ -133,7 +136,6 @@ func Test_Storm_Create_1(t *testing.T) {
 	db := openCreateInsert(
 		t,
 		[]any{testCheeseMaker{}, testCheese{}},
-		nil,
 	)
 	defer db.Close()
 
@@ -148,7 +150,7 @@ func Test_Storm_Insert_1(t *testing.T) {
 	db := openCreateInsert(
 		t,
 		[]any{testCheeseMaker{}, testCheese{}},
-		[]testCheeseMaker{bobs, francs},
+		bobs, francs,
 	)
 	defer db.Close()
 
@@ -162,7 +164,7 @@ func Test_Storm_Update_1(t *testing.T) {
 	db := openCreateInsert(
 		t,
 		[]any{testCheeseMaker{}, testCheese{}},
-		[]testCheeseMaker{bobs, francs},
+		bobs, francs,
 	)
 	defer db.Close()
 
@@ -185,7 +187,7 @@ func Test_Storm_SelectAll_1(t *testing.T) {
 	db := openCreateInsert(
 		t,
 		[]any{testCheeseMaker{}, testCheese{}},
-		[]testCheeseMaker{bobs, francs},
+		bobs, francs,
 	)
 	defer db.Close()
 
@@ -199,7 +201,7 @@ func Test_Storm_SelectAll_1(t *testing.T) {
 func Test_Storm_SelectAll_2(t *testing.T) {
 	// Error when object type not registered.
 
-	db := openCreateInsert(t, nil, nil)
+	db := openCreateInsert(t, nil)
 	defer db.Close()
 
 	_, e := db.SelectAll(testCheese{})
@@ -211,7 +213,7 @@ func Test_Storm_SelectById_1(t *testing.T) {
 	db := openCreateInsert(
 		t,
 		[]any{testCheeseMaker{}, testCheese{}},
-		[]testCheeseMaker{bobs, francs},
+		bobs, francs,
 	)
 	defer db.Close()
 
@@ -224,7 +226,7 @@ func Test_Storm_DeleteById_1(t *testing.T) {
 	db := openCreateInsert(
 		t,
 		[]any{testCheeseMaker{}, testCheese{}},
-		[]testCheeseMaker{bobs, francs},
+		bobs, francs,
 	)
 	defer db.Close()
 
@@ -240,7 +242,6 @@ func Test_Storm_Drop_1(t *testing.T) {
 	db := openCreateInsert(
 		t,
 		[]any{testCheeseMaker{}, testCheese{}},
-		nil,
 	)
 	defer db.Close()
 

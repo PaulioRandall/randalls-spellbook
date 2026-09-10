@@ -59,8 +59,8 @@ func parseColumns(
 			continue
 		}
 
-		validKind := isSupportedFieldKind(field.Type.Kind())
-		if !validKind {
+		sqlType, ok := typeMappings[field.Type.Kind()]
+		if !ok {
 			return nil, fmt.Errorf(
 				"Failed to parse struct field '%s': %w",
 				field.Name,
@@ -72,6 +72,7 @@ func parseColumns(
 			GoName:  field.Name,
 			GoType:  field.Type,
 			GoIndex: i,
+			SqlType: sqlType,
 		}
 
 		columns = append(columns, col)
@@ -81,7 +82,7 @@ func parseColumns(
 }
 
 func isSupportedFieldKind(kind reflect.Kind) bool {
-	for _, k := range validKinds {
+	for k, _ := range typeMappings {
 		if k == kind {
 			return true
 		}

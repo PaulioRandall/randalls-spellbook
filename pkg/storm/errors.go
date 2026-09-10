@@ -27,6 +27,8 @@ var (
 	ErrScanningRows = stormy("Scanning selected rows")
 	ErrScanningRow  = stormy("Scanning row")
 
+	ErrInitObject = stormy("Failed to intiialise object")
+
 	// ErrNotStruct is returned when attempting to use a
 	// model type with a non-struct kind.
 	ErrNotStruct = stormy("Model must be a struct")

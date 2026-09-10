@@ -2,6 +2,7 @@ package storm
 
 import (
 	"database/sql"
+	"fmt"
 	"reflect"
 
 	_ "github.com/glebarez/go-sqlite"
@@ -9,25 +10,23 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 )
 
-var goKindToSqliteTypeMappings = map[reflect.Kind]string{
-	reflect.String:  "TEXT",
-	reflect.Int64:   "INTEGER",
-	reflect.Float64: "REAL",
-}
-
+// Storm is the core type and the interface to the SQLite
+// database.
 type Storm struct {
 	path   string
 	tables []Table
 	db     *sql.DB
 }
 
+// New returns a new [Storm] for the database represented
+// by path.
 func New(path string) *Storm {
 	return &Storm{
 		path: path,
 	}
 }
 
-// Open opens the database. If not an in-memory path then
+// Open opens the database. If not an 'in-memory' path then
 // the missing directories in the directory path are
 // created.
 //
@@ -35,6 +34,10 @@ func New(path string) *Storm {
 //	// YUDO: Handle error.
 //	defer db.Close()
 func (st *Storm) Open() error {
+	if st.IsOpen() {
+		return nil
+	}
+
 	e := makeParentDirs(st.path)
 	if e != nil {
 		return e
@@ -154,7 +157,15 @@ func (st *Storm) createTable(table Table) error {
 		)
 	`).
 		Fmt("table", table.GoName).
-		Join("columns", "", table.ColumnNames()...).
+		Map("columns", len(table.Columns), func(i int) (string, bool) {
+			col := table.Columns[i]
+			s := fmt.Sprintf(
+				"%s %s NOT NULL",
+				col.GoName,
+				col.SqlType,
+			)
+			return s, true
+		}).
 		Fmt("id_column", table.IdColumn().GoName).
 		String()
 
@@ -296,16 +307,14 @@ func (st *Storm) execUpdate(
 //
 //	slice, err := SelectAll(Model{})
 func (st *Storm) SelectAll[T any](model T) ([]T, error) {
-	var empty []T
-
 	table, e := st.findTableForModel(model)
 	if e != nil {
-		return empty, ErrSelectingAllObjects.Wrap(e)
+		return nil, ErrSelectingAllObjects.Wrap(e)
 	}
 
 	results, e := st.querySelectAll[T](table)
 	if e != nil {
-		return empty, ErrSelectingAllObjects.Wrap(e)
+		return nil, ErrSelectingAllObjects.Wrap(e)
 	}
 
 	return results, nil
@@ -384,7 +393,7 @@ func constructObject[T any](values []any) T {
 	valueIdx := 0
 	fieldIdx := 0
 
-	for fieldIdx < objVal.NumField() {
+	for ; fieldIdx < objVal.NumField(); fieldIdx++ {
 		fieldTyp := objTyp.Field(fieldIdx)
 
 		if !fieldTyp.IsExported() {
@@ -395,7 +404,6 @@ func constructObject[T any](values []any) T {
 		fieldVal := objVal.Field(valueIdx)
 		fieldVal.Set(v)
 
-		fieldIdx++
 		valueIdx++
 	}
 

@@ -32,16 +32,19 @@ func Test_Parse_1(t *testing.T) {
 				GoName:  "Alice",
 				GoType:  strType,
 				GoIndex: 0,
+				SqlType: "TEXT",
 			},
 			Column{
 				GoName:  "Bob",
 				GoType:  int64Type,
 				GoIndex: 1,
+				SqlType: "INTEGER",
 			},
 			Column{
 				GoName:  "Charlie",
 				GoType:  float64Type,
 				GoIndex: 3,
+				SqlType: "REAL",
 			},
 		},
 	}

@@ -19,10 +19,10 @@ var (
 
 	int64ArrType = reflect.TypeOf(int64ArrZero)
 
-	validKinds = []reflect.Kind{
-		reflect.String,
-		reflect.Int64,
-		reflect.Float64,
+	typeMappings = map[reflect.Kind]string{
+		reflect.String:  "TEXT",
+		reflect.Int64:   "INTEGER",
+		reflect.Float64: "REAL",
 	}
 )
 
@@ -100,16 +100,20 @@ type Column struct {
 	// GoIndex is the index of the Go StructField within its
 	// struct.
 	GoIndex int
+
+	// SqlType is the SQLite type of the column.
+	SqlType string
 }
 
 // String returns the human readable string representation
 // of a Column.
 func (col *Column) String() string {
 	return fmt.Sprintf(
-		"[%d] %s: %s",
+		"[%d] %s: Go(%s) SQL(%s)",
 		col.GoIndex,
 		col.GoName,
 		col.GoType.Name(),
+		col.SqlType,
 	)
 }
 
