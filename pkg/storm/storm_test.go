@@ -203,6 +203,17 @@ func Test_Storm_SelectAll_1(t *testing.T) {
 	require.Equal(t, francs, act[1])
 }
 
+func Test_Storm_SelectAll_2(t *testing.T) {
+	// Error when object type not registered.
+
+	db := openCreateInsert(t, nil, nil)
+	defer db.Close()
+
+	_, e := db.SelectAll(testCheese{})
+	require.ErrorIs(t, e, ErrSelectingAllObjects)
+	require.ErrorIs(t, e, ErrNoSuchTable)
+}
+
 func Test_Storm_SelectById_1(t *testing.T) {
 	db := openCreateInsert(
 		t,

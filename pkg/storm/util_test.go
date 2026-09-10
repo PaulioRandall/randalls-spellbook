@@ -27,6 +27,6 @@ func Test_generateList_1(t *testing.T) {
 		},
 	)
 
-	require.Equal(t, nil, e)
+	require.NoError(t, e)
 	require.Equal(t, exp, s)
 }

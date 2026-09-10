@@ -2,7 +2,6 @@ package storm
 
 import (
 	"database/sql"
-	"fmt"
 	"reflect"
 
 	_ "github.com/glebarez/go-sqlite"
@@ -42,15 +41,13 @@ func (st *Storm) Open() error {
 	}
 
 	db, e := sql.Open("sqlite", st.path)
-	if e == nil {
-		st.db = db
-		return nil
+	if e != nil {
+		return stormy("Unable to open SQLite database").
+			Wrap(e)
 	}
 
-	return fmt.Errorf(
-		"Unable to open SQLite database: %w",
-		e,
-	)
+	st.db = db
+	return nil
 }
 
 // IsOpen returns true if the database is open.
@@ -114,12 +111,12 @@ func (st *Storm) Close() error {
 func (st *Storm) Create(model any) error {
 	table, e := st.registerTable(model)
 	if e != nil {
-		return errCreatingTable(e)
+		return ErrCreatingTable.Wrap(e)
 	}
 
 	e = st.createTable(table)
 	if e != nil {
-		return errCreatingTable(e)
+		return ErrCreatingTable.Wrap(e)
 	}
 
 	return nil
@@ -133,7 +130,8 @@ func (st *Storm) registerTable(model any) (Table, error) {
 
 	table, e = Parse(model)
 	if e != nil {
-		return Table{}, errRegisteringTable(e)
+		return Table{},
+			stormy("Failed to register struct/table").Wrap(e)
 	}
 
 	st.tables = append(st.tables, table)
@@ -154,29 +152,12 @@ func (st *Storm) createTable(table Table) error {
 
 	_, e := st.db.Exec(query)
 	if e != nil {
-		return errExecutingCreateTable(table, e)
+		return ErrExeSqlCreate.
+			Table(table.GoName).
+			Wrap(e)
 	}
 
 	return nil
-}
-
-func errCreatingTable(e error) error {
-	return fmt.Errorf("Failed to create table: %w", e)
-}
-
-func errRegisteringTable(e error) error {
-	return fmt.Errorf(
-		"Failed to register struct/table: %w",
-		e,
-	)
-}
-
-func errExecutingCreateTable(table Table, e error) error {
-	return fmt.Errorf(
-		"Executing CREATE TABLE '%s' in database: %w",
-		table.GoName,
-		e,
-	)
 }
 
 // Insert inserts the object into the database. The
@@ -190,18 +171,15 @@ func errExecutingCreateTable(table Table, e error) error {
 //
 //	err := db.Insert(object)
 func (st *Storm) Insert(object any) error {
-	value := reflect.ValueOf(object)
-	table, found := st.findTableForType(value.Type())
-
-	if !found {
-		e := errNoSuchTable(value.Type().Name())
-		return errInsertingObject(e)
+	table, e := st.findTableForModel(object)
+	if e != nil {
+		return ErrInsertingObject.Wrap(e)
 	}
 
 	values := extractColumnValues(table.Columns, object)
-	e := st.execInsert(table, values)
+	e = st.execInsert(table, values)
 	if e != nil {
-		return errInsertingObject(e)
+		return ErrInsertingObject.Wrap(e)
 	}
 
 	return nil
@@ -226,25 +204,12 @@ func (st *Storm) execInsert(
 
 	_, e := st.db.Exec(query, values...)
 	if e != nil {
-		return errExecutingInsert(table, e)
+		return ErrExeSqlInsert.
+			Table(table.GoName).
+			Wrap(e)
 	}
 
 	return nil
-}
-
-func errInsertingObject(e error) error {
-	return fmt.Errorf(
-		"Failed to insert object into database: %w",
-		e,
-	)
-}
-
-func errExecutingInsert(table Table, e error) error {
-	return fmt.Errorf(
-		"Failed to insert into table '%s': %w",
-		table.GoName,
-		e,
-	)
 }
 
 // Update updates the object within the database. The
@@ -265,7 +230,7 @@ func errExecutingInsert(table Table, e error) error {
 func (st *Storm) Update(object any) error {
 	table, e := st.findTableForModel(object)
 	if e != nil {
-		return errUpdatingTable(e)
+		return ErrUpdatingObject.Wrap(e)
 	}
 
 	values := extractColumnValues(table.Columns, object)
@@ -274,7 +239,7 @@ func (st *Storm) Update(object any) error {
 
 	e = st.execUpdate(table, values)
 	if e != nil {
-		return errUpdatingTable(e)
+		return ErrUpdatingObject.Wrap(e)
 	}
 
 	return nil
@@ -299,25 +264,10 @@ func (st *Storm) execUpdate(
 
 	_, e := st.db.Exec(query, fieldValues...)
 	if e != nil {
-		return errExecutingUpdate(table, e)
+		return ErrExeSqlUpdate.Table(table.GoName).Wrap(e)
 	}
 
 	return nil
-}
-
-func errUpdatingTable(e error) error {
-	return fmt.Errorf(
-		"Failed to update object in database: %w",
-		e,
-	)
-}
-
-func errExecutingUpdate(table Table, e error) error {
-	return fmt.Errorf(
-		"Failed to update row in table '%s': %w",
-		table.GoName,
-		e,
-	)
 }
 
 // SelectAll returns all records for the table associated
@@ -330,12 +280,12 @@ func errExecutingUpdate(table Table, e error) error {
 func (st *Storm) SelectAll(model any) (any, error) {
 	table, e := st.findTableForModel(model)
 	if e != nil {
-		return nil, errSelectingAll(e)
+		return nil, ErrSelectingAllObjects.Wrap(e)
 	}
 
 	results, e := st.querySelectAll(table)
 	if e != nil {
-		return nil, errSelectingAll(e)
+		return nil, ErrSelectingAllObjects.Wrap(e)
 	}
 
 	return results, nil
@@ -354,12 +304,12 @@ func (st *Storm) querySelectAll(table Table) (any, error) {
 
 	rows, e := st.db.Query(query)
 	if e != nil {
-		return nil, errExecQuerySelectAll(table, e)
+		return nil, ErrExeSqlSelect.Table(table.GoName).Wrap(e)
 	}
 
 	result, e := st.scanSelectedRows(table, rows)
 	if e != nil {
-		return nil, errExecQuerySelectAll(table, e)
+		return nil, ErrScanningRows.Table(table.GoName).Wrap(e)
 	}
 
 	return result, nil
@@ -380,7 +330,7 @@ func (st *Storm) scanSelectedRows(
 	for rowIdx := 0; rows.Next(); rowIdx++ {
 		e := rows.Scan(valuePtrs...)
 		if e != nil {
-			return nil, errScanningSelectedRow(rowIdx, e)
+			return nil, ErrScanningRow.Row(rowIdx).Wrap(e)
 		}
 
 		object := constructObject(table, values)
@@ -393,7 +343,7 @@ func (st *Storm) scanSelectedRows(
 
 	e := rows.Err()
 	if e != nil {
-		return nil, errAfterScanningSelectedRows(e)
+		return nil, ErrScanningRow.Wrap(e)
 	}
 
 	return sliceValue.Interface(), nil
@@ -439,36 +389,6 @@ func toSliceOfType(typ reflect.Type, values []any) any {
 	return sliceValue.Interface()
 }
 
-func errSelectingAll(e error) error {
-	return fmt.Errorf(
-		"Failed to SELECT all from database: %w",
-		e,
-	)
-}
-
-func errExecQuerySelectAll(table Table, e error) error {
-	return fmt.Errorf(
-		"Failed to SELECT all from table '%s': %w",
-		table.GoName,
-		e,
-	)
-}
-
-func errScanningSelectedRow(rowIdx int, e error) error {
-	return fmt.Errorf(
-		"Failed to scan indexed row %d: %w",
-		rowIdx,
-		e,
-	)
-}
-
-func errAfterScanningSelectedRows(e error) error {
-	return fmt.Errorf(
-		"Error occurred after scanning selected rows: %w",
-		e,
-	)
-}
-
 // SelectById returns the record with the given id from
 // the table associated with the passed model. If no
 // record is found then an error is returned. The
@@ -484,17 +404,20 @@ func (st *Storm) SelectById(
 	table, e := st.findTableForModel(model)
 	if e != nil {
 		tableName := reflect.TypeOf(model).Name()
-		return nil, errSelectingById(id, tableName, e)
+		return nil, ErrSelectingObjectsById.
+			Table(tableName).Id(id).Wrap(e)
 	}
 
 	e = validateIdType(table, id)
 	if e != nil {
-		return nil, errSelectingById(id, table.GoName, e)
+		return nil, ErrSelectingObjectsById.
+			Table(table.GoName).Id(id).Wrap(e)
 	}
 
 	result, e := st.querySelectById(table, id)
 	if e != nil {
-		return nil, errSelectingById(id, table.GoName, e)
+		return nil, ErrSelectingObjectsById.
+			Table(table.GoName).Id(id).Wrap(e)
 	}
 
 	return result, nil
@@ -519,17 +442,17 @@ func (st *Storm) querySelectById(
 
 	rows, e := st.db.Query(query, id)
 	if e != nil {
-		return nil, errQuerySelectById(table, e)
+		return nil, ErrExeSqlSelect.Table(table.GoName).Wrap(e)
 	}
 
 	result, e := st.scanSelectedRows(table, rows)
 	if e != nil {
-		return nil, errQuerySelectById(table, e)
+		return nil, ErrScanningRows.Table(table.GoName).Wrap(e)
 	}
 
 	object, ok := getFirstItemIfArray(result)
 	if !ok {
-		return nil, errQuerySelectById(table, ErrRecordNotFound)
+		return nil, ErrObjectNotFound.Table(table.GoName)
 	}
 
 	return object, nil
@@ -552,23 +475,6 @@ func getFirstItemIfArray(v any) (any, bool) {
 	return nil, false
 }
 
-func errSelectingById(id any, table string, e error) error {
-	return fmt.Errorf(
-		"Failed to select by ID '%v' from table '%s': %w",
-		id,
-		table,
-		e,
-	)
-}
-
-func errQuerySelectById(table Table, e error) error {
-	return fmt.Errorf(
-		"Failed to SELECT by ID from table '%s': %w",
-		table.GoName,
-		e,
-	)
-}
-
 // DeleteById removes the record with the given id from
 // the table associated with the passed model. If no
 // record is found then nothing happens.
@@ -578,17 +484,20 @@ func (st *Storm) DeleteById(model any, id any) error {
 	table, e := st.findTableForModel(model)
 	if e != nil {
 		tableName := reflect.TypeOf(model).Name()
-		return errDeletingById(tableName, e)
+		return ErrDeletingObject.
+			Table(tableName).Id(id).Wrap(e)
 	}
 
 	e = validateIdType(table, id)
 	if e != nil {
-		return errDeletingById(table.GoName, e)
+		return ErrDeletingObject.
+			Table(table.GoName).Id(id).Wrap(e)
 	}
 
 	e = st.execDeleteById(table, id)
 	if e != nil {
-		return errDeletingById(table.GoName, e)
+		return ErrDeletingObject.
+			Table(table.GoName).Id(id).Wrap(e)
 	}
 
 	return nil
@@ -610,31 +519,11 @@ func (st *Storm) execDeleteById(
 
 	_, e := st.db.Exec(query, id)
 	if e != nil {
-		return errExecDeleteByIdQuery(table, id, e)
+		return ErrExeSqlDelete.
+			Table(table.GoName).Id(id).Wrap(e)
 	}
 
 	return nil
-}
-
-func errDeletingById(table string, e error) error {
-	return fmt.Errorf(
-		"Failed to DELETE by ID from table '%s': %w",
-		table,
-		e,
-	)
-}
-
-func errExecDeleteByIdQuery(
-	table Table,
-	id any,
-	e error,
-) error {
-	return fmt.Errorf(
-		"Failed to delete by ID '%v' from table '%s': %w",
-		id,
-		table.GoName,
-		e,
-	)
 }
 
 // Drop removes a table from the database, deleting all
@@ -654,27 +543,32 @@ func errExecDeleteByIdQuery(
 //	err := db.Drop(Person{})
 func (st *Storm) Drop(model any) error {
 	typ := reflect.TypeOf(model)
-	tbl, found := st.findTableForType(typ)
+	table, found := st.findTableForType(typ)
 	if !found {
 		return nil
 	}
 
+	e := st.execDropQuery(table)
+	if e != nil {
+		return ErrDroppingTable.Table(table.GoName).Wrap(e)
+	}
+
+	return nil
+}
+
+func (st *Storm) execDropQuery(table Table) error {
 	query := nidoking.Given(`
 		DROP TABLE IF EXISTS {{table}}
 	`).
-		Fmt("table", tbl.GoName).
+		Fmt("table", table.GoName).
 		String()
 
 	_, e := st.db.Exec(query)
-	if e == nil {
-		return nil
+	if e != nil {
+		return ErrExeSqlDrop.Table(table.GoName).Wrap(e)
 	}
 
-	return fmt.Errorf(
-		"Failed to drop table '%s': %w",
-		tbl.GoName,
-		e,
-	)
+	return nil
 }
 
 // Select queries the database for one or many records.
@@ -714,15 +608,7 @@ func (st *Storm) findTableForModel(
 		}
 	}
 
-	return Table{}, errNoSuchTable(typ.Name())
-}
-
-func errNoSuchTable(name string) error {
-	return fmt.Errorf(
-		"No table exists for struct '%s': %w",
-		name,
-		ErrNoTableForType,
-	)
+	return Table{}, ErrNoSuchTable.Table(typ.Name())
 }
 
 func (st *Storm) findTableForType(
@@ -756,7 +642,7 @@ func validateIdType(table Table, id any) error {
 	idTyp := reflect.TypeOf(id)
 
 	if table.IdColumn().GoType.Kind() != idTyp.Kind() {
-		return ErrBadIdType
+		return ErrBadIdType.Table(table.GoName).Id(id)
 	}
 
 	return nil

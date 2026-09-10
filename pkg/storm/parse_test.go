@@ -22,7 +22,7 @@ func Test_Parse_1(t *testing.T) {
 	v := TestEntity{}
 
 	act, e := Parse(v)
-	require.Equal(t, nil, e)
+	require.NoError(t, e)
 
 	exp := Table{
 		GoType: reflect.TypeOf(v),
