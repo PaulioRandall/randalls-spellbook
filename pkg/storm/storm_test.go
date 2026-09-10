@@ -41,22 +41,23 @@ func openCreateInsert(
 	db := New(":memory:")
 
 	e := db.Open()
-	require.Equal(t, nil, e)
+	require.NoError(t, e)
 
 	defer func() {
 		if r := recover(); r != nil {
 			db.Close()
+			panic(r)
 		}
 	}()
 
 	for _, m := range models {
 		e = db.Create(m)
-		require.Equal(t, nil, e)
+		require.NoError(t, e)
 	}
 
 	for _, m := range makers {
 		e = db.Insert(m)
-		require.Equal(t, nil, e)
+		require.NoError(t, e)
 	}
 
 	return db
@@ -74,14 +75,14 @@ func selectAllTestCheeseMakers(
 		FROM
 			testCheeseMaker
 	`)
-	require.Equal(t, nil, e)
+	require.NoError(t, e)
 
 	var result []testCheeseMaker
 
 	for rows.Next() {
 		tcm := testCheeseMaker{}
 		e = rows.Scan(&tcm.Id, &tcm.Name, &tcm.Country)
-		require.Equal(t, nil, e)
+		require.NoError(t, e)
 		result = append(result, tcm)
 	}
 
@@ -103,14 +104,14 @@ func selectTestTableNamesFromSqliteSchema(
 				'testCheese'
 			)
 	`)
-	require.Equal(t, nil, e)
+	require.NoError(t, e)
 
 	var result []string
 
 	for rows.Next() {
 		var name string
 		e = rows.Scan(&name)
-		require.Equal(t, nil, e)
+		require.NoError(t, e)
 		result = append(result, name)
 	}
 
@@ -128,7 +129,7 @@ func Test_Storm_Open_Close_1(t *testing.T) {
 	require.Equal(t, true, db.IsOpen())
 
 	e := db.Close()
-	require.Equal(t, nil, e)
+	require.NoError(t, e)
 	require.Equal(t, false, db.IsOpen())
 }
 
@@ -176,7 +177,7 @@ func Test_Storm_Update_1(t *testing.T) {
 	}
 
 	e := db.Update(bobsUpdated)
-	require.Equal(t, nil, e)
+	require.NoError(t, e)
 
 	records := selectAllTestCheeseMakers(t, db)
 	require.Equal(t, bobsUpdated, records[0])
@@ -193,7 +194,7 @@ func Test_Storm_SelectAll_1(t *testing.T) {
 	defer db.Close()
 
 	records, e := db.SelectAll(testCheeseMaker{})
-	require.Equal(t, nil, e)
+	require.NoError(t, e)
 
 	act, ok := records.([]testCheeseMaker)
 	require.Equal(t, true, ok)
@@ -211,7 +212,7 @@ func Test_Storm_SelectById_1(t *testing.T) {
 	defer db.Close()
 
 	records, e := db.SelectById(testCheeseMaker{}, francs.Id)
-	require.Equal(t, nil, e)
+	require.NoError(t, e)
 
 	act, ok := records.(testCheeseMaker)
 	require.Equal(t, true, ok)
@@ -227,7 +228,7 @@ func Test_Storm_DeleteById_1(t *testing.T) {
 	defer db.Close()
 
 	e := db.DeleteById(testCheeseMaker{}, int64(1))
-	require.Equal(t, nil, e)
+	require.NoError(t, e)
 
 	records := selectAllTestCheeseMakers(t, db)
 	require.Equal(t, francs, records[0])
@@ -243,7 +244,7 @@ func Test_Storm_Drop_1(t *testing.T) {
 	defer db.Close()
 
 	e := db.Drop(testCheeseMaker{})
-	require.Equal(t, nil, e)
+	require.NoError(t, e)
 
 	tableNames := selectTestTableNamesFromSqliteSchema(t, db)
 

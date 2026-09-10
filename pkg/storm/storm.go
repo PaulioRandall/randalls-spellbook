@@ -3,10 +3,7 @@ package storm
 import (
 	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
 	"reflect"
-	"strings"
 
 	_ "github.com/glebarez/go-sqlite"
 
@@ -39,37 +36,19 @@ func New(path string) *Storm {
 //	// YUDO: Handle error.
 //	defer db.Close()
 func (st *Storm) Open() error {
-	e := st.mkdirs()
+	e := makeParentDirs(st.path)
 	if e != nil {
 		return e
 	}
 
 	db, e := sql.Open("sqlite", st.path)
-	if e != nil {
-		return fmt.Errorf(
-			"Unable to open SQLite database: %w",
-			e,
-		)
-	}
-
-	st.db = db
-	return nil
-}
-
-func (st *Storm) mkdirs() error {
-	if st.path == ":memory" {
-		// SQlite in-memory database. There is no path!
-		return nil
-	}
-
-	parent := filepath.Dir(st.path)
-	e := os.MkdirAll(parent, os.ModePerm)
 	if e == nil {
+		st.db = db
 		return nil
 	}
 
 	return fmt.Errorf(
-		"Unable to check or create directory path to SQLite database: %w",
+		"Unable to open SQLite database: %w",
 		e,
 	)
 }
@@ -133,69 +112,71 @@ func (st *Storm) Close() error {
 //
 //	err := db.Create(Person{})
 func (st *Storm) Create(model any) error {
-	e := st.register(model)
+	table, e := st.registerTable(model)
 	if e != nil {
-		return fmt.Errorf(
-			"Failed to create table: %w",
-			e,
-		)
-	}
-
-	typ := reflect.TypeOf(model)
-	table, found := st.findTableFor(typ)
-	if !found {
-		return fmt.Errorf(
-			"No table exists for struct '%s': %w",
-			typ.Name(),
-			ErrNoTableForType,
-		)
+		return errCreatingTable(e)
 	}
 
 	e = st.createTable(table)
 	if e != nil {
-		return fmt.Errorf(
-			"Failed to create table '%s': %w",
-			table.GoName,
-			e,
-		)
+		return errCreatingTable(e)
 	}
 
 	return nil
 }
 
-func (st *Storm) register(model any) error {
-	_, found := st.findTableFor(reflect.TypeOf(model))
-	if found {
-		return nil
+func (st *Storm) registerTable(model any) (Table, error) {
+	table, e := st.findTableForModel(model)
+	if e == nil {
+		return table, nil
 	}
 
-	table, e := Parse(model)
-
+	table, e = Parse(model)
 	if e != nil {
-		return fmt.Errorf(
-			"Failed to register struct/table: %w",
-			e,
-		)
+		return Table{}, errRegisteringTable(e)
 	}
 
 	st.tables = append(st.tables, table)
-	return nil
+	return table, nil
 }
 
-func (st *Storm) createTable(tbl Table) error {
+func (st *Storm) createTable(table Table) error {
 	query := nidoking.Given(`
 		CREATE TABLE IF NOT EXISTS {{table}} (
 			{{columns}},
 		  PRIMARY KEY ({{id_column}})
 		)
 	`).
-		Fmt("table", tbl.GoName).
-		Join("columns", "", tbl.ColumnNames()...).
-		Fmt("id_column", tbl.IdColumn().GoName).
+		Fmt("table", table.GoName).
+		Join("columns", "", table.ColumnNames()...).
+		Fmt("id_column", table.IdColumn().GoName).
 		String()
 
 	_, e := st.db.Exec(query)
-	return e
+	if e != nil {
+		return errExecutingCreateTable(table, e)
+	}
+
+	return nil
+}
+
+func errCreatingTable(e error) error {
+	return fmt.Errorf("Failed to create table: %w", e)
+}
+
+func errRegisteringTable(e error) error {
+	return fmt.Errorf(
+		"Failed to register struct/table: %w",
+		e,
+	)
+}
+
+func errExecutingCreateTable(table Table, e error) error {
+	return fmt.Errorf(
+		"Executing CREATE TABLE '%s' in database: %w",
+		table.GoName,
+		e,
+	)
 }
 
 // Insert inserts the object into the database. The
@@ -210,83 +191,25 @@ func (st *Storm) createTable(tbl Table) error {
 //	err := db.Insert(object)
 func (st *Storm) Insert(object any) error {
 	value := reflect.ValueOf(object)
-	e := st.insertValue(value)
-
-	if e == nil {
-		return nil
-	}
-
-	return fmt.Errorf(
-		"Failed to insert object into database: %w",
-		e,
-	)
-}
-
-func (st *Storm) insertValue(
-	value reflect.Value,
-) error {
-	table, found := st.findTableFor(value.Type())
+	table, found := st.findTableForType(value.Type())
 
 	if !found {
-		return fmt.Errorf(
-			"No table exists for struct '%s': %w",
-			value.Type().Name(),
-			ErrNoTableForType,
-		)
+		e := errNoSuchTable(value.Type().Name())
+		return errInsertingObject(e)
 	}
 
-	fieldValues := st.listOrderedFieldValues(
-		table.Columns,
-		value,
-	)
-	return st.execInsert(table, fieldValues)
-}
-
-func (st *Storm) findTableFor(
-	typ reflect.Type,
-) (Table, bool) {
-	for _, table := range st.tables {
-		if table.GoType == typ {
-			return table, true
-		}
-	}
-	return Table{}, false
-}
-
-func (st *Storm) findTableForOrError(
-	typ reflect.Type,
-) (Table, error) {
-	table, found := st.findTableFor(typ)
-
-	if found {
-		return table, nil
+	values := extractColumnValues(table.Columns, object)
+	e := st.execInsert(table, values)
+	if e != nil {
+		return errInsertingObject(e)
 	}
 
-	return Table{}, fmt.Errorf(
-		"No table exists for struct '%s': %w",
-		typ.Name(),
-		ErrNoTableForType,
-	)
-}
-
-func (st *Storm) listOrderedFieldValues(
-	columns []Column,
-	value reflect.Value,
-) []any {
-	result := make([]any, len(columns))
-
-	for i := 0; i < len(columns); i++ {
-		col := columns[i]
-		field := value.FieldByName(col.GoName)
-		result[i] = field.Interface()
-	}
-
-	return result
+	return nil
 }
 
 func (st *Storm) execInsert(
-	tbl Table,
-	fieldValues []any,
+	table Table,
+	values []any,
 ) error {
 	query := nidoking.Given(`
 		INSERT INTO {{table}} (
@@ -296,21 +219,32 @@ func (st *Storm) execInsert(
 			{{q_marks}}
 		)
 	`).
-		Fmt("table", tbl.GoName).
-		Join("columns", ",", tbl.ColumnNames()...).
-		Repeat("q_marks", ",", "?", tbl.ColumnCount()).
+		Fmt("table", table.GoName).
+		Join("columns", ",", table.ColumnNames()...).
+		Repeat("q_marks", ",", "?", table.ColumnCount()).
 		String()
 
-	_, e := st.db.Exec(query, fieldValues...)
+	_, e := st.db.Exec(query, values...)
 	if e != nil {
-		return fmt.Errorf(
-			"Failed to insert into table '%s': %w",
-			tbl.GoName,
-			e,
-		)
+		return errExecutingInsert(table, e)
 	}
 
 	return nil
+}
+
+func errInsertingObject(e error) error {
+	return fmt.Errorf(
+		"Failed to insert object into database: %w",
+		e,
+	)
+}
+
+func errExecutingInsert(table Table, e error) error {
+	return fmt.Errorf(
+		"Failed to insert into table '%s': %w",
+		table.GoName,
+		e,
+	)
 }
 
 // Update updates the object within the database. The
@@ -329,39 +263,25 @@ func (st *Storm) execInsert(
 //	object.Name = "Bob"
 //	err = db.Update(object)
 func (st *Storm) Update(object any) error {
-	value := reflect.ValueOf(object)
-	e := st.updateValue(value)
-
-	if e == nil {
-		return nil
-	}
-
-	return fmt.Errorf(
-		"Failed to update object in database: %w",
-		e,
-	)
-}
-
-func (st *Storm) updateValue(
-	value reflect.Value,
-) error {
-	table, e := st.findTableForOrError(value.Type())
+	table, e := st.findTableForModel(object)
 	if e != nil {
-		return e
+		return errUpdatingTable(e)
 	}
 
-	fieldValues := st.listOrderedFieldValues(
-		table.Columns,
-		value,
-	)
-
+	values := extractColumnValues(table.Columns, object)
 	// Move ID value to end (for the WHERE clause)
-	fieldValues = append(fieldValues[1:], fieldValues[0])
-	return st.execUpdate(table, fieldValues)
+	values = append(values[1:], values[0])
+
+	e = st.execUpdate(table, values)
+	if e != nil {
+		return errUpdatingTable(e)
+	}
+
+	return nil
 }
 
 func (st *Storm) execUpdate(
-	tbl Table,
+	table Table,
 	fieldValues []any,
 ) error {
 	query := nidoking.Given(`
@@ -372,19 +292,30 @@ func (st *Storm) execUpdate(
 		WHERE
 			{{id_column}} = ?
 	`).
-		Fmt("table", tbl.GoName).
-		Join("columns", ",", tbl.ColumnNames()[1:]...).
-		Fmt("id_column", tbl.IdColumn().GoName).
+		Fmt("table", table.GoName).
+		Join("columns", ",", table.ColumnNames()[1:]...).
+		Fmt("id_column", table.IdColumn().GoName).
 		String()
 
 	_, e := st.db.Exec(query, fieldValues...)
-	if e == nil {
-		return nil
+	if e != nil {
+		return errExecutingUpdate(table, e)
 	}
 
+	return nil
+}
+
+func errUpdatingTable(e error) error {
+	return fmt.Errorf(
+		"Failed to update object in database: %w",
+		e,
+	)
+}
+
+func errExecutingUpdate(table Table, e error) error {
 	return fmt.Errorf(
 		"Failed to update row in table '%s': %w",
-		tbl.GoName,
+		table.GoName,
 		e,
 	)
 }
@@ -396,64 +327,39 @@ func (st *Storm) execUpdate(
 // error.
 //
 //	slice, err := SelectAll(Model{})
-func (st *Storm) SelectAll(
-	model any,
-) (any, error) {
-	typ := reflect.TypeOf(model)
-	result, e := st.selectAllOfType(typ)
-
-	if e == nil {
-		return result, nil
-	}
-
-	return nil, fmt.Errorf(
-		"Failed to select all from database: %w",
-		e,
-	)
-}
-
-func (st *Storm) selectAllOfType(
-	typ reflect.Type,
-) (any, error) {
-	table, e := st.findTableForOrError(typ)
+func (st *Storm) SelectAll(model any) (any, error) {
+	table, e := st.findTableForModel(model)
 	if e != nil {
-		return nil, e
+		return nil, errSelectingAll(e)
 	}
 
-	fieldValues := st.listOrderedFieldValues(
-		table.Columns,
-		reflect.Zero(typ),
-	)
+	results, e := st.querySelectAll(table)
+	if e != nil {
+		return nil, errSelectingAll(e)
+	}
 
-	return st.querySelectAll(table, fieldValues)
+	return results, nil
 }
 
-func (st *Storm) querySelectAll(
-	tbl Table,
-	fieldValues []any,
-) (any, error) {
+func (st *Storm) querySelectAll(table Table) (any, error) {
 	query := nidoking.Given(`
 		SELECT
 			{{columns}}
 		FROM
 			{{table}}
 	`).
-		Join("columns", ",", tbl.ColumnNames()...).
-		Fmt("table", tbl.GoName).
+		Join("columns", ",", table.ColumnNames()...).
+		Fmt("table", table.GoName).
 		String()
 
-	rows, e := st.db.Query(query, fieldValues...)
+	rows, e := st.db.Query(query)
 	if e != nil {
-		return nil, fmt.Errorf(
-			"Failed to select all from table '%s': %w",
-			tbl.GoName,
-			e,
-		)
+		return nil, errExecQuerySelectAll(table, e)
 	}
 
-	result, e := st.scanSelectedRows(tbl, rows)
+	result, e := st.scanSelectedRows(table, rows)
 	if e != nil {
-		return nil, e
+		return nil, errExecQuerySelectAll(table, e)
 	}
 
 	return result, nil
@@ -471,20 +377,13 @@ func (st *Storm) scanSelectedRows(
 		0,
 	)
 
-	for i := 0; rows.Next(); i++ {
+	for rowIdx := 0; rows.Next(); rowIdx++ {
 		e := rows.Scan(valuePtrs...)
 		if e != nil {
-			return nil, fmt.Errorf(
-				"Failed to scan row %d: %w",
-				i,
-				e,
-			)
+			return nil, errScanningSelectedRow(rowIdx, e)
 		}
 
-		object := createNewObjectWithValues(
-			table,
-			values,
-		)
+		object := constructObject(table, values)
 
 		sliceValue = reflect.Append(
 			sliceValue,
@@ -494,23 +393,18 @@ func (st *Storm) scanSelectedRows(
 
 	e := rows.Err()
 	if e != nil {
-		return nil, fmt.Errorf(
-			"Error occurred after scanning database rows: %w",
-			e,
-		)
+		return nil, errAfterScanningSelectedRows(e)
 	}
 
 	return sliceValue.Interface(), nil
 }
 
-func createValueContainers(
-	tbl Table,
-) ([]any, []any) {
-	colCount := tbl.ColumnCount()
+func createValueContainers(table Table) ([]any, []any) {
+	colCount := table.ColumnCount()
 	values := make([]any, colCount, colCount)
 	valuePtrs := make([]any, colCount, colCount)
 
-	for i, col := range tbl.Columns {
+	for i, col := range table.Columns {
 		values[i] = col.Zero()
 		valuePtrs[i] = &values[i]
 	}
@@ -518,25 +412,19 @@ func createValueContainers(
 	return values, valuePtrs
 }
 
-func createNewObjectWithValues(
-	table Table,
-	values []any,
-) any {
-	objectValue := reflect.New(table.GoType).Elem()
+func constructObject(table Table, values []any) any {
+	object := reflect.New(table.GoType).Elem()
 
 	for i, col := range table.Columns {
-		field := objectValue.Field(col.GoIndex)
-		value := reflect.ValueOf(values[i])
-		field.Set(value)
+		v := reflect.ValueOf(values[i])
+		field := object.Field(col.GoIndex)
+		field.Set(v)
 	}
 
-	return objectValue.Interface()
+	return object.Interface()
 }
 
-func toSliceOfType(
-	typ reflect.Type,
-	values []any,
-) any {
+func toSliceOfType(typ reflect.Type, values []any) any {
 	sliceValue := reflect.MakeSlice(
 		reflect.SliceOf(typ),
 		len(values),
@@ -551,6 +439,36 @@ func toSliceOfType(
 	return sliceValue.Interface()
 }
 
+func errSelectingAll(e error) error {
+	return fmt.Errorf(
+		"Failed to SELECT all from database: %w",
+		e,
+	)
+}
+
+func errExecQuerySelectAll(table Table, e error) error {
+	return fmt.Errorf(
+		"Failed to SELECT all from table '%s': %w",
+		table.GoName,
+		e,
+	)
+}
+
+func errScanningSelectedRow(rowIdx int, e error) error {
+	return fmt.Errorf(
+		"Failed to scan indexed row %d: %w",
+		rowIdx,
+		e,
+	)
+}
+
+func errAfterScanningSelectedRows(e error) error {
+	return fmt.Errorf(
+		"Error occurred after scanning selected rows: %w",
+		e,
+	)
+}
+
 // SelectById returns the record with the given id from
 // the table associated with the passed model. If no
 // record is found then an error is returned. The
@@ -563,50 +481,27 @@ func (st *Storm) SelectById(
 	model any,
 	id any,
 ) (any, error) {
-	typ := reflect.TypeOf(model)
-	result, e := st.selectByIdOfType(typ, id)
-	if e == nil {
-		return result, nil
-	}
-
-	return nil, fmt.Errorf(
-		"Failed to select by ID from database: %w",
-		e,
-	)
-}
-
-func (st *Storm) selectByIdOfType(
-	typ reflect.Type,
-	id any,
-) (any, error) {
-	tbl, e := st.findTableForOrError(typ)
+	table, e := st.findTableForModel(model)
 	if e != nil {
-		return nil, e
+		tableName := reflect.TypeOf(model).Name()
+		return nil, errSelectingById(id, tableName, e)
 	}
 
-	e = st.validateModelIdType(tbl, id)
+	e = validateIdType(table, id)
 	if e != nil {
-		return nil, e
+		return nil, errSelectingById(id, table.GoName, e)
 	}
 
-	return st.querySelectById(tbl, id)
-}
-
-func (st *Storm) validateModelIdType(
-	tbl Table,
-	id any,
-) error {
-	idTyp := reflect.TypeOf(id)
-
-	if tbl.IdColumn().GoType.Kind() != idTyp.Kind() {
-		return ErrBadIdType
+	result, e := st.querySelectById(table, id)
+	if e != nil {
+		return nil, errSelectingById(id, table.GoName, e)
 	}
 
-	return nil
+	return result, nil
 }
 
 func (st *Storm) querySelectById(
-	tbl Table,
+	table Table,
 	id any,
 ) (any, error) {
 	query := nidoking.Given(`
@@ -617,33 +512,24 @@ func (st *Storm) querySelectById(
 		WHERE
 			{{id_column}} = ?
 	`).
-		Join("columns", ",", tbl.ColumnNames()...).
-		Fmt("table", tbl.GoName).
-		Fmt("id_column", tbl.IdColumn().GoName).
+		Join("columns", ",", table.ColumnNames()...).
+		Fmt("table", table.GoName).
+		Fmt("id_column", table.IdColumn().GoName).
 		String()
 
 	rows, e := st.db.Query(query, id)
 	if e != nil {
-		return nil, fmt.Errorf(
-			"Failed to select by ID from table '%s': %w",
-			tbl.GoName,
-			e,
-		)
+		return nil, errQuerySelectById(table, e)
 	}
 
-	result, e := st.scanSelectedRows(tbl, rows)
+	result, e := st.scanSelectedRows(table, rows)
 	if e != nil {
-		return nil, e
+		return nil, errQuerySelectById(table, e)
 	}
 
 	object, ok := getFirstItemIfArray(result)
 	if !ok {
-		return nil, fmt.Errorf(
-			"Failed to select by ID '%v' from table '%s': %w",
-			id,
-			tbl.GoName,
-			ErrRecordNotFound,
-		)
+		return nil, errQuerySelectById(table, ErrRecordNotFound)
 	}
 
 	return object, nil
@@ -666,12 +552,21 @@ func getFirstItemIfArray(v any) (any, bool) {
 	return nil, false
 }
 
-func printQuery(query string, values []any) {
-	for _, v := range values {
-		vs := fmt.Sprintf("%v", v)
-		query = strings.Replace(query, "?", vs, 1)
-	}
-	println(query)
+func errSelectingById(id any, table string, e error) error {
+	return fmt.Errorf(
+		"Failed to select by ID '%v' from table '%s': %w",
+		id,
+		table,
+		e,
+	)
+}
+
+func errQuerySelectById(table Table, e error) error {
+	return fmt.Errorf(
+		"Failed to SELECT by ID from table '%s': %w",
+		table.GoName,
+		e,
+	)
 }
 
 // DeleteById removes the record with the given id from
@@ -679,41 +574,28 @@ func printQuery(query string, values []any) {
 // record is found then nothing happens.
 //
 //	e := DeleteById(Model{}, 123)
-func (st *Storm) DeleteById(
-	model any,
-	id any,
-) error {
-	typ := reflect.TypeOf(model)
-	e := st.deleteByIdOfType(typ, id)
-	if e == nil {
-		return nil
-	}
-
-	return fmt.Errorf(
-		"Failed to delete by ID from database: %w",
-		e,
-	)
-}
-
-func (st *Storm) deleteByIdOfType(
-	typ reflect.Type,
-	id any,
-) error {
-	tbl, e := st.findTableForOrError(typ)
+func (st *Storm) DeleteById(model any, id any) error {
+	table, e := st.findTableForModel(model)
 	if e != nil {
-		return e
+		tableName := reflect.TypeOf(model).Name()
+		return errDeletingById(tableName, e)
 	}
 
-	e = st.validateModelIdType(tbl, id)
+	e = validateIdType(table, id)
 	if e != nil {
-		return e
+		return errDeletingById(table.GoName, e)
 	}
 
-	return st.execDeleteById(tbl, id)
+	e = st.execDeleteById(table, id)
+	if e != nil {
+		return errDeletingById(table.GoName, e)
+	}
+
+	return nil
 }
 
 func (st *Storm) execDeleteById(
-	tbl Table,
+	table Table,
 	id any,
 ) error {
 	query := nidoking.Given(`
@@ -722,19 +604,35 @@ func (st *Storm) execDeleteById(
 		WHERE
 			{{id_column}} = ?
 	`).
-		Fmt("table", tbl.GoName).
-		Fmt("id_column", tbl.IdColumn().GoName).
+		Fmt("table", table.GoName).
+		Fmt("id_column", table.IdColumn().GoName).
 		String()
 
 	_, e := st.db.Exec(query, id)
-	if e == nil {
-		return nil
+	if e != nil {
+		return errExecDeleteByIdQuery(table, id, e)
 	}
 
+	return nil
+}
+
+func errDeletingById(table string, e error) error {
+	return fmt.Errorf(
+		"Failed to DELETE by ID from table '%s': %w",
+		table,
+		e,
+	)
+}
+
+func errExecDeleteByIdQuery(
+	table Table,
+	id any,
+	e error,
+) error {
 	return fmt.Errorf(
 		"Failed to delete by ID '%v' from table '%s': %w",
 		id,
-		tbl.GoName,
+		table.GoName,
 		e,
 	)
 }
@@ -756,7 +654,7 @@ func (st *Storm) execDeleteById(
 //	err := db.Drop(Person{})
 func (st *Storm) Drop(model any) error {
 	typ := reflect.TypeOf(model)
-	tbl, found := st.findTableFor(typ)
+	tbl, found := st.findTableForType(typ)
 	if !found {
 		return nil
 	}
@@ -804,3 +702,62 @@ func (st *Storm) Drop(model any) error {
 //
 // Any other configuration will produce an error.
 //Select(model any, id any) (any, error)
+
+func (st *Storm) findTableForModel(
+	object any,
+) (Table, error) {
+	typ := reflect.TypeOf(object)
+
+	for _, table := range st.tables {
+		if table.GoType == typ {
+			return table, nil
+		}
+	}
+
+	return Table{}, errNoSuchTable(typ.Name())
+}
+
+func errNoSuchTable(name string) error {
+	return fmt.Errorf(
+		"No table exists for struct '%s': %w",
+		name,
+		ErrNoTableForType,
+	)
+}
+
+func (st *Storm) findTableForType(
+	typ reflect.Type,
+) (Table, bool) {
+	for _, table := range st.tables {
+		if table.GoType == typ {
+			return table, true
+		}
+	}
+	return Table{}, false
+}
+
+func extractColumnValues(
+	columns []Column,
+	object any,
+) []any {
+	value := reflect.ValueOf(object)
+	result := make([]any, len(columns))
+
+	for i := 0; i < len(columns); i++ {
+		col := columns[i]
+		field := value.FieldByName(col.GoName)
+		result[i] = field.Interface()
+	}
+
+	return result
+}
+
+func validateIdType(table Table, id any) error {
+	idTyp := reflect.TypeOf(id)
+
+	if table.IdColumn().GoType.Kind() != idTyp.Kind() {
+		return ErrBadIdType
+	}
+
+	return nil
+}
