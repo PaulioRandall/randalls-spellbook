@@ -2,6 +2,8 @@ package nidoking
 
 import (
 	"fmt"
+	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -107,7 +109,7 @@ func (tmpl *Template) FmtObject(
 	key string,
 	object any,
 ) *Template {
-	panic("TODO: Template.FmtObject")
+	return tmpl.Objects(key, "", object)
 }
 
 // FmtJoin replaces every token named key with the list of
@@ -199,7 +201,131 @@ func (tmpl *Template) Objects[T any](
 	key, delim string,
 	objects ...T,
 ) *Template {
-	panic("TODO: Template.Objects")
+	escapedKey := regexp.QuoteMeta(key)
+	token := "(?U)\\{\\{" + escapedKey + "\\..+\\}\\}"
+	lineNih := Match(tmpl.text, token, 0)
+
+	for lineNih.IsMatch() {
+		fieldNames := extractFieldNamesFromLine(
+			lineNih.LineText(),
+			token,
+		)
+
+		lines := populateTemplateLineForEach(
+			lineNih.LineText(),
+			fieldNames,
+			key,
+			objects,
+		)
+
+		text := strings.Join(lines, delim+"\n")
+		rep := lineNih.ReplaceLine(text)
+		tmpl.text = rep.Haystack
+
+		lineNih = rep.FindNext()
+	}
+
+	return tmpl
+}
+
+func extractFieldNamesFromLine(
+	templateLine string,
+	token string,
+) []string {
+	nih := Match(templateLine, token, 0)
+	var results []string
+
+	for nih.IsMatch() {
+		name := extractFieldNameFromNeedle(nih.Needle)
+		results = append(results, name)
+		nih = nih.FindNext()
+	}
+
+	return results
+}
+
+func extractFieldNameFromNeedle(needle string) string {
+	keyField := needle[2 : len(needle)-2]
+	return strings.Split(keyField, ".")[1]
+}
+
+func populateTemplateLineForEach[T any](
+	templateLine string,
+	fieldNames []string,
+	key string,
+	objects []T,
+) []string {
+	objectCount := len(objects)
+	lines := make([]string, objectCount, objectCount)
+
+	for i, obj := range objects {
+		lines[i] = populateTemplateLine(
+			templateLine,
+			fieldNames,
+			key,
+			obj,
+		)
+	}
+
+	return lines
+}
+
+func populateTemplateLine[T any](
+	templateLine string,
+	fieldNames []string,
+	key string,
+	object T,
+) string {
+	var pos int = 0
+
+	for _, fieldName := range fieldNames {
+		fieldToken := "{{" + key + "." + fieldName + "}}"
+		nih := Find(templateLine, fieldToken, pos)
+
+		value := getFieldValueFromObject(object, fieldName)
+		rep := nih.ReplaceInline(value)
+
+		templateLine = rep.Haystack
+		pos = rep.End
+	}
+
+	return templateLine
+}
+
+func getFieldValueFromObject[T any](
+	object T,
+	fieldName string,
+) string {
+	val := reflect.ValueOf(object)
+	typ := reflect.TypeOf(object)
+
+	if typ.Kind() != reflect.Struct {
+		panic("Only structs may be used as objects")
+	}
+
+	f := val.FieldByName(fieldName)
+	if f != (reflect.Value{}) {
+		return fmt.Sprintf("%v", f.Interface())
+	}
+
+	f = val.MethodByName(fieldName)
+	if f != (reflect.Value{}) {
+		if f.Type().NumIn() != 0 {
+			panic("Object methods must have 0 input values")
+		}
+
+		if f.Type().NumOut() != 1 {
+			panic("Object methods must have 1 output value")
+		}
+
+		v := f.Call(nil)[0].Interface()
+		return fmt.Sprintf("%v", v)
+	}
+
+	panic(
+		"Object contained no field or method " +
+			"'" + fieldName + "'",
+	)
 }
 
 // Map replaces every line containing a token named key

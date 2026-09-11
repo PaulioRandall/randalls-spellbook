@@ -2,7 +2,6 @@ package storm
 
 import (
 	"database/sql"
-	"fmt"
 	"reflect"
 
 	_ "github.com/glebarez/go-sqlite"
@@ -151,22 +150,14 @@ func (st *Storm) registerTable(model any) (Table, error) {
 
 func (st *Storm) createTable(table Table) error {
 	query := nidoking.Given(`
-		CREATE TABLE IF NOT EXISTS {{table}} (
-			{{columns}},
-		  PRIMARY KEY ({{id_column}})
+		CREATE TABLE IF NOT EXISTS {{table.GoName}} (
+			{{col.GoName}} {{col.SqlType}} NOT NULL,
+		  PRIMARY KEY ({{id_col.GoName}})
 		)
 	`).
-		Fmt("table", table.GoName).
-		Map("columns", len(table.Columns), func(i int) (string, bool) {
-			col := table.Columns[i]
-			s := fmt.Sprintf(
-				"%s %s NOT NULL",
-				col.GoName,
-				col.SqlType,
-			)
-			return s, true
-		}).
-		Fmt("id_column", table.IdColumn().GoName).
+		FmtObject("table", table).
+		FmtObject("id_col", table.IdColumn()).
+		Objects("col", "", table.Columns...).
 		String()
 
 	_, e := st.db.Exec(query)
@@ -218,15 +209,15 @@ func (st *Storm) execInsert(
 	values []any,
 ) error {
 	query := nidoking.Given(`
-		INSERT INTO {{table}} (
-		  {{columns}}
+		INSERT INTO {{table.GoName}} (
+		  {{col.GoName}}
 		)
 		VALUES (
 			{{q_marks}}
 		)
 	`).
-		Fmt("table", table.GoName).
-		Join("columns", ",", table.ColumnNames()...).
+		FmtObject("table", table).
+		Objects("col", ",", table.Columns...).
 		Repeat("q_marks", ",", "?", table.ColumnCount()).
 		String()
 
@@ -282,15 +273,15 @@ func (st *Storm) execUpdate(
 ) error {
 	query := nidoking.Given(`
 		UPDATE
-			{{table}}
+			{{table.GoName}}
 		SET
-			{{columns}} = ?
+			{{col.GoName}} = ?
 		WHERE
-			{{id_column}} = ?
+			{{id_col.GoName}} = ?
 	`).
-		Fmt("table", table.GoName).
-		Join("columns", ",", table.ColumnNames()[1:]...).
-		Fmt("id_column", table.IdColumn().GoName).
+		FmtObject("table", table).
+		FmtObject("id_col", table.IdColumn()).
+		Objects("col", ",", table.Columns[1:]...).
 		String()
 
 	_, e := st.db.Exec(query, fieldValues...)
@@ -325,12 +316,12 @@ func (st *Storm) querySelectAll[T any](
 ) ([]T, error) {
 	query := nidoking.Given(`
 		SELECT
-			{{columns}}
+			{{col.GoName}}
 		FROM
-			{{table}}
+			{{table.GoName}}
 	`).
-		Join("columns", ",", table.ColumnNames()...).
-		Fmt("table", table.GoName).
+		FmtObject("table", table).
+		Objects("col", ",", table.Columns...).
 		String()
 
 	rows, e := st.db.Query(query)
@@ -453,15 +444,15 @@ func (st *Storm) querySelectById[T any](
 
 	query := nidoking.Given(`
 		SELECT
-			{{columns}}
+			{{col.GoName}}
 		FROM
-			{{table}}
+			{{table.GoName}}
 		WHERE
-			{{id_column}} = ?
+			{{id_col.GoName}} = ?
 	`).
-		Join("columns", ",", table.ColumnNames()...).
-		Fmt("table", table.GoName).
-		Fmt("id_column", table.IdColumn().GoName).
+		Objects("col", ",", table.Columns...).
+		FmtObject("table", table).
+		FmtObject("id_col", table.IdColumn()).
 		String()
 
 	rows, e := st.db.Query(query, id)
@@ -540,12 +531,12 @@ func (st *Storm) execDeleteById(
 ) error {
 	query := nidoking.Given(`
 		DELETE FROM
-			{{table}}
+			{{table.GoName}}
 		WHERE
-			{{id_column}} = ?
+			{{id_col.GoName}} = ?
 	`).
-		Fmt("table", table.GoName).
-		Fmt("id_column", table.IdColumn().GoName).
+		FmtObject("table", table).
+		FmtObject("id_col", table.IdColumn()).
 		String()
 
 	_, e := st.db.Exec(query, id)
@@ -594,9 +585,9 @@ func (st *Storm) Drop(models ...any) error {
 
 func (st *Storm) execDropQuery(table Table) error {
 	query := nidoking.Given(`
-		DROP TABLE IF EXISTS {{table}}
+		DROP TABLE IF EXISTS {{table.GoName}}
 	`).
-		Fmt("table", table.GoName).
+		FmtObject("table", table).
 		String()
 
 	_, e := st.db.Exec(query)
