@@ -20,7 +20,9 @@
 // simple placeholders; how values are inserted depends
 // mostly on the template functions called and the
 // arguments passed. A [Template] can be created via the
-// [Given] and [Lines] functions.
+// [Given] and [Lines] functions. [Template] contains
+// generic methods which unfortunately limits the
+// interfacing capability.
 //
 // Both APIs were designed for locally scoped usage with
 // method chaining but types are available for passing
