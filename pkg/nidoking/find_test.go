@@ -23,6 +23,7 @@ func Test_Find_1(t *testing.T) {
 		Start:     12,
 		End:       15,
 		Needle:    "bob",
+		Pattern:   "",
 		Haystack:  haystack,
 	}
 
@@ -48,6 +49,7 @@ func Test_Find_2(t *testing.T) {
 		Start:     19,
 		End:       22,
 		Needle:    "bob",
+		Pattern:   "",
 		Haystack:  haystack,
 	}
 

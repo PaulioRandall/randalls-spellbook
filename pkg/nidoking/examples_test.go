@@ -60,6 +60,7 @@ func ExampleFind() {
 	//   Start: 14,
 	//   End: 17,
 	//   Needle: "bob",
+	//   Pattern: "",
 	//   Haystack: "\n	alice,\n	😁bob,\n	charlie\n",
 	//   LineNum(): 3,
 	//   InlineStart(): 5,

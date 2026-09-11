@@ -56,8 +56,11 @@ type NeedleInHaystack struct {
 	// term.
 	End int
 
-	// The substring.
+	// The substring, empty if pattern matching.
 	Needle string
+
+	// The pattern, empty if string matching.
+	Pattern string
 
 	// The string containing the substring.
 	Haystack string
@@ -74,6 +77,7 @@ func (nih NeedleInHaystack) String() string {
 		"  Start: %d,",
 		"  End: %d,",
 		`  Needle: "%s",`,
+		`  Pattern: "%s",`,
 		`  Haystack: "%s",`,
 		"  LineNum(): %d,",
 		"  InlineStart(): %d,",
@@ -95,6 +99,7 @@ func (nih NeedleInHaystack) String() string {
 		nih.Start,
 		nih.End,
 		nih.Needle,
+		nih.Pattern,
 		fmtPrintString(nih.Haystack),
 		nih.LineNum(),
 		nih.InlineStart(),

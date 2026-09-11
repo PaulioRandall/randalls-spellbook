@@ -1,6 +1,7 @@
 package nidoking
 
 import (
+	"regexp"
 	"strings"
 )
 
@@ -25,6 +26,54 @@ func Find(
 	start += startingAt
 	end := start + len(needle)
 
+	lineIdx, lineStart, lineEnd := findLineIndex(haystack, start)
+
+	return NeedleInHaystack{
+		LineIndex: lineIdx,
+		LineStart: lineStart,
+		LineEnd:   lineEnd,
+		Start:     start,
+		End:       end,
+		Needle:    needle,
+		Haystack:  haystack,
+	}
+}
+
+// TODO: Test
+// TODO: Example
+// TODO: Update FindNext
+func Match(
+	haystack, pattern string,
+	startingAt int,
+) NeedleInHaystack {
+	re := regexp.MustCompile(pattern)
+	pos := re.FindStringIndex(haystack[startingAt:])
+	if pos == nil {
+		return NeedleInHaystack{}
+	}
+
+	start := pos[0] + startingAt
+	end := pos[1] + startingAt
+
+	lineIdx, lineStart, lineEnd := findLineIndex(haystack, start)
+
+	return NeedleInHaystack{
+		LineIndex: lineIdx,
+		LineStart: lineStart,
+		LineEnd:   lineEnd,
+		Start:     start,
+		End:       end,
+		Pattern:   pattern,
+		Haystack:  haystack,
+	}
+}
+
+func findLineIndex(
+	haystack string,
+	start int,
+) (int, int, int) {
+	lineIdx := strings.Count(haystack[:start], "\n")
+
 	// Find start of line: scan backwards for the previous
 	// '\n'. +1 because we want to exclude the linefeed.
 	lineStart := strings.LastIndexByte(
@@ -46,15 +95,5 @@ func Find(
 		lineEnd += start
 	}
 
-	lineIdx := strings.Count(haystack[:start], "\n")
-
-	return NeedleInHaystack{
-		LineIndex: lineIdx,
-		LineStart: lineStart,
-		LineEnd:   lineEnd,
-		Start:     start,
-		End:       end,
-		Needle:    needle,
-		Haystack:  haystack,
-	}
+	return lineIdx, lineStart, lineEnd
 }
