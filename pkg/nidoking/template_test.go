@@ -40,9 +40,9 @@ func (col dbColumn) MethodTooManyOutputs() (string, error) {
 func (col dbColumn) MethodTooFewOutputs() {
 }
 
-func Test_Template_Fmt_1(t *testing.T) {
+func Test_Template_Inline_1(t *testing.T) {
 	act := Given(`DROP TABLE IF EXISTS {{table}}`).
-		Fmt("table", "players").
+		Inline("table", "players").
 		String()
 
 	exp := `DROP TABLE IF EXISTS players`
@@ -50,7 +50,7 @@ func Test_Template_Fmt_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Template_FmtRepeat_1(t *testing.T) {
+func Test_Template_InlineRepeat_1(t *testing.T) {
 	act := Given(`
 		SELECT
 			name,
@@ -61,7 +61,7 @@ func Test_Template_FmtRepeat_1(t *testing.T) {
 		WHERE
 			name in [{{q_marks}}]
 	`).
-		FmtRepeat("q_marks", ", ", "?", 4).
+		InlineRepeat("q_marks", ", ", "?", 4).
 		String()
 
 	exp := `
@@ -78,7 +78,7 @@ func Test_Template_FmtRepeat_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Template_FmtJoin_1(t *testing.T) {
+func Test_Template_InlineJoin_1(t *testing.T) {
 	columns := []string{
 		"name",
 		"level",
@@ -91,7 +91,7 @@ func Test_Template_FmtJoin_1(t *testing.T) {
 		FROM
 			players
 	`).
-		FmtJoin("concat", " || '-' || ", columns...).
+		InlineJoin("concat", " || '-' || ", columns...).
 		String()
 
 	exp := `
@@ -104,7 +104,7 @@ func Test_Template_FmtJoin_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Template_FmtObject_1(t *testing.T) {
+func Test_Template_InlineMap_1(t *testing.T) {
 	testTable := dbTable{
 		Name: "players",
 		columnNames: []string{
@@ -122,7 +122,7 @@ func Test_Template_FmtObject_1(t *testing.T) {
 		WHERE
 			{{table.IdColumnName}} = ?
 	`).
-		FmtObject("table", testTable).
+		InlineMap("table", testTable).
 		String()
 
 	exp := `
@@ -137,7 +137,7 @@ func Test_Template_FmtObject_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Template_Join_1(t *testing.T) {
+func Test_Template_ListJoin_1(t *testing.T) {
 	columns := []string{
 		"name",
 		"level",
@@ -150,7 +150,7 @@ func Test_Template_Join_1(t *testing.T) {
 		FROM
 			players
 	`).
-		Join("columns", ",", columns...).
+		ListJoin("columns", ",", columns...).
 		String()
 
 	exp := `
@@ -165,7 +165,7 @@ func Test_Template_Join_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Template_Repeat_1(t *testing.T) {
+func Test_Template_ListRepeat_1(t *testing.T) {
 	act := Given(`
 		INSERT INTO players (
 			name,
@@ -176,7 +176,7 @@ func Test_Template_Repeat_1(t *testing.T) {
 			{{q_marks}}
 		)
 	`).
-		Repeat("q_marks", ",", "?", 4).
+		ListRepeat("q_marks", ",", "?", 4).
 		String()
 
 	exp := `
@@ -196,7 +196,7 @@ func Test_Template_Repeat_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Template_Map_1(t *testing.T) {
+func Test_Template_ListMapper_1(t *testing.T) {
 	columns := []string{
 		"name",
 		"level",
@@ -209,7 +209,7 @@ func Test_Template_Map_1(t *testing.T) {
 		FROM
 			players
 	`).
-		Map("columns", 6, func(i int) (string, bool) {
+		ListMapper("columns", 6, func(i int) (string, bool) {
 			if i >= len(columns) {
 				return "", false
 			}
@@ -232,7 +232,7 @@ func Test_Template_Map_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Template_RepeatLines_1(t *testing.T) {
+func Test_Template_LinesRepeat_1(t *testing.T) {
 	act := Given(`
 		INSERT INTO players (
 			name,
@@ -247,7 +247,7 @@ func Test_Template_RepeatLines_1(t *testing.T) {
 		)
 		{{<<<}}
 	`).
-		RepeatLines(">>>", "<<<", 3).
+		LinesRepeat(">>>", "<<<", 3).
 		String()
 
 	exp := `
@@ -276,7 +276,7 @@ func Test_Template_RepeatLines_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Template_RemoveLines_1(t *testing.T) {
+func Test_Template_LinesRemove_1(t *testing.T) {
 	act := Given(`
 		SELECT
 			name,
@@ -289,7 +289,7 @@ func Test_Template_RemoveLines_1(t *testing.T) {
 			name = ?
 		{{<<<}}
 	`).
-		RemoveLines(">>>", "<<<").
+		LinesRemove(">>>", "<<<").
 		String()
 
 	exp := `
@@ -304,7 +304,7 @@ func Test_Template_RemoveLines_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Template_KeepLines_1(t *testing.T) {
+func Test_Template_LinesKeep_1(t *testing.T) {
 	act := Given(`
 		SELECT
 			name,
@@ -317,7 +317,7 @@ func Test_Template_KeepLines_1(t *testing.T) {
 			name = ?
 		{{<<<}}
 	`).
-		KeepLines(">>>", "<<<").
+		LinesKeep(">>>", "<<<").
 		String()
 
 	exp := `
@@ -334,7 +334,7 @@ func Test_Template_KeepLines_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Template_Objects_1(t *testing.T) {
+func Test_Template_ListMap_1(t *testing.T) {
 	// Happy path.
 
 	columns := []dbColumn{
@@ -360,7 +360,7 @@ func Test_Template_Objects_1(t *testing.T) {
 			{{col.Name}} {{col.Type}} {{col.Constraints}}
 		)
 	`).
-		Objects("col", ",", columns...).
+		ListMap("col", ",", columns...).
 		String()
 
 	exp := `
@@ -374,7 +374,7 @@ func Test_Template_Objects_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Template_Objects_2(t *testing.T) {
+func Test_Template_ListMap_2(t *testing.T) {
 	// Panics given bad input.
 
 	columns := []dbColumn{
@@ -397,26 +397,26 @@ func Test_Template_Objects_2(t *testing.T) {
 
 	require.Panics(t, func() {
 		tmpl := Given(`{{col.UnknownField}}`)
-		tmpl.Objects("col", ",", columns...)
+		tmpl.ListMap("col", ",", columns...)
 	})
 
 	require.Panics(t, func() {
 		tmpl := Given(`{{col.unexportedField}}`)
-		tmpl.Objects("col", ",", columns...)
+		tmpl.ListMap("col", ",", columns...)
 	})
 
 	require.Panics(t, func() {
 		tmpl := Given(`{{col.MethodTooManyInputs}}`)
-		tmpl.Objects("col", ",", columns...)
+		tmpl.ListMap("col", ",", columns...)
 	})
 
 	require.Panics(t, func() {
 		tmpl := Given(`{{col.MethodTooManyOutputs}}`)
-		tmpl.Objects("col", ",", columns...)
+		tmpl.ListMap("col", ",", columns...)
 	})
 
 	require.Panics(t, func() {
 		tmpl := Given(`{{col.MethodTooFewOutputs}}`)
-		tmpl.Objects("col", ",", columns...)
+		tmpl.ListMap("col", ",", columns...)
 	})
 }

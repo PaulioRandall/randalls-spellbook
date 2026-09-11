@@ -25,10 +25,10 @@ func ExampleTemplate() {
 		"WHERE",
 		"	{{filter_column}} IN [{{q_marks}}]",
 	).
-		Join("columns", ",", columns...).
-		Fmt("table", "players").
-		Fmt("filter_column", columns[0]).
-		FmtRepeat("q_marks", ", ", "?", len(values)).
+		ListJoin("columns", ",", columns...).
+		Inline("table", "players").
+		Inline("filter_column", columns[0]).
+		InlineRepeat("q_marks", ", ", "?", len(values)).
 		String()
 
 	fmt.Println(s)

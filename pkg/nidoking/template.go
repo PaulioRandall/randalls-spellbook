@@ -29,7 +29,7 @@ func Given(template string) *Template {
 	}
 }
 
-// Given returns a new Template with the template string
+// Lines returns a new Template with the template string
 // produced from the given lines.
 func Lines(lines ...string) *Template {
 	return &Template{
@@ -83,8 +83,8 @@ func (tmpl *Template) PrintNamed(label string) *Template {
 	return tmpl
 }
 
-// Fmt populates every token named key with value.
-func (tmpl *Template) Fmt(
+// Inline populates every token named key with value.
+func (tmpl *Template) Inline(
 	key string,
 	value any,
 ) *Template {
@@ -100,22 +100,23 @@ func (tmpl *Template) Fmt(
 	)
 }
 
-// FmtObject searches for tokens with the pattern
-// {{key.field}} and replaces it with the value named
-// 'field' in object, or the value of calling the method
-// named 'field'. The method must accept no arguments and
-// return a single value.
-func (tmpl *Template) FmtObject(
+// InlineMap associates the specified key with the object.
+// searches for tokens with the pattern {{key.field}} and
+// replaces it with the value named 'field' in object, or
+// the value of calling the method named 'field'. The
+// method must accept no arguments and return a single
+// value.
+func (tmpl *Template) InlineMap(
 	key string,
 	object any,
 ) *Template {
-	return tmpl.Objects(key, "", object)
+	return tmpl.ListMap(key, "", object)
 }
 
-// FmtJoin replaces every token named key with the list of
-// values. Each instance of value is suffixed with delim,
-// except the last.
-func (tmpl *Template) FmtJoin[T any](
+// InlineJoin replaces every token named key with the list
+// of values. Each instance of value is suffixed with
+// delim, except the last.
+func (tmpl *Template) InlineJoin[T any](
 	key, delim string,
 	values ...T,
 ) *Template {
@@ -131,10 +132,10 @@ func (tmpl *Template) FmtJoin[T any](
 	)
 }
 
-// FmtRepeat replaces every token named key with value
+// InlineRepeat replaces every token named key with value
 // repeated n times. Each instance of value is suffixed
 // with delim, except the last.
-func (tmpl *Template) FmtRepeat[T any](
+func (tmpl *Template) InlineRepeat[T any](
 	key, delim string,
 	value T,
 	n int,
@@ -151,11 +152,11 @@ func (tmpl *Template) FmtRepeat[T any](
 	)
 }
 
-// Join replaces every line containing a token named key
+// ListJoin replaces every line containing a token named key
 // with a set of lines where the token is replaced by
 // values. Each line is suffixed with delim, except the
 // last.
-func (tmpl *Template) Join[T any](
+func (tmpl *Template) ListJoin[T any](
 	key, delim string,
 	values ...T,
 ) *Template {
@@ -171,10 +172,10 @@ func (tmpl *Template) Join[T any](
 	)
 }
 
-// Repeat replaces every line containing a token named key
+// ListRepeat replaces every line containing a token named key
 // with n lines where the token is replaced by value in
 // each. Each line is suffixed with delim, except the last.
-func (tmpl *Template) Repeat[T any](
+func (tmpl *Template) ListRepeat[T any](
 	key, delim string,
 	value T,
 	n int,
@@ -191,13 +192,13 @@ func (tmpl *Template) Repeat[T any](
 	)
 }
 
-// Objects searches for lines with tokens containing the
+// ListMap searches for lines with tokens containing the
 // pattern {{key.field}} and repeats each line with the
 // value named 'field' in each object, or the value of
 // calling the method named 'field'. The method must
 // accept no arguments and return a single value. Each line
 // is suffixed with delim, except the last.
-func (tmpl *Template) Objects[T any](
+func (tmpl *Template) ListMap[T any](
 	key, delim string,
 	objects ...T,
 ) *Template {
@@ -328,7 +329,7 @@ func getFieldValueFromObject[T any](
 	)
 }
 
-// Map replaces every line containing a token named key
+// ListMapper replaces every line containing a token named key
 // with the same line but the token replaced with the
 // result of calling gen. If gen returns false then the
 // replacement finishes with gen's last string value
@@ -340,7 +341,7 @@ func getFieldValueFromObject[T any](
 // return true from gen. If max is not known, set a higher
 // than expected value for max, e.g. math.MaxUint8, and
 // control iteration exit via gen's return bool.
-func (tmpl *Template) Map[T any](
+func (tmpl *Template) ListMapper[T any](
 	key string,
 	max int,
 	gen func(i int) (T, bool),
@@ -368,29 +369,29 @@ func (tmpl *Template) Map[T any](
 	)
 }
 
-// RemoveLines removes all lines between startKey and
+// LinesRemove removes all lines between startKey and
 // endKey. The lines containing the tokens are also
 // removed.
-func (tmpl *Template) RemoveLines(
+func (tmpl *Template) LinesRemove(
 	startKey, endKey string,
 ) *Template {
-	return tmpl.RepeatLines(startKey, endKey, 0)
+	return tmpl.LinesRepeat(startKey, endKey, 0)
 }
 
-// KeepLines removes the lines containining startKey and
+// LinesKeep removes the lines containining startKey and
 // endKey leaving the content.
-func (tmpl *Template) KeepLines(
+func (tmpl *Template) LinesKeep(
 	startKey, endKey string,
 ) *Template {
-	return tmpl.RepeatLines(startKey, endKey, 1)
+	return tmpl.LinesRepeat(startKey, endKey, 1)
 }
 
-// RepeatLines repeats the set of lines between startKey
+// LinesRepeat repeats the set of lines between startKey
 // and endKey (exclusive) by amount. The lines containing
 // the tokens are also removed. Passing 0 as the amount
 // will remove all content; same as calling
-// [Template.RemoveLines].
-func (tmpl *Template) RepeatLines(
+// [Template.LinesRemove].
+func (tmpl *Template) LinesRepeat(
 	startKey, endKey string,
 	amount int,
 ) *Template {

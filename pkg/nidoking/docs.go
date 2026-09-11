@@ -14,13 +14,13 @@
 // formatting. It's much simpler than the standard
 // 'text/template' package but also much less feature rich.
 // Dynamic values are defined using mustache tokens,
-// e.g. '{{key}}' and {{key.field}}, the same as
+// e.g. '{{key}}' and {{key.fieldOrMethod}}, similar to
 // 'text/template' so some code editors will highlight
-// tokens within the strings. However, they are relatiely
+// tokens within the strings. However, they are relatively
 // simple placeholders; how values are inserted depends
 // mostly on the template functions called and the
 // arguments passed. A [Template] can be created via the
-// [Given] and [Lines] functions. [Template] contains
+// [Given] and [Lines] functions. Template contains
 // generic methods which unfortunately limits the
 // interfacing capability.
 //

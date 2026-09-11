@@ -54,8 +54,9 @@ func Find(
 	}
 }
 
-// Find locates needle within haystack and returns a
-// NeedleInHaystack. If the needle contains any linefeeds
+// Match locates a needle within haystack using a regular
+// expression pattern and returns a NeedleInHaystack. If
+// the pattern contains any linefeeds or multi-line flags
 // then panic ensues. If no match is found then an empty
 // NeedleInHaystack is returned; use
 // [NeedleInHaystack.IsMatch] to avoid referencing the

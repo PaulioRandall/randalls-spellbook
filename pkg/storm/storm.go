@@ -155,9 +155,9 @@ func (st *Storm) createTable(table Table) error {
 		  PRIMARY KEY ({{id_col.GoName}})
 		)
 	`).
-		FmtObject("table", table).
-		FmtObject("id_col", table.IdColumn()).
-		Objects("col", "", table.Columns...).
+		InlineMap("table", table).
+		ListMap("col", "", table.Columns...).
+		InlineMap("id_col", table.IdColumn()).
 		String()
 
 	_, e := st.db.Exec(query)
@@ -216,9 +216,9 @@ func (st *Storm) execInsert(
 			{{q_marks}}
 		)
 	`).
-		FmtObject("table", table).
-		Objects("col", ",", table.Columns...).
-		Repeat("q_marks", ",", "?", table.ColumnCount()).
+		InlineMap("table", table).
+		ListMap("col", ",", table.Columns...).
+		ListRepeat("q_marks", ",", "?", table.ColumnCount()).
 		String()
 
 	_, e := st.db.Exec(query, values...)
@@ -279,9 +279,9 @@ func (st *Storm) execUpdate(
 		WHERE
 			{{id_col.GoName}} = ?
 	`).
-		FmtObject("table", table).
-		FmtObject("id_col", table.IdColumn()).
-		Objects("col", ",", table.Columns[1:]...).
+		InlineMap("table", table).
+		InlineMap("id_col", table.IdColumn()).
+		ListMap("col", ",", table.Columns[1:]...).
 		String()
 
 	_, e := st.db.Exec(query, fieldValues...)
@@ -320,8 +320,8 @@ func (st *Storm) querySelectAll[T any](
 		FROM
 			{{table.GoName}}
 	`).
-		FmtObject("table", table).
-		Objects("col", ",", table.Columns...).
+		InlineMap("table", table).
+		ListMap("col", ",", table.Columns...).
 		String()
 
 	rows, e := st.db.Query(query)
@@ -450,9 +450,9 @@ func (st *Storm) querySelectById[T any](
 		WHERE
 			{{id_col.GoName}} = ?
 	`).
-		Objects("col", ",", table.Columns...).
-		FmtObject("table", table).
-		FmtObject("id_col", table.IdColumn()).
+		ListMap("col", ",", table.Columns...).
+		InlineMap("table", table).
+		InlineMap("id_col", table.IdColumn()).
 		String()
 
 	rows, e := st.db.Query(query, id)
@@ -535,8 +535,8 @@ func (st *Storm) execDeleteById(
 		WHERE
 			{{id_col.GoName}} = ?
 	`).
-		FmtObject("table", table).
-		FmtObject("id_col", table.IdColumn()).
+		InlineMap("table", table).
+		InlineMap("id_col", table.IdColumn()).
 		String()
 
 	_, e := st.db.Exec(query, id)
@@ -587,7 +587,7 @@ func (st *Storm) execDropQuery(table Table) error {
 	query := nidoking.Given(`
 		DROP TABLE IF EXISTS {{table.GoName}}
 	`).
-		FmtObject("table", table).
+		InlineMap("table", table).
 		String()
 
 	_, e := st.db.Exec(query)
