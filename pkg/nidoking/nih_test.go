@@ -7,11 +7,10 @@ import (
 )
 
 var nihBob = NeedleInHaystack{
-	LineIndex: 2,
 	LineStart: 10,
-	LineEnd:   16,
 	Start:     12,
 	End:       15,
+	LineEnd:   16,
 	Mode:      ModeString,
 	Needle:    "bob",
 	Pattern:   "bob",
@@ -24,20 +23,24 @@ var nihBob = NeedleInHaystack{
 
 // 😁 uses 4 bytes
 var nihJen = NeedleInHaystack{
-	LineIndex: 1,
 	LineStart: 6,
-	LineEnd:   14,
 	Start:     10,
 	End:       13,
+	LineEnd:   14,
 	Mode:      ModeString,
 	Needle:    "jen",
 	Pattern:   "jen",
 	Haystack:  "alice\n😁jen?\ncharlie",
 }
 
-func Test_NeedleInHaystack_LineNum_1(t *testing.T) {
-	// NeedleInHaystack.LineNum happy path.
-	require.Equal(t, 3, nihBob.LineNum())
+func Test_NeedleInHaystack_LineIndex_1(t *testing.T) {
+	// NeedleInHaystack.LineIndex happy path.
+	require.Equal(t, 2, nihBob.LineIndex())
+}
+
+func Test_NeedleInHaystack_LineNumber_1(t *testing.T) {
+	// NeedleInHaystack.LineNumber happy path.
+	require.Equal(t, 3, nihBob.LineNumber())
 }
 
 func Test_NeedleInHaystack_LineText_1(t *testing.T) {
@@ -279,11 +282,10 @@ func Test_NeedleInHaystack_FindNext_1(t *testing.T) {
 	nih = nih.FindNext()
 
 	exp := NeedleInHaystack{
-		LineIndex: 4,
 		LineStart: 28,
-		LineEnd:   49,
 		Start:     37,
 		End:       40,
+		LineEnd:   49,
 		Mode:      ModeString,
 		Needle:    "bob",
 		Pattern:   "bob",
@@ -306,7 +308,6 @@ func Test_NeedleInHaystack_FindNext_2(t *testing.T) {
 	`
 
 	exp1 := NeedleInHaystack{
-		LineIndex: 1,
 		LineStart: 1,
 		LineEnd:   9,
 		Start:     4,
@@ -321,11 +322,10 @@ func Test_NeedleInHaystack_FindNext_2(t *testing.T) {
 	require.Equal(t, exp1, nih)
 
 	exp2 := NeedleInHaystack{
-		LineIndex: 3,
 		LineStart: 17,
-		LineEnd:   26,
 		Start:     23,
 		End:       26,
+		LineEnd:   26,
 		Mode:      ModeRegexp,
 		Needle:    "lie",
 		Pattern:   "li.?e",

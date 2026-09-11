@@ -54,25 +54,58 @@ func ExampleFind() {
 	fmt.Println(nih.String())
 	// Output:
 	// NeedleInHaystack{
-	//   LineIndex: 2,
 	//   LineStart: 9,
-	//   LineEnd: 18,
 	//   Start: 14,
 	//   End: 17,
+	//   LineEnd: 18,
 	//   Mode: "string",
 	//   Needle: "bob",
 	//   Pattern: "bob",
 	//   Haystack: "\n	alice,\n	😁bob,\n	charlie\n",
 	//   IsMatch(): true,
-	//   LineNum(): 3,
+	//   LineIndex(): 2,
+	//   LineNumber(): 3,
 	//   InlineStart(): 5,
 	//   InlineEnd(): 8,
 	//   RuneLineStart(): 9,
-	//   RuneLineEnd(): 15,
 	//   RuneStart(): 11,
 	//   RuneEnd(): 14,
+	//   RuneLineEnd(): 15,
 	//   RuneInlineStart(): 2,
 	//   RuneInlineEnd(): 5,
+	// }
+}
+
+func ExampleMatch() {
+	haystack := `
+	alice,
+	😁bob,
+	charlie
+`
+
+	nih := Match(haystack, "ch.*lie", 0)
+	fmt.Println(nih.String())
+	// Output:
+	// NeedleInHaystack{
+	//   LineStart: 19,
+	//   Start: 20,
+	//   End: 27,
+	//   LineEnd: 27,
+	//   Mode: "regexp",
+	//   Needle: "charlie",
+	//   Pattern: "ch.*lie",
+	//   Haystack: "\n	alice,\n	😁bob,\n	charlie\n",
+	//   IsMatch(): true,
+	//   LineIndex(): 3,
+	//   LineNumber(): 4,
+	//   InlineStart(): 1,
+	//   InlineEnd(): 8,
+	//   RuneLineStart(): 16,
+	//   RuneStart(): 17,
+	//   RuneEnd(): 24,
+	//   RuneLineEnd(): 24,
+	//   RuneInlineStart(): 1,
+	//   RuneInlineEnd(): 8,
 	// }
 }
 
@@ -97,7 +130,7 @@ func ExampleNeedleInHaystack_FindNext() {
 		fmt.Printf(
 			"[%d] line: %d [%d:%d]\n",
 			i,
-			nih.LineNum(),
+			nih.LineNumber(),
 			nih.InlineStart(),
 			nih.InlineEnd(),
 		)

@@ -40,14 +40,13 @@ func Find(
 	start += startingAt
 	end := start + len(needle)
 
-	lineIdx, lineStart, lineEnd := findLineIndex(haystack, start)
+	lineStart, lineEnd := findLineIndexes(haystack, start)
 
 	return NeedleInHaystack{
-		LineIndex: lineIdx,
-		LineStart: lineStart,
-		LineEnd:   lineEnd,
 		Start:     start,
 		End:       end,
+		LineStart: lineStart,
+		LineEnd:   lineEnd,
 		Mode:      ModeString,
 		Needle:    needle,
 		Pattern:   needle,
@@ -76,14 +75,13 @@ func Match(
 	start := pos[0] + startingAt
 	end := pos[1] + startingAt
 
-	lineIdx, lineStart, lineEnd := findLineIndex(haystack, start)
+	lineStart, lineEnd := findLineIndexes(haystack, start)
 
 	return NeedleInHaystack{
-		LineIndex: lineIdx,
-		LineStart: lineStart,
-		LineEnd:   lineEnd,
 		Start:     start,
 		End:       end,
+		LineStart: lineStart,
+		LineEnd:   lineEnd,
 		Mode:      ModeRegexp,
 		Needle:    haystack[start:end],
 		Pattern:   pattern,
@@ -91,12 +89,10 @@ func Match(
 	}
 }
 
-func findLineIndex(
+func findLineIndexes(
 	haystack string,
 	start int,
-) (int, int, int) {
-	lineIdx := strings.Count(haystack[:start], "\n")
-
+) (int, int) {
 	// Find start of line: scan backwards for the previous
 	// '\n'. +1 because we want to exclude the linefeed.
 	lineStart := strings.LastIndexByte(
@@ -118,7 +114,7 @@ func findLineIndex(
 		lineEnd += start
 	}
 
-	return lineIdx, lineStart, lineEnd
+	return lineStart, lineEnd
 }
 
 func panicIfMultilineNeedle(needle string) {

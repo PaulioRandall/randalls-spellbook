@@ -17,11 +17,10 @@ func Test_Find_1(t *testing.T) {
 
 	act := Find(haystack, "bob", 0)
 	exp := NeedleInHaystack{
-		LineIndex: 2,
 		LineStart: 10,
-		LineEnd:   16,
 		Start:     12,
 		End:       15,
+		LineEnd:   16,
 		Mode:      ModeString,
 		Needle:    "bob",
 		Pattern:   "bob",
@@ -44,11 +43,10 @@ func Test_Find_2(t *testing.T) {
 
 	act := Find(haystack, "bob", 10)
 	exp := NeedleInHaystack{
-		LineIndex: 3,
 		LineStart: 17,
-		LineEnd:   23,
 		Start:     19,
 		End:       22,
+		LineEnd:   23,
 		Mode:      ModeString,
 		Needle:    "bob",
 		Pattern:   "bob",
@@ -88,11 +86,10 @@ func Test_Match_1(t *testing.T) {
 
 	act := Match(haystack, "li.?e", 0)
 	exp := NeedleInHaystack{
-		LineIndex: 1,
 		LineStart: 1,
-		LineEnd:   9,
 		Start:     4,
 		End:       8,
+		LineEnd:   9,
 		Mode:      ModeRegexp,
 		Needle:    "lice",
 		Pattern:   "li.?e",
@@ -113,11 +110,10 @@ func Test_Match_2(t *testing.T) {
 
 	act := Match(haystack, "li.?e", 8)
 	exp := NeedleInHaystack{
-		LineIndex: 3,
 		LineStart: 17,
-		LineEnd:   26,
 		Start:     23,
 		End:       26,
+		LineEnd:   26,
 		Mode:      ModeRegexp,
 		Needle:    "lie",
 		Pattern:   "li.?e",

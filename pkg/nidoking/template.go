@@ -284,7 +284,10 @@ func (tmpl *Template) locateDelimiterLineIndexes(
 		panic(msg)
 	}
 
-	if startNih.LineIndex == endNih.LineIndex {
+	startLineIndex := startNih.LineIndex()
+	endLineIndex := endNih.LineIndex()
+
+	if startLineIndex == endLineIndex {
 		msg := fmt.Errorf(
 			"Start and end token keys, '%s' and '%s', cannot be on the same line",
 			startKey,
@@ -293,5 +296,5 @@ func (tmpl *Template) locateDelimiterLineIndexes(
 		panic(msg)
 	}
 
-	return startNih.LineIndex, endNih.LineIndex
+	return startLineIndex, endLineIndex
 }

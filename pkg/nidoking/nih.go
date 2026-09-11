@@ -40,19 +40,13 @@ func (rep Replacement) FindNext() NeedleInHaystack {
 
 // NeedleInHaystack holds byte position information about
 // a substring (needle) within a bigger string (haystack).
-// It is returned by [Find], and provides functions
-// for accessing rune and line positions, and a few
-// for replacing and removing the needle or its line.
+// It is returned by [Find] and [Match] functions. It
+// provides functions for accessing rune and line
+// positions, and a few for replacing and removing the
+// needle or its line.
 type NeedleInHaystack struct {
-	// Line index.
-	LineIndex int
-
 	// Byte index of the first character of the line.
 	LineStart int
-
-	// Byte index one past the last character of the line,
-	// i.e. not including '\n'.
-	LineEnd int
 
 	// Byte index of the first character of the search term.
 	Start int
@@ -60,6 +54,10 @@ type NeedleInHaystack struct {
 	// Byte index one past the last character of the search
 	// term.
 	End int
+
+	// Byte index one past the last character of the line,
+	// i.e. not including '\n'.
+	LineEnd int
 
 	// Mode is the matching mode used to find the
 	// NeedleInHaystack. 'string' for simple string matching
@@ -85,23 +83,23 @@ type NeedleInHaystack struct {
 func (nih NeedleInHaystack) String() string {
 	msg := joinLines(
 		"NeedleInHaystack{",
-		"  LineIndex: %d,",
 		"  LineStart: %d,",
-		"  LineEnd: %d,",
 		"  Start: %d,",
 		"  End: %d,",
+		"  LineEnd: %d,",
 		`  Mode: "%s",`,
 		`  Needle: "%s",`,
 		`  Pattern: "%s",`,
 		`  Haystack: "%s",`,
 		"  IsMatch(): %t,",
-		"  LineNum(): %d,",
+		"  LineIndex(): %d,",
+		"  LineNumber(): %d,",
 		"  InlineStart(): %d,",
 		"  InlineEnd(): %d,",
 		"  RuneLineStart(): %d,",
-		"  RuneLineEnd(): %d,",
 		"  RuneStart(): %d,",
 		"  RuneEnd(): %d,",
+		"  RuneLineEnd(): %d,",
 		"  RuneInlineStart(): %d,",
 		"  RuneInlineEnd(): %d,",
 		"}",
@@ -109,23 +107,23 @@ func (nih NeedleInHaystack) String() string {
 
 	return fmt.Sprintf(
 		msg,
-		nih.LineIndex,
 		nih.LineStart,
-		nih.LineEnd,
 		nih.Start,
 		nih.End,
+		nih.LineEnd,
 		nih.Mode,
 		nih.Needle,
 		nih.Pattern,
 		fmtPrintString(nih.Haystack),
 		nih.IsMatch(),
-		nih.LineNum(),
+		nih.LineIndex(),
+		nih.LineNumber(),
 		nih.InlineStart(),
 		nih.InlineEnd(),
 		nih.RuneLineStart(),
-		nih.RuneLineEnd(),
 		nih.RuneStart(),
 		nih.RuneEnd(),
+		nih.RuneLineEnd(),
 		nih.RuneInlineStart(),
 		nih.RuneInlineEnd(),
 	)
@@ -136,9 +134,15 @@ func (nih NeedleInHaystack) IsMatch() bool {
 	return nih != (NeedleInHaystack{})
 }
 
-// LineNum returns the line number, i.e. LineIndex + 1.
-func (nih NeedleInHaystack) LineNum() int {
-	return nih.LineIndex + 1
+// LineIndex returns the number of lines before the start
+// of the needle was encountered.
+func (nih NeedleInHaystack) LineIndex() int {
+	return strings.Count(nih.Haystack[:nih.Start], "\n")
+}
+
+// LineNumber returns the line number, i.e. LineIndex() + 1.
+func (nih NeedleInHaystack) LineNumber() int {
+	return nih.LineIndex() + 1
 }
 
 // LineText returns the text of the whole line the needle
