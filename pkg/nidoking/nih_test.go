@@ -12,7 +12,9 @@ var nihBob = NeedleInHaystack{
 	LineEnd:   16,
 	Start:     12,
 	End:       15,
+	Mode:      ModeString,
 	Needle:    "bob",
+	Pattern:   "bob",
 	Haystack: `
 		alice,
 		bob,
@@ -27,7 +29,9 @@ var nihJen = NeedleInHaystack{
 	LineEnd:   14,
 	Start:     10,
 	End:       13,
+	Mode:      ModeString,
 	Needle:    "jen",
+	Pattern:   "jen",
 	Haystack:  "alice\n😁jen?\ncharlie",
 }
 
@@ -262,7 +266,7 @@ func Test_NeedleInHaystack_RemoveLine_1(t *testing.T) {
 }
 
 func Test_NeedleInHaystack_FindNext_1(t *testing.T) {
-	// NeedleInHaystack.FindNext happy path.
+	// NeedleInHaystack.FindNext happy path for ModeString.
 
 	haystack := `
 		alice,
@@ -272,6 +276,7 @@ func Test_NeedleInHaystack_FindNext_1(t *testing.T) {
 	`
 
 	nih := Find(haystack, "bob", 0)
+	nih = nih.FindNext()
 
 	exp := NeedleInHaystack{
 		LineIndex: 4,
@@ -279,12 +284,56 @@ func Test_NeedleInHaystack_FindNext_1(t *testing.T) {
 		LineEnd:   49,
 		Start:     37,
 		End:       40,
+		Mode:      ModeString,
 		Needle:    "bob",
+		Pattern:   "bob",
+		Haystack:  haystack,
+	}
+
+	require.Equal(t, exp, nih)
+
+	nih = nih.FindNext()
+	require.Equal(t, NeedleInHaystack{}, nih)
+}
+
+func Test_NeedleInHaystack_FindNext_2(t *testing.T) {
+	// NeedleInHaystack.FindNext happy path for ModeRegexp.
+
+	haystack := `
+		alice,
+		bob,
+		charlie
+	`
+
+	exp1 := NeedleInHaystack{
+		LineIndex: 1,
+		LineStart: 1,
+		LineEnd:   9,
+		Start:     4,
+		End:       8,
+		Mode:      ModeRegexp,
+		Needle:    "lice",
+		Pattern:   "li.?e",
+		Haystack:  haystack,
+	}
+
+	nih := Match(haystack, "li.?e", 0)
+	require.Equal(t, exp1, nih)
+
+	exp2 := NeedleInHaystack{
+		LineIndex: 3,
+		LineStart: 17,
+		LineEnd:   26,
+		Start:     23,
+		End:       26,
+		Mode:      ModeRegexp,
+		Needle:    "lie",
+		Pattern:   "li.?e",
 		Haystack:  haystack,
 	}
 
 	nih = nih.FindNext()
-	require.Equal(t, exp, nih)
+	require.Equal(t, exp2, nih)
 
 	nih = nih.FindNext()
 	require.Equal(t, NeedleInHaystack{}, nih)

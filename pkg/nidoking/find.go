@@ -5,17 +5,31 @@ import (
 	"strings"
 )
 
+const (
+	// ModeString is set as [NeedleInHaystack].Mode for
+	// the results of [Find] and results of subsequent calls
+	// to [Replacement.FindNext] and
+	// [NeedleInHaystack.FindNext].
+	ModeString = "string"
+
+	// ModeString is set as [NeedleInHaystack].Mode for
+	// the results of [Match] and results of subsequent calls
+	// to [Replacement.FindNext] and
+	// [NeedleInHaystack.FindNext].
+	ModeRegexp = "regexp"
+)
+
 // Find locates needle within haystack and returns a
-// NeedleInHaystack. If no match is found then an empty
-// NeedleInHaystack is returned. If the needle contains
-// any linefeeds then panic ensues.
+// NeedleInHaystack. If the needle contains any linefeeds
+// then panic ensues. If no match is found then an empty
+// NeedleInHaystack is returned; use
+// [NeedleInHaystack.IsMatch] to avoid referencing the
+// return type.
 func Find(
 	haystack, needle string,
 	startingAt int,
 ) NeedleInHaystack {
-	if strings.Contains(needle, "\n") {
-		panic("Needle must not be a multi-line string")
-	}
+	panicIfMultilineNeedle(needle)
 
 	start := strings.Index(haystack[startingAt:], needle)
 	if start == -1 {
@@ -34,18 +48,25 @@ func Find(
 		LineEnd:   lineEnd,
 		Start:     start,
 		End:       end,
+		Mode:      ModeString,
 		Needle:    needle,
+		Pattern:   needle,
 		Haystack:  haystack,
 	}
 }
 
-// TODO: Test
-// TODO: Example
-// TODO: Update FindNext
+// Find locates needle within haystack and returns a
+// NeedleInHaystack. If the needle contains any linefeeds
+// then panic ensues. If no match is found then an empty
+// NeedleInHaystack is returned; use
+// [NeedleInHaystack.IsMatch] to avoid referencing the
+// return type.
 func Match(
 	haystack, pattern string,
 	startingAt int,
 ) NeedleInHaystack {
+	panicIfMultilinePattern(pattern)
+
 	re := regexp.MustCompile(pattern)
 	pos := re.FindStringIndex(haystack[startingAt:])
 	if pos == nil {
@@ -63,6 +84,8 @@ func Match(
 		LineEnd:   lineEnd,
 		Start:     start,
 		End:       end,
+		Mode:      ModeRegexp,
+		Needle:    haystack[start:end],
 		Pattern:   pattern,
 		Haystack:  haystack,
 	}
@@ -96,4 +119,31 @@ func findLineIndex(
 	}
 
 	return lineIdx, lineStart, lineEnd
+}
+
+func panicIfMultilineNeedle(needle string) {
+	if strings.ContainsRune(needle, '\n') {
+		panic("Needle must not be a multi-line string: \\n")
+	}
+
+	if strings.ContainsRune(needle, '\r') {
+		panic("Needle must not be a multi-line string: \\r")
+	}
+}
+
+func panicIfMultilinePattern(pattern string) {
+	if strings.Contains(pattern, "\\n") {
+		panic("Pattern must not be a multi-line string: \\n")
+	}
+
+	if strings.Contains(pattern, "\\r") {
+		panic("Pattern must not be a multi-line string: \\r")
+	}
+
+	// matches (?m), (?s), (?im), etc.
+	// I assumed flags are case-sensitive.
+	re := regexp.MustCompile(`\n|\r|\(\?[iU]*[ms].*\)`)
+	if s := re.FindString(pattern); s != "" {
+		panic("Pattern must not be a multi-line string: " + s)
+	}
 }

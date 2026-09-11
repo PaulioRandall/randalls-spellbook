@@ -30,7 +30,12 @@ type Replacement struct {
 // FindNext finds the next instance of the needle in the
 // updated haystack.
 func (rep Replacement) FindNext() NeedleInHaystack {
-	return Find(rep.Haystack, rep.Nih.Needle, rep.End)
+	return findNext(
+		rep.Nih.Mode,
+		rep.Haystack,
+		rep.Nih.Pattern,
+		rep.End,
+	)
 }
 
 // NeedleInHaystack holds byte position information about
@@ -56,10 +61,19 @@ type NeedleInHaystack struct {
 	// term.
 	End int
 
-	// The substring, empty if pattern matching.
+	// Mode is the matching mode used to find the
+	// NeedleInHaystack. 'string' for simple string matching
+	// or 'regexp' for pattern matching. This is used to
+	// determine whether [Find] or [Match] was used to create
+	// the NeedleInHaystack.
+	Mode string
+
+	// The substring. This will be the same Pattern if this
+	// object was produced by [Find] and the matched
+	// substring produced by [Match].
 	Needle string
 
-	// The pattern, empty if string matching.
+	// The matching pattern, always empty when using [Find].
 	Pattern string
 
 	// The string containing the substring.
@@ -76,9 +90,11 @@ func (nih NeedleInHaystack) String() string {
 		"  LineEnd: %d,",
 		"  Start: %d,",
 		"  End: %d,",
+		`  Mode: "%s",`,
 		`  Needle: "%s",`,
 		`  Pattern: "%s",`,
 		`  Haystack: "%s",`,
+		"  IsMatch(): %t,",
 		"  LineNum(): %d,",
 		"  InlineStart(): %d,",
 		"  InlineEnd(): %d,",
@@ -98,9 +114,11 @@ func (nih NeedleInHaystack) String() string {
 		nih.LineEnd,
 		nih.Start,
 		nih.End,
+		nih.Mode,
 		nih.Needle,
 		nih.Pattern,
 		fmtPrintString(nih.Haystack),
+		nih.IsMatch(),
 		nih.LineNum(),
 		nih.InlineStart(),
 		nih.InlineEnd(),
@@ -111,6 +129,11 @@ func (nih NeedleInHaystack) String() string {
 		nih.RuneInlineStart(),
 		nih.RuneInlineEnd(),
 	)
+}
+
+// IsMatch returns true if nih != (NeedleInHaystack{}).
+func (nih NeedleInHaystack) IsMatch() bool {
+	return nih != (NeedleInHaystack{})
 }
 
 // LineNum returns the line number, i.e. LineIndex + 1.
@@ -307,7 +330,12 @@ func (nih NeedleInHaystack) RemoveLine() Replacement {
 // haystack.
 func (nih NeedleInHaystack) FindNext() NeedleInHaystack {
 	nih.panicIfEmpty()
-	return Find(nih.Haystack, nih.Needle, nih.End)
+	return findNext(
+		nih.Mode,
+		nih.Haystack,
+		nih.Pattern,
+		nih.End,
+	)
 }
 
 func (nih NeedleInHaystack) replacement(
@@ -338,4 +366,19 @@ func (nih NeedleInHaystack) panicIfEmpty() {
 	if nih == (NeedleInHaystack{}) {
 		panic("Can't operate on empty NeedleInHaystack")
 	}
+}
+
+func findNext(
+	mode, haystack, pattern string,
+	end int,
+) NeedleInHaystack {
+	if mode == ModeString {
+		return Find(haystack, pattern, end)
+	}
+
+	if mode == ModeRegexp {
+		return Match(haystack, pattern, end)
+	}
+
+	panic("Unknown NeedleInHaystack.Mode: " + mode)
 }
