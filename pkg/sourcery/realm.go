@@ -2,6 +2,7 @@ package sourcery
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -153,7 +154,17 @@ func (rm *Realm[T]) onWebViewReady(
 		return e
 	}
 
-	return w.Bind("CastSpell", rm.castSpell)
+	e = w.Bind("CastSpell", rm.castSpell)
+	if e != nil {
+		return e
+	}
+
+	e = w.Bind("Go", rm.Go)
+	if e != nil {
+		return e
+	}
+
+	return nil
 }
 
 // castSpell is a bound function called by the UI to
@@ -212,4 +223,12 @@ func (rm *Realm[T]) runWebview(
 	}()
 
 	return AppWindow(appOptions)
+}
+
+func (rm *Realm[T]) Go(cmd string, args ...any) (any, error) {
+	println("Go: " + cmd)
+	for _, v := range args {
+		println(fmt.Sprintf("\t%v", v))
+	}
+	return nil, fmt.Errorf("%s", cmd)
 }
