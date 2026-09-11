@@ -98,6 +98,18 @@ func (tmpl *Template) Fmt(
 	)
 }
 
+// FmtObject searches for tokens with the pattern
+// {{key.field}} and replaces it with the value named
+// 'field' in object, or the value of calling the method
+// named 'field'. The method must accept no arguments and
+// return a single value.
+func (tmpl *Template) FmtObject(
+	key string,
+	object any,
+) *Template {
+	panic("TODO: Template.FmtObject")
+}
+
 // FmtJoin replaces every token named key with the list of
 // values. Each instance of value is suffixed with delim,
 // except the last.
@@ -175,6 +187,19 @@ func (tmpl *Template) Repeat[T any](
 		stringifyValue,
 		f,
 	)
+}
+
+// Objects searches for lines with tokens containing the
+// pattern {{key.field}} and repeats each line with the
+// value named 'field' in each object, or the value of
+// calling the method named 'field'. The method must
+// accept no arguments and return a single value. Each line
+// is suffixed with delim, except the last.
+func (tmpl *Template) Objects[T any](
+	key, delim string,
+	objects ...T,
+) *Template {
+	panic("TODO: Template.Objects")
 }
 
 // Map replaces every line containing a token named key

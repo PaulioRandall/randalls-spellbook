@@ -12,14 +12,15 @@
 //
 // The higher level API provides simple string template
 // formatting. It's much simpler than the standard
-// 'text/template' but package also less feature rich.
+// 'text/template' package but also much less feature rich.
 // Dynamic values are defined using mustache tokens,
-// e.g. '{{key}}', the same as 'text/template' so some code
-// editors will highlight tokens within the strings.
-// However, they are relatiely simple placeholders; how
-// values are inserted depends mostly on the template
-// functions called and the arguments passed. A [Template]
-// can be created via the [Given] and [Lines] functions.
+// e.g. '{{key}}' and {{key.field}}, the same as
+// 'text/template' so some code editors will highlight
+// tokens within the strings. However, they are relatiely
+// simple placeholders; how values are inserted depends
+// mostly on the template functions called and the
+// arguments passed. A [Template] can be created via the
+// [Given] and [Lines] functions.
 //
 // Both APIs were designed for locally scoped usage with
 // method chaining but types are available for passing
