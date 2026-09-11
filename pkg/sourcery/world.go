@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/crgimenes/glaze"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/wizzard"
 )
 
 /*
@@ -20,6 +22,7 @@ type World struct {
 	Title   string
 	Width   int
 	Height  int
+	spells  map[string]wizzard.Spell
 	servers []server
 	webview glaze.WebView
 }
@@ -29,7 +32,15 @@ func NewWorld() *World {
 		Title:  "Technotelicomnicon",
 		Width:  800,
 		Height: 600,
+		spells: map[string]wizzard.Spell{},
 	}
+}
+
+// Inscribe adds a new spell to the world. The spell may be
+// called from the front end using the 'Go' global
+// function, e.g. Go("name", arg1, arg2, etc).
+func (w *World) Inscribe(name string, fn any) {
+	w.spells[name] = wizzard.NewSpell(name, fn)
 }
 
 // Serve adds a HTTP handler.
