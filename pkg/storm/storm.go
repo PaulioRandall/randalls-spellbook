@@ -6,6 +6,7 @@ import (
 
 	_ "github.com/glebarez/go-sqlite"
 
+	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 )
 
@@ -44,8 +45,9 @@ func (st *Storm) Open() error {
 
 	db, e := sql.Open("sqlite", st.path)
 	if e != nil {
-		return stormy("Unable to open SQLite database").
-			Wrap(e)
+		return curse.Err("Unable to open SQLite database").
+			Wrap(ErrDatabaseFile.Wrap(e)).
+			Attach("For: " + st.path)
 	}
 
 	st.db = db
@@ -140,8 +142,9 @@ func (st *Storm) registerTable(model any) (Table, error) {
 
 	table, e = Parse(model)
 	if e != nil {
-		return Table{},
-			stormy("Failed to register struct/table").Wrap(e)
+		return Table{}, curse.Err(
+			"Failed to register struct/table",
+		).Wrap(e)
 	}
 
 	st.tables = append(st.tables, table)
@@ -163,8 +166,8 @@ func (st *Storm) createTable(table Table) error {
 	_, e := st.db.Exec(query)
 	if e != nil {
 		return ErrExeSqlCreate.
-			Table(table.GoName).
-			Wrap(e)
+			Wrap(e).
+			Attach(tableInfo(table.GoName))
 	}
 
 	return nil
@@ -224,8 +227,8 @@ func (st *Storm) execInsert(
 	_, e := st.db.Exec(query, values...)
 	if e != nil {
 		return ErrExeSqlInsert.
-			Table(table.GoName).
-			Wrap(e)
+			Wrap(e).
+			Attach(tableInfo(table.GoName))
 	}
 
 	return nil
@@ -286,7 +289,9 @@ func (st *Storm) execUpdate(
 
 	_, e := st.db.Exec(query, fieldValues...)
 	if e != nil {
-		return ErrExeSqlUpdate.Table(table.GoName).Wrap(e)
+		return ErrExeSqlUpdate.
+			Wrap(e).
+			Attach(tableInfo(table.GoName))
 	}
 
 	return nil
@@ -326,12 +331,16 @@ func (st *Storm) querySelectAll[T any](
 
 	rows, e := st.db.Query(query)
 	if e != nil {
-		return nil, ErrExeSqlSelect.Table(table.GoName).Wrap(e)
+		return nil, ErrExeSqlSelect.
+			Wrap(e).
+			Attach(tableInfo(table.GoName))
 	}
 
 	result, e := st.scanSelectedRows[T](table, rows)
 	if e != nil {
-		return nil, ErrScanningRows.Table(table.GoName).Wrap(e)
+		return nil, ErrScanningRows.
+			Wrap(e).
+			Attach(tableInfo(table.GoName))
 	}
 
 	return result, nil
@@ -347,7 +356,9 @@ func (st *Storm) scanSelectedRows[T any](
 	for rowIdx := 0; rows.Next(); rowIdx++ {
 		e := rows.Scan(valuePtrs...)
 		if e != nil {
-			return nil, ErrScanningRow.Row(rowIdx).Wrap(e)
+			return nil, ErrScanningRow.
+				Wrap(e).
+				Attach(rowInfo(rowIdx))
 		}
 
 		object := constructObject[T](values)
@@ -418,19 +429,25 @@ func (st *Storm) SelectById[T, ID any](
 	if e != nil {
 		tableName := reflect.TypeOf(model).Name()
 		return empty, ErrSelectingObjectsById.
-			Table(tableName).Id(id).Wrap(e)
+			Wrap(e).
+			Attach(tableInfo(tableName)).
+			Attach(idInfo(id))
 	}
 
 	e = validateIdType(table, id)
 	if e != nil {
 		return empty, ErrSelectingObjectsById.
-			Table(table.GoName).Id(id).Wrap(e)
+			Wrap(e).
+			Attach(tableInfo(table.GoName)).
+			Attach(idInfo(id))
 	}
 
 	result, e := st.querySelectById[T](table, id)
 	if e != nil {
 		return empty, ErrSelectingObjectsById.
-			Table(table.GoName).Id(id).Wrap(e)
+			Wrap(e).
+			Attach(tableInfo(table.GoName)).
+			Attach(idInfo(id))
 	}
 
 	return result, nil
@@ -457,17 +474,25 @@ func (st *Storm) querySelectById[T any](
 
 	rows, e := st.db.Query(query, id)
 	if e != nil {
-		return empty, ErrExeSqlSelect.Table(table.GoName).Wrap(e)
+		return empty, ErrExeSqlSelect.
+			Wrap(e).
+			Attach(tableInfo(table.GoName)).
+			Attach(idInfo(id))
 	}
 
 	result, e := st.scanSelectedRows[T](table, rows)
 	if e != nil {
-		return empty, ErrScanningRows.Table(table.GoName).Wrap(e)
+		return empty, ErrScanningRows.
+			Wrap(e).
+			Attach(tableInfo(table.GoName)).
+			Attach(idInfo(id))
 	}
 
 	object, ok := getFirstItemIfArray[T](result)
 	if !ok {
-		return empty, ErrObjectNotFound.Table(table.GoName)
+		return empty, ErrObjectNotFound.
+			Attach(tableInfo(table.GoName)).
+			Attach(idInfo(id))
 	}
 
 	return object, nil
@@ -505,20 +530,26 @@ func (st *Storm) DeleteById[T, ID any](
 	table, e := st.findTableForModel(model)
 	if e != nil {
 		tableName := reflect.TypeOf(model).Name()
-		return ErrDeletingObject.Table(tableName).Wrap(e)
+		return ErrDeletingObject.
+			Wrap(e).
+			Attach(tableInfo(tableName))
 	}
 
 	for _, id := range ids {
 		e = validateIdType(table, id)
 		if e != nil {
 			return ErrDeletingObject.
-				Table(table.GoName).Id(id).Wrap(e)
+				Wrap(e).
+				Attach(tableInfo(table.GoName)).
+				Attach(idInfo(id))
 		}
 
 		e = st.execDeleteById(table, id)
 		if e != nil {
 			return ErrDeletingObject.
-				Table(table.GoName).Id(id).Wrap(e)
+				Wrap(e).
+				Attach(tableInfo(table.GoName)).
+				Attach(idInfo(id))
 		}
 	}
 
@@ -542,7 +573,9 @@ func (st *Storm) execDeleteById(
 	_, e := st.db.Exec(query, id)
 	if e != nil {
 		return ErrExeSqlDelete.
-			Table(table.GoName).Id(id).Wrap(e)
+			Wrap(e).
+			Attach(tableInfo(table.GoName)).
+			Attach(idInfo(id))
 	}
 
 	return nil
@@ -576,7 +609,9 @@ func (st *Storm) Drop(models ...any) error {
 
 		e := st.execDropQuery(table)
 		if e != nil {
-			return ErrDroppingTable.Table(table.GoName).Wrap(e)
+			return ErrDroppingTable.
+				Wrap(e).
+				Attach(tableInfo(table.GoName))
 		}
 	}
 
@@ -592,7 +627,9 @@ func (st *Storm) execDropQuery(table Table) error {
 
 	_, e := st.db.Exec(query)
 	if e != nil {
-		return ErrExeSqlDrop.Table(table.GoName).Wrap(e)
+		return ErrExeSqlDrop.
+			Wrap(e).
+			Attach(tableInfo(table.GoName))
 	}
 
 	return nil
@@ -609,7 +646,8 @@ func (st *Storm) findTableForModel(
 		}
 	}
 
-	return Table{}, ErrNoSuchTable.Table(typ.Name())
+	return Table{}, ErrNoSuchTable.
+		Attach(tableInfo(typ.Name()))
 }
 
 func (st *Storm) findTableForType(
@@ -641,7 +679,9 @@ func extractColumnValues(
 
 func validateIdType[ID any](table Table, id ID) error {
 	if table.IdColumn().GoType != reflect.TypeOf(id) {
-		return ErrBadIdType.Table(table.GoName).Id(id)
+		return ErrBadIdType.
+			Attach(tableInfo(table.GoName)).
+			Attach(idInfo(id))
 	}
 	return nil
 }

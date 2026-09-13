@@ -27,61 +27,73 @@ func Attach(err error, info string) Curse {
 	}
 
 	if cu, ok = err.(Curse); !ok {
-		cu = HexWrap(err, err.Error())
+		cu = Wrap(err, err.Error())
 	}
 
 	return cu.Attach(info)
 }
 
-type hexCurse struct {
+// Hex is a simple implementation of [Curse].
+type Hex struct {
 	errId       string
 	msg         string
 	cause       error
 	attachments []string
 }
 
-// Hex returns a new [Curse].
-func Hex(msg string, args ...any) Curse {
+// Err returns a new [Curse].
+func Err(msg string, args ...any) Hex {
 	return newHex(nil, msg, args...)
 }
 
-// HexWrap returns a new [Curse] with a knwon cause.
-func HexWrap(cause error, msg string, args ...any) Curse {
+// Wrap returns a new [Curse] with a known cause error.
+func Wrap(cause error, msg string, args ...any) Hex {
 	return newHex(cause, msg, args...)
 }
 
-func newHex(cause error, msg string, args ...any) hexCurse {
+func newHex(cause error, msg string, args ...any) Hex {
 	if len(args) > 0 {
 		msg = fmt.Sprintf(msg, args...)
 	}
 
-	return hexCurse{
+	return Hex{
 		errId: uuid.New().String(),
 		msg:   msg,
 	}
 }
 
 // Attached returns the list off attached inforrmation.
-func (h hexCurse) Attached() []string {
+func (h Hex) Attached() []string {
 	return h.attachments
 }
 
 // Attach attaches new info to the curse.
-func (h hexCurse) Attach(info string) Curse {
+func (h Hex) Attach(info string) Curse {
 	h.attachments = append(h.attachments, info)
+	return h
+}
+
+// Wrap wraps the cause error replacing any existing cause.
+// This is useful when creating package level exported
+// curses (errors). The API producer can call Wrap on the
+// exported error, returning the result as a new instance
+// of the error that will return true when one is compared
+// to the other using the Is function.
+func (h Hex) Wrap(cause error) Curse {
+	h.cause = cause
 	return h
 }
 
 // Unwrap returns the cause of the error, i.e. the wrapped
 // error.
-func (h hexCurse) Unwrap() error {
+func (h Hex) Unwrap() error {
 	return h.cause
 }
 
 // Is returns true if the target is the same type and has
 // the same ID as the receiving error.
-func (h hexCurse) Is(target error) bool {
-	if h2, ok := target.(hexCurse); ok {
+func (h Hex) Is(target error) bool {
+	if h2, ok := target.(Hex); ok {
 		return h.errId == h2.errId
 	}
 	return false
@@ -89,7 +101,7 @@ func (h hexCurse) Is(target error) bool {
 
 // Error returns the error message along with any attached
 // information. It satisfies Go's error interface.
-func (h hexCurse) Error() string {
+func (h Hex) Error() string {
 	const prefix string = "\n\t+ "
 	s := h.msg
 
@@ -108,5 +120,4 @@ func newErrLine(msg string, args ...any) string {
 	return "\n\t+ " + fmt.Sprintf(msg, args...)
 }
 
-var _ error = hexCurse{}
-var _ Curse = hexCurse{}
+var _ Curse = Hex{}

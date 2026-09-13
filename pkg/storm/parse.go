@@ -2,6 +2,8 @@ package storm
 
 import (
 	"reflect"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
 )
 
 // Parse accepts an object (instance of a struct) and
@@ -18,9 +20,9 @@ func Parse(object any) (Table, error) {
 		return table, nil
 	}
 
-	return Table{}, stormy("Parse error with struct/table").
-		Wrap(e).
-		Table(typ.Name())
+	return Table{}, curse.Err(
+		"Parse error with struct/table",
+	).Wrap(e).Attach(tableInfo(typ.Name()))
 }
 
 func parseTable(table *Table, typ reflect.Type) error {
@@ -58,7 +60,8 @@ func parseColumns(
 
 		sqlType, ok := typeMappings[field.Type.Kind()]
 		if !ok {
-			return nil, ErrBadFieldKind.Column(field.Name)
+			return nil, ErrBadFieldKind.
+				Attach(columnInfo(field.Name))
 		}
 
 		col := Column{
