@@ -1,7 +1,6 @@
 package storm
 
 import (
-	"fmt"
 	"reflect"
 )
 
@@ -11,43 +10,41 @@ import (
 // struct, the struct contains no public fields, or a
 // field's type is unsupported.
 func Parse(object any) (Table, error) {
-	tbl := Table{}
+	table := Table{}
 	typ := reflect.TypeOf(object)
 
-	e := parseTable(&tbl, typ)
+	e := parseTable(&table, typ)
 	if e == nil {
-		return tbl, nil
+		return table, nil
 	}
 
-	return Table{}, fmt.Errorf(
-		"Parse error with struct/table '%s': %w",
-		typ.Name(),
-		e,
-	)
+	return Table{}, stormy("Parse error with struct/table").
+		Wrap(e).
+		Table(typ.Name())
 }
 
-func parseTable(tbl *Table, typ reflect.Type) error {
+func parseTable(table *Table, typ reflect.Type) error {
 	if typ.Kind() != reflect.Struct {
 		return ErrNotStruct
 	}
 
-	columns, e := parseColumns(tbl, typ)
+	columns, e := parseColumns(table, typ)
 	if e != nil {
 		return e
 	}
 
 	if len(columns) == 0 {
-		return ErrMissFields
+		return ErrNoExportedFields
 	}
 
-	tbl.GoType = typ
-	tbl.GoName = typ.Name()
-	tbl.Columns = columns
+	table.GoType = typ
+	table.GoName = typ.Name()
+	table.Columns = columns
 	return nil
 }
 
 func parseColumns(
-	tbl *Table,
+	table *Table,
 	typ reflect.Type,
 ) ([]Column, error) {
 	var columns []Column
@@ -61,11 +58,7 @@ func parseColumns(
 
 		sqlType, ok := typeMappings[field.Type.Kind()]
 		if !ok {
-			return nil, fmt.Errorf(
-				"Failed to parse struct field '%s': %w",
-				field.Name,
-				ErrBadFieldKind,
-			)
+			return nil, ErrBadFieldKind.Column(field.Name)
 		}
 
 		col := Column{

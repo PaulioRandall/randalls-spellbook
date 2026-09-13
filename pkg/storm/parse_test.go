@@ -79,5 +79,5 @@ func Test_Parse_4(t *testing.T) {
 
 	v := TestEntity{}
 	_, e := Parse(v)
-	require.ErrorIs(t, e, ErrMissFields)
+	require.ErrorIs(t, e, ErrNoExportedFields)
 }
