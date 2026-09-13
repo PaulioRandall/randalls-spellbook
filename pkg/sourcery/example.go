@@ -1,5 +1,6 @@
 package sourcery
 
+/*
 import (
 	"embed"
 	"log"
@@ -56,3 +57,4 @@ func exampleAfterClosing(rm *Realm[data.Store]) error {
 	println("Realm is closed!")
 	return nil
 }
+*/

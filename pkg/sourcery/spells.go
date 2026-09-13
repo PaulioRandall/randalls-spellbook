@@ -1,19 +1,13 @@
-package wizzard
+package sourcery
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 )
 
-type Typ = reflect.Type
-type Val = reflect.Value
+// TODO: Clean up and test pkg
 
-var (
-	ErrSpellMiscast = errors.New(
-		"Your ability to weave mana is comical",
-	)
-)
+type refT = reflect.Type
 
 // Spell represents a function that may be called. The
 // function could have any number of arguments but will
@@ -22,8 +16,8 @@ var (
 type Spell struct {
 	Name    string
 	Func    any
-	Accepts []Typ
-	Returns []Typ
+	Accepts []refT
+	Returns []refT
 }
 
 // NewSpell creates a new [Spell]. Spells can have any
@@ -40,9 +34,7 @@ func NewSpell(name string, fn any) Spell {
 	}
 }
 
-// TODO: Clean up and test
-
-func parseFunc(fn any) ([]Typ, []Typ) {
+func parseFunc(fn any) ([]refT, []refT) {
 	typ := reflect.TypeOf(fn)
 	if typ.Kind() != reflect.Func {
 		panic(
@@ -51,12 +43,12 @@ func parseFunc(fn any) ([]Typ, []Typ) {
 		)
 	}
 
-	inputs := make([]Typ, typ.NumIn(), typ.NumIn())
+	inputs := make([]refT, typ.NumIn(), typ.NumIn())
 	for i := 0; i < typ.NumIn(); i++ {
 		inputs[i] = typ.In(i)
 	}
 
-	outputs := make([]Typ, typ.NumOut(), typ.NumOut())
+	outputs := make([]refT, typ.NumOut(), typ.NumOut())
 	for i := 0; i < typ.NumOut(); i++ {
 		outputs[i] = typ.Out(i)
 	}

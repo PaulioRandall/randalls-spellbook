@@ -5,8 +5,6 @@ import (
 	"net/http"
 
 	"github.com/crgimenes/glaze"
-
-	"github.com/PaulioRandall/randalls-spellbook/pkg/wizzard"
 )
 
 /*
@@ -22,7 +20,7 @@ type World struct {
 	Title   string
 	Width   int
 	Height  int
-	spells  map[string]wizzard.Spell
+	spells  map[string]Spell
 	servers []server
 	webview glaze.WebView
 }
@@ -32,7 +30,7 @@ func NewWorld() *World {
 		Title:  "Technotelicomnicon",
 		Width:  800,
 		Height: 600,
-		spells: map[string]wizzard.Spell{},
+		spells: map[string]Spell{},
 	}
 }
 
@@ -40,7 +38,7 @@ func NewWorld() *World {
 // called from the front end using the 'Go' global
 // function, e.g. Go("name", arg1, arg2, etc).
 func (w *World) Inscribe(name string, fn any) {
-	w.spells[name] = wizzard.NewSpell(name, fn)
+	w.spells[name] = NewSpell(name, fn)
 }
 
 // Serve adds a HTTP handler.
@@ -109,12 +107,26 @@ func (w *World) onWebViewReady(
 // Go is the entry point for synchronus requests from the
 // front end.
 func (w *World) Go(
-	cmd string,
+	spellName string,
 	args ...any,
 ) (any, error) {
-	println("Go: " + cmd)
-	for _, v := range args {
-		println(fmt.Sprintf("\t%v", v))
+	w.Log("Invoking spell: %s", spellName)
+
+	spell, ok := w.spells[spellName]
+	if !ok {
+		w.Log("Unknown spell '%s'", spellName)
+		return nil, fmt.Errorf("Unknown spell '%s'", spellName)
 	}
-	return nil, fmt.Errorf("%s", cmd)
+
+	return spell.Invoke(args...)
+}
+
+func (w *World) Log(msg string, args ...any) {
+	if !w.Debug {
+		return
+	}
+	if len(args) == 0 {
+		msg = fmt.Sprintf(msg, args...)
+	}
+	fmt.Print("[Sourcery] ", msg)
 }
