@@ -205,7 +205,7 @@ func Test_Storm_SelectAll_2(t *testing.T) {
 	defer db.Close()
 
 	_, e := db.SelectAll(testCheese{})
-	require.ErrorIs(t, e, ErrSelectingAllObjects)
+	require.ErrorIs(t, e, ErrSelectingObjects)
 	require.ErrorIs(t, e, ErrNoSuchTable)
 }
 

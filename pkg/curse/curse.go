@@ -2,122 +2,124 @@ package curse
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 )
 
-// Curse represents an error that may have additional
-// information attached to it.
-type Curse interface {
-	error
-	Attached() []string
-	Attach(string) Curse
+// ProtoCurse is a [Curse] with a formattable message
+// designed to be used as named exported package errors.
+// Use [Proto] to create one. [ProtoCurse.Fmt] should be
+// called with the correct formatting arguments when
+// returning the error. If the exported error needs no
+// formatting then use [Err] instead.
+type ProtoCurse struct {
+	curse Curse
 }
 
-// Attach attaches an info string to err if err can be cast
-// to a [Curse]. If not, a curse is created using err's
-// error message and the information attached to that,
-// which is then returned with err as the cause.
-func Attach(err error, info string) Curse {
-	var cu Curse
-	var ok bool
-
-	if err == nil {
-		panic("Cannot attach info to a nil error")
-	}
-
-	if cu, ok = err.(Curse); !ok {
-		cu = Wrap(err, err.Error())
-	}
-
-	return cu.Attach(info)
-}
-
-// Hex is a simple implementation of [Curse].
-type Hex struct {
-	errId       string
-	msg         string
-	cause       error
-	attachments []string
-}
-
-// Err returns a new [Curse].
-func Err(msg string, args ...any) Hex {
-	return newHex(nil, msg, args...)
-}
-
-// Wrap returns a new [Curse] with a known cause error.
-func Wrap(cause error, msg string, args ...any) Hex {
-	return newHex(cause, msg, args...)
-}
-
-func newHex(cause error, msg string, args ...any) Hex {
-	if len(args) > 0 {
-		msg = fmt.Sprintf(msg, args...)
-	}
-
-	return Hex{
-		errId: uuid.New().String(),
-		msg:   msg,
+// Proto creates a [ProtoCurse] used as named exported
+// errors for comparison. When an error occurs, the
+// [ProtoCurse.Fmt] should be called with the correct
+// formatting arguments.
+//
+//	var ErrParseNumericBool = curse.Proto(
+//		"Numeric bool must be 0 or 1, given %d",
+//	)
+//
+//	func parseNumericBool(n int) (bool, error) {
+//		if n == 0 {
+//			return false, nil
+//		}
+//
+//		if n == 1 {
+//			return true, nil
+//		}
+//
+//		return false, ErrParseNumericBool.Fmt(n)
+//	}
+func Proto(message string) ProtoCurse {
+	return ProtoCurse{
+		curse: Err(message),
 	}
 }
 
-// Attached returns the list off attached inforrmation.
-func (h Hex) Attached() []string {
-	return h.attachments
+// Error returns the error message, satisfying Go's error
+// interface.
+func (pc ProtoCurse) Error() string {
+	log.Println("WARNING: Use of unformatted ProtoCurse")
+	return pc.curse.Message
 }
 
-// Attach attaches new info to the curse.
-func (h Hex) Attach(info string) Curse {
-	h.attachments = append(h.attachments, info)
-	return h
+// Fmt formats the error message, which must be format
+// string, using fmt.Sprintf and returns a [Curse].
+//
+// This is used with template curses
+func (pc ProtoCurse) Fmt(args ...any) Curse {
+	cu := pc.curse
+	cu.Message = fmt.Sprintf(cu.Message, args...)
+	return cu
+}
+
+// Curse is an error with a Message and Cause. If
+// returned by [ProtoCurse.Fmt] then [Curse.Is] will return
+// true if called with itself or the original [ProtoCurse].
+type Curse struct {
+	errId   string
+	Message string
+	Cause   error
+}
+
+// Err creates a new Curse with the given message.
+func Err(message string) Curse {
+	return Curse{
+		errId:   uuid.New().String(),
+		Message: message,
+	}
+}
+
+// Fmt creates a new Curse with the given message and
+// formatting arguments.
+func Fmt(message string, args ...any) Curse {
+	return Curse{
+		errId:   uuid.New().String(),
+		Message: fmt.Sprintf(message, args...),
+	}
 }
 
 // Wrap wraps the cause error replacing any existing cause.
-// This is useful when creating package level exported
-// curses (errors). The API producer can call Wrap on the
-// exported error, returning the result as a new instance
-// of the error that will return true when one is compared
-// to the other using the Is function.
-func (h Hex) Wrap(cause error) Curse {
-	h.cause = cause
-	return h
+func (cu Curse) Wrap(cause error) Curse {
+	cu.Cause = cause
+	return cu
 }
 
 // Unwrap returns the cause of the error, i.e. the wrapped
 // error.
-func (h Hex) Unwrap() error {
-	return h.cause
+func (cu Curse) Unwrap() error {
+	return cu.Cause
 }
 
 // Is returns true if the target is the same type and has
 // the same ID as the receiving error.
-func (h Hex) Is(target error) bool {
-	if h2, ok := target.(Hex); ok {
-		return h.errId == h2.errId
+func (cu Curse) Is(target error) bool {
+	if pc, ok := target.(ProtoCurse); ok {
+		return cu.errId == pc.curse.errId
 	}
+
+	if cu2, ok := target.(Curse); ok {
+		return cu.errId == cu2.errId
+	}
+
 	return false
 }
 
-// Error returns the error message along with any attached
-// information. It satisfies Go's error interface.
-func (h Hex) Error() string {
-	const prefix string = "\n\t+ "
-	s := h.msg
-
-	for _, info := range h.attachments {
-		s += prefix + info
+// Error returns the error message, satisfying Go's error
+// interface.
+func (cu Curse) Error() string {
+	if cu.Cause != nil {
+		return cu.Cause.Error() + "\n\t" + cu.Message
 	}
-
-	if h.cause != nil {
-		s += "\nCaused by: " + h.cause.Error()
-	}
-
-	return s
+	return cu.Message
 }
 
-func newErrLine(msg string, args ...any) string {
-	return "\n\t+ " + fmt.Sprintf(msg, args...)
-}
-
-var _ Curse = Hex{}
+var _ error = Curse{}
+var _ error = ProtoCurse{}

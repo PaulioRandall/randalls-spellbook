@@ -6,6 +6,32 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
 )
 
+var (
+	// ErrParsingTable returned when failing to parse a
+	// model (struct) into a [Table].
+	ErrParsingTable = curse.Proto(
+		"Parse error with struct/table: %s",
+	)
+
+	// ErrNotStruct is returned when attempting to use a
+	// model type with a non-struct kind.
+	ErrNotStruct = curse.Proto("Model must be a struct: %s")
+
+	// ErrBadFieldKind is returned when a model's type
+	// contains an unsupported kind for one of its exported
+	// fields.
+	ErrBadFieldKind = curse.Proto(
+		"Model '%s' has unsupported field kind: %s",
+	)
+
+	// ErrNoExportedFields is returned when a model's type
+	// has no exported fields. Every table must have at
+	// least one column.
+	ErrNoExportedFields = curse.Proto(
+		"Model must have at least one exported field: %s",
+	)
+)
+
 // Parse accepts an object (instance of a struct) and
 // parses the structure into a Table with its public fields
 // as columns. An error is returned if the object is not a
@@ -20,14 +46,12 @@ func Parse(object any) (Table, error) {
 		return table, nil
 	}
 
-	return Table{}, curse.Err(
-		"Parse error with struct/table",
-	).Wrap(e).Attach(tableInfo(typ.Name()))
+	return Table{}, ErrParsingTable.Fmt(typ.Name()).Wrap(e)
 }
 
 func parseTable(table *Table, typ reflect.Type) error {
 	if typ.Kind() != reflect.Struct {
-		return ErrNotStruct
+		return ErrNotStruct.Fmt(typ.Name())
 	}
 
 	columns, e := parseColumns(table, typ)
@@ -36,7 +60,7 @@ func parseTable(table *Table, typ reflect.Type) error {
 	}
 
 	if len(columns) == 0 {
-		return ErrNoExportedFields
+		return ErrNoExportedFields.Fmt(typ.Name())
 	}
 
 	table.GoType = typ
@@ -60,8 +84,7 @@ func parseColumns(
 
 		sqlType, ok := typeMappings[field.Type.Kind()]
 		if !ok {
-			return nil, ErrBadFieldKind.
-				Attach(columnInfo(field.Name))
+			return nil, ErrBadFieldKind.Fmt(typ.Name, field.Name)
 		}
 
 		col := Column{
