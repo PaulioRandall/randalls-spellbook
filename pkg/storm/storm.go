@@ -2,6 +2,7 @@ package storm
 
 import (
 	"database/sql"
+	"errors"
 	"reflect"
 
 	_ "github.com/glebarez/go-sqlite"
@@ -11,42 +12,30 @@ import (
 )
 
 var (
-	ErrRegisteringTable = curse.Proto(
-		"Failed to register struct: %s",
+	// ErrTableRequest occurs within an error chain when any
+	// error occurs involving a specific table/struct, except
+	// for 'not found' errors.
+	ErrTableRequest = curse.Proto(
+		"Request failed for table: %s",
 	)
-	ErrCreatingTable = curse.Proto(
-		"Failed to create table: %s",
+
+	// ErrScanningRow is returned when an error occurs
+	// scanning database results.
+	ErrScanningRow = curse.Proto(
+		"Scanning row: %d",
 	)
-	ErrDroppingTable = curse.Proto(
-		"Failed to drop table: %s",
-	)
-	ErrInsertingObject = curse.Proto(
-		"Failed to insert object: %s with ID %v",
-	)
-	ErrUpdatingObject = curse.Proto(
-		"Failed to update object: %s with ID %v",
-	)
-	ErrDeletingObject = curse.Proto(
-		"Failed to delete object: %s",
-	)
-	ErrSelectingObjects = curse.Proto(
-		"Failed to select objects: %s",
-	)
-	ErrSelectingObject = curse.Proto(
-		"Failed to select object by ID: %s with ID %v",
-	)
-	ErrExecSql      = curse.Proto("Executing SQL query for: %s")
-	ErrScanningRow  = curse.Proto("Scanning row: %d")
-	ErrScanningRows = curse.Proto(
-		"Scanning selected rows for: %s",
-	)
+
+	// ErrObjectNotFound is returned when a search for a
+	// specific object/row failed.
 	ErrObjectNotFound = curse.Proto(
 		"Object not found: %s with ID %v",
 	)
 
 	// ErrDatabaseFile is returned when an error occurs with
 	// or while opening or closing the database.
-	ErrDatabaseFile = curse.Proto("Database IO error: %s")
+	ErrDatabaseFile = curse.Proto(
+		"Database IO error: %s",
+	)
 
 	// ErrNoSuchTable is returned when an object is passed
 	// to a function which does not have a registered table
@@ -180,37 +169,21 @@ func (st *Storm) Close() error {
 //	err := db.Create(Person{}, Role{})
 func (st *Storm) Create(models ...any) error {
 	for _, m := range models {
-		table, e := st.registerTable(m)
+		e := st.createTable(m)
 		if e != nil {
-			return ErrCreatingTable.Fmt("<unknown>").Wrap(e)
-		}
-
-		e = st.createTable(table)
-		if e != nil {
-			return ErrCreatingTable.Fmt(table.GoName).Wrap(e)
+			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
 		}
 	}
 
 	return nil
 }
 
-func (st *Storm) registerTable(model any) (Table, error) {
-	table, e := st.findTableForModel(model)
-	if e == nil {
-		return table, nil
-	}
-
-	table, e = Parse(model)
+func (st *Storm) createTable(model any) error {
+	table, e := st.registerTable(model)
 	if e != nil {
-		name := typeName(model)
-		return Table{}, ErrRegisteringTable.Fmt(name).Wrap(e)
+		return e
 	}
 
-	st.tables = append(st.tables, table)
-	return table, nil
-}
-
-func (st *Storm) createTable(table Table) error {
 	query := nidoking.Given(`
 		CREATE TABLE IF NOT EXISTS {{table.GoName}} (
 			{{col.GoName}} {{col.SqlType}} NOT NULL,
@@ -222,12 +195,27 @@ func (st *Storm) createTable(table Table) error {
 		InlineMap("id_col", table.IdColumn()).
 		String()
 
-	_, e := st.db.Exec(query)
-	if e != nil {
-		return ErrExecSql.Fmt(table.GoName).Wrap(e)
+	_, e = st.db.Exec(query)
+	return e
+}
+
+func (st *Storm) registerTable(model any) (Table, error) {
+	table, e := st.findTableForModel(model)
+	if e == nil {
+		return table, nil
 	}
 
-	return nil
+	if !errors.Is(e, ErrNoSuchTable) {
+		return Table{}, e
+	}
+
+	table, e = Parse(model)
+	if e != nil {
+		return Table{}, e
+	}
+
+	st.tables = append(st.tables, table)
+	return table, nil
 }
 
 // Insert inserts the set of objects into the database. The
@@ -248,27 +236,22 @@ func (st *Storm) createTable(table Table) error {
 //
 //	err := db.Insert(alice, bob)
 func (st *Storm) Insert[T any](objects ...T) error {
-	for _, obj := range objects {
-		table, e := st.findTableForModel(obj)
+	for _, o := range objects {
+		e := st.insertObject(o)
 		if e != nil {
-			name := typeName(obj)
-			return ErrInsertingObject.Fmt(name).Wrap(e)
-		}
-
-		values := extractColumnValues(table.Columns, obj)
-		e = st.execInsert(table, values)
-		if e != nil {
-			return ErrInsertingObject.Fmt(table.GoName).Wrap(e)
+			return ErrTableRequest.Fmt(typeName(o)).Wrap(e)
 		}
 	}
 
 	return nil
 }
 
-func (st *Storm) execInsert(
-	table Table,
-	values []any,
-) error {
+func (st *Storm) insertObject(object any) error {
+	table, e := st.findTableForModel(object)
+	if e != nil {
+		return e
+	}
+
 	query := nidoking.Given(`
 		INSERT INTO {{table.GoName}} (
 		  {{col.GoName}}
@@ -282,12 +265,9 @@ func (st *Storm) execInsert(
 		ListRepeat("q_marks", ",", "?", table.ColumnCount()).
 		String()
 
-	_, e := st.db.Exec(query, values...)
-	if e != nil {
-		return ErrExecSql.Fmt(table.GoName).Wrap(e)
-	}
-
-	return nil
+	values := extractColumnValues(table.Columns, object)
+	_, e = st.db.Exec(query, values...)
+	return e
 }
 
 // Update updates the objects within the database. Each
@@ -308,74 +288,55 @@ func (st *Storm) execInsert(
 //	err = db.Update(alice)
 func (st *Storm) Update[T any](objects ...T) error {
 	for _, obj := range objects {
-		table, e := st.findTableForModel(obj)
+		e := st.updateObject(obj)
 		if e != nil {
-			name := typeName(obj)
-			return ErrUpdatingObject.Fmt(name).Wrap(e)
-		}
-
-		values := extractColumnValues(table.Columns, obj)
-		// Move ID value to end (for the WHERE clause)
-		values = append(values[1:], values[0])
-
-		e = st.execUpdate(table, values)
-		if e != nil {
-			return ErrUpdatingObject.Fmt(table.GoName).Wrap(e)
+			return ErrTableRequest.Fmt(typeName(obj)).Wrap(e)
 		}
 	}
 
 	return nil
 }
 
-func (st *Storm) execUpdate(
-	table Table,
-	fieldValues []any,
-) error {
+func (st *Storm) updateObject(object any) error {
+	table, e := st.findTableForModel(object)
+	if e != nil {
+		return e
+	}
+
 	query := nidoking.Given(`
-		UPDATE
-			{{table.GoName}}
-		SET
-			{{col.GoName}} = ?
-		WHERE
-			{{id_col.GoName}} = ?
-	`).
+			UPDATE
+				{{table.GoName}}
+			SET
+				{{col.GoName}} = ?
+			WHERE
+				{{id_col.GoName}} = ?
+		`).
 		InlineMap("table", table).
 		InlineMap("id_col", table.IdColumn()).
 		ListMap("col", ",", table.Columns[1:]...).
 		String()
 
-	_, e := st.db.Exec(query, fieldValues...)
-	if e != nil {
-		return ErrExecSql.Fmt(table.GoName).Wrap(e)
-	}
+	values := extractColumnValues(table.Columns, object)
+	// Move ID value to end (for the WHERE clause)
+	values = append(values[1:], values[0])
 
-	return nil
+	_, e = st.db.Exec(query, values...)
+	return e
 }
 
-// SelectAll returns all records for the table associated
+// Select returns all records for the table associated
 // with the passed model. The model's type must match a
 // registered type or an error is returned.
 //
-//	slice, err := SelectAll(Model{})
-func (st *Storm) SelectAll[T any](model T) ([]T, error) {
+//	slice, err := Select(Model{})
+func (st *Storm) Select[T any](model T) ([]T, error) {
+	err := ErrTableRequest.Fmt(typeName(model))
+
 	table, e := st.findTableForModel(model)
 	if e != nil {
-		name := typeName(model)
-		return nil, ErrSelectingObjects.Fmt(name).Wrap(e)
+		return nil, err.Wrap(e)
 	}
 
-	results, e := st.querySelectAll[T](table)
-	if e != nil {
-		return nil, ErrSelectingObjects.
-			Fmt(table.GoName).Wrap(e)
-	}
-
-	return results, nil
-}
-
-func (st *Storm) querySelectAll[T any](
-	table Table,
-) ([]T, error) {
 	query := nidoking.Given(`
 		SELECT
 			{{col.GoName}}
@@ -388,12 +349,12 @@ func (st *Storm) querySelectAll[T any](
 
 	rows, e := st.db.Query(query)
 	if e != nil {
-		return nil, ErrExecSql.Fmt(table.GoName).Wrap(e)
+		return nil, err.Wrap(e)
 	}
 
 	result, e := st.scanSelectedRows[T](table, rows)
 	if e != nil {
-		return nil, ErrScanningRows.Fmt(table.GoName).Wrap(e)
+		return nil, err.Wrap(e)
 	}
 
 	return result, nil
@@ -475,37 +436,17 @@ func (st *Storm) SelectById[T, ID any](
 	id ID,
 ) (T, error) {
 	var empty T
-	tableName := typeName(model)
+	err := ErrTableRequest.Fmt(typeName(model), id)
 
 	table, e := st.findTableForModel(model)
 	if e != nil {
-		return empty, ErrSelectingObject.
-			Fmt(tableName, id).
-			Wrap(e)
+		return empty, err.Wrap(e)
 	}
 
 	e = validateIdType(table, id)
 	if e != nil {
-		return empty, ErrSelectingObject.
-			Fmt(tableName, id).
-			Wrap(e)
+		return empty, err.Wrap(e)
 	}
-
-	result, e := st.querySelectById[T](table, id)
-	if e != nil {
-		return empty, ErrSelectingObject.
-			Fmt(tableName, id).
-			Wrap(e)
-	}
-
-	return result, nil
-}
-
-func (st *Storm) querySelectById[T any](
-	table Table,
-	id any,
-) (T, error) {
-	var empty T
 
 	query := nidoking.Given(`
 		SELECT
@@ -522,12 +463,12 @@ func (st *Storm) querySelectById[T any](
 
 	rows, e := st.db.Query(query, id)
 	if e != nil {
-		return empty, ErrExecSql.Fmt(table.GoName).Wrap(e)
+		return empty, err.Wrap(e)
 	}
 
 	result, e := st.scanSelectedRows[T](table, rows)
 	if e != nil {
-		return empty, ErrScanningRows.Fmt(table.GoName).Wrap(e)
+		return empty, err.Wrap(e)
 	}
 
 	object, ok := getFirstItemIfArray[T](result)
@@ -567,31 +508,27 @@ func (st *Storm) DeleteById[T, ID any](
 	model T,
 	ids ...ID,
 ) error {
-	tableName := typeName(model)
 	table, e := st.findTableForModel(model)
 	if e != nil {
-		return ErrDeletingObject.Fmt(tableName).Wrap(e)
+		return ErrTableRequest.Fmt(typeName(model)).Wrap(e)
 	}
 
 	for _, id := range ids {
-		e = validateIdType(table, id)
+		e = st.deleteById(table, id)
 		if e != nil {
-			return ErrDeletingObject.Fmt(tableName).Wrap(e)
-		}
-
-		e = st.execDeleteById(table, id)
-		if e != nil {
-			return ErrDeletingObject.Fmt(tableName).Wrap(e)
+			return ErrTableRequest.Fmt(typeName(model)).Wrap(e)
 		}
 	}
 
 	return nil
 }
 
-func (st *Storm) execDeleteById(
-	table Table,
-	id any,
-) error {
+func (st *Storm) deleteById(table Table, id any) error {
+	e := validateIdType(table, id)
+	if e != nil {
+		return e
+	}
+
 	query := nidoking.Given(`
 		DELETE FROM
 			{{table.GoName}}
@@ -602,12 +539,8 @@ func (st *Storm) execDeleteById(
 		InlineMap("id_col", table.IdColumn()).
 		String()
 
-	_, e := st.db.Exec(query, id)
-	if e != nil {
-		return ErrExecSql.Fmt(table.GoName).Wrap(e)
-	}
-
-	return nil
+	_, e = st.db.Exec(query, id)
+	return e
 }
 
 // Drop removes a table from the database, deleting all
@@ -630,35 +563,33 @@ func (st *Storm) execDeleteById(
 //	err := db.Drop(Person{}, Role{})
 func (st *Storm) Drop(models ...any) error {
 	for _, m := range models {
-		typ := reflect.TypeOf(m)
-		table, found := st.findTableForType(typ)
-		if !found {
-			return nil
-		}
-
-		e := st.execDropQuery(table)
+		e := st.dropTable(m)
 		if e != nil {
-			tableName := typeName(m)
-			return ErrDroppingTable.Fmt(tableName).Wrap(e)
+			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
 		}
 	}
 
 	return nil
 }
 
-func (st *Storm) execDropQuery(table Table) error {
+func (st *Storm) dropTable(model any) error {
+	table, e := st.findTableForModel(model)
+	if errors.Is(e, ErrNoSuchTable) {
+		return nil
+	}
+
+	if e != nil {
+		return e
+	}
+
 	query := nidoking.Given(`
 		DROP TABLE IF EXISTS {{table.GoName}}
 	`).
 		InlineMap("table", table).
 		String()
 
-	_, e := st.db.Exec(query)
-	if e != nil {
-		return ErrExecSql.Fmt(table.GoName).Wrap(e)
-	}
-
-	return nil
+	_, e = st.db.Exec(query)
+	return e
 }
 
 func (st *Storm) findTableForModel(
@@ -673,17 +604,6 @@ func (st *Storm) findTableForModel(
 	}
 
 	return Table{}, ErrNoSuchTable.Fmt(typ.Name())
-}
-
-func (st *Storm) findTableForType(
-	typ reflect.Type,
-) (Table, bool) {
-	for _, table := range st.tables {
-		if table.GoType == typ {
-			return table, true
-		}
-	}
-	return Table{}, false
 }
 
 func extractColumnValues(
@@ -705,14 +625,11 @@ func extractColumnValues(
 func validateIdType[ID any](table Table, id ID) error {
 	want := table.IdColumn().GoType
 	have := reflect.TypeOf(id)
+
 	if want != have {
 		return ErrBadIdType.
 			Fmt(table.GoName, want.Name(), have.Name())
 	}
-	return nil
-}
 
-func isArrayOrSlice(model any) bool {
-	k := reflect.TypeOf(model).Kind()
-	return k == reflect.Slice || k == reflect.Array
+	return nil
 }

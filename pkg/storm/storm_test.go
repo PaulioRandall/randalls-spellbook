@@ -183,7 +183,7 @@ func Test_Storm_Update_1(t *testing.T) {
 	require.Equal(t, 2, len(records))
 }
 
-func Test_Storm_SelectAll_1(t *testing.T) {
+func Test_Storm_Select_1(t *testing.T) {
 	db := openCreateInsert(
 		t,
 		[]any{testCheeseMaker{}, testCheese{}},
@@ -191,7 +191,7 @@ func Test_Storm_SelectAll_1(t *testing.T) {
 	)
 	defer db.Close()
 
-	act, e := db.SelectAll(testCheeseMaker{})
+	act, e := db.Select(testCheeseMaker{})
 	require.NoError(t, e)
 	require.Equal(t, 2, len(act))
 	require.Equal(t, bobs, act[0])
@@ -204,8 +204,8 @@ func Test_Storm_SelectAll_2(t *testing.T) {
 	db := openCreateInsert(t, nil)
 	defer db.Close()
 
-	_, e := db.SelectAll(testCheese{})
-	require.ErrorIs(t, e, ErrSelectingObjects)
+	_, e := db.Select(testCheese{})
+	require.ErrorIs(t, e, ErrTableRequest)
 	require.ErrorIs(t, e, ErrNoSuchTable)
 }
 

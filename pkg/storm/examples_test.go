@@ -95,8 +95,8 @@ func Example() {
 	e = db.Update(alice)
 	logFatal(e)
 
-	// Select (all)
-	players, e := db.SelectAll(Player{})
+	// Select
+	players, e := db.Select(Player{})
 	logFatal(e)
 
 	// Select (by ID)
