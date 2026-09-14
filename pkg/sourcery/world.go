@@ -2,131 +2,86 @@ package sourcery
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/crgimenes/glaze"
 )
 
-/*
-// server represents a HTTP handler and its path.
-type server struct {
-	path    string
-	handler http.Handler
-}
-*/
-
 type World struct {
-	Debug   bool
-	Title   string
-	Width   int
-	Height  int
-	spells  map[string]Spell
-	servers []server
-	webview glaze.WebView
+	options   AppOptions
+	stones    Litholog
+	spellbook Codex
+	webview   glaze.WebView
 }
 
-func NewWorld() *World {
+func buildWorld(
+	options AppOptions,
+	stones Litholog,
+	spellbook Codex,
+) *World {
 	return &World{
-		Title:  "Technotelicomnicon",
-		Width:  800,
-		Height: 600,
-		spells: map[string]Spell{},
+		options:   options,
+		stones:    stones,
+		spellbook: spellbook,
 	}
 }
 
-// Inscribe adds a new spell to the world. The spell may be
-// called from the front end using the 'Go' global
-// function, e.g. Go("name", arg1, arg2, etc).
-func (w *World) Inscribe(name string, fn any) {
-	w.spells[name] = NewSpell(name, fn)
-}
-
-// Serve adds a HTTP handler.
-func (w *World) Serve(
-	path string,
-	handler http.Handler,
-) {
-	w.servers = append(
-		w.servers,
-		server{
-			path:    path,
-			handler: handler,
-		},
-	)
-}
-
-// WebView returns the Glaze WebView or nil if not set.
 func (w *World) WebView() glaze.WebView {
 	return w.webview
 }
 
-// OpenPortal creates and enters the Realm, i.e. starts the
-// application and blocks until the application exits.
+func (w *World) SeekSpell(spellName string) Spell {
+	return w.spellbook[spellName]
+}
+
 func (w *World) OpenPortal() error {
-	handler := w.createMuxServer()
-	options := w.createAppOptions(handler)
-	return AppWindow(options)
-}
+	w.options.OnWebViewReady = w.onWebViewReady
+	e := AppWindow(w.options)
 
-// createMuxServer creates a mux handler for all servers
-// currently set in the Realm.
-func (w *World) createMuxServer() *http.ServeMux {
-	mux := http.NewServeMux()
-
-	for _, server := range w.servers {
-		mux.Handle(server.path, server.handler)
+	for name, rs := range w.stones {
+		w.Log("Freeing rune stone: %s", name)
+		rs.Free()
 	}
 
-	return mux
+	return e
 }
 
-// createAppOptions creates the options for Glaze WebView.
-func (w *World) createAppOptions(
-	handler http.Handler,
-) AppOptions {
-	return AppOptions{
-		Debug:          w.Debug,
-		Title:          w.Title,
-		Width:          w.Width,
-		Height:         w.Height,
-		Hint:           glaze.HintNone,
-		Handler:        handler,
-		OnWebViewReady: w.onWebViewReady,
-	}
-}
-
-// onWebViewReady is a callback for when the Realm is
-// opened and ready for functions to be bound.
-func (w *World) onWebViewReady(
-	wv glaze.WebView,
-) error {
+func (w *World) onWebViewReady(wv glaze.WebView) error {
 	w.webview = wv
-	return wv.Bind("Go", w.Go)
+
+	e := wv.Bind("Go", w.Go)
+	if e != nil {
+		return e
+	}
+
+	for name, rs := range w.stones {
+		w.Log("Binding rune stone: %s", name)
+		rs.Bind(w)
+	}
+
+	return nil
 }
 
-// Go is the entry point for synchronus requests from the
-// front end.
 func (w *World) Go(
 	spellName string,
 	args ...any,
 ) (any, error) {
-	w.Log("Invoking spell: %s", spellName)
-
-	spell, ok := w.spells[spellName]
-	if !ok {
-		w.Log("Unknown spell '%s'", spellName)
-		return nil, fmt.Errorf("Unknown spell '%s'", spellName)
+	if spell, ok := w.spellbook[spellName]; ok {
+		w.Log("Invoking spell: %s", spellName)
+		return spell.Invoke(args...)
 	}
 
-	return spell.Invoke(args...)
+	w.Log("Unknown spell '%s'", spellName)
+	return nil, fmt.Errorf("Unknown spell '%s'", spellName)
 }
 
 func (w *World) Log(msg string, args ...any) {
-	if !w.Debug {
+	if !w.options.Debug {
 		return
 	}
+
 	if len(args) == 0 {
 		msg = fmt.Sprintf(msg, args...)
 	}
+
 	fmt.Print("[Sourcery] ", msg)
 }
