@@ -2,21 +2,22 @@ package sourcery
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/crgimenes/glaze"
 )
 
 type World struct {
 	options   AppOptions
-	stones    Litholog
-	spellbook Codex
+	stones    map[string]RuneStone
+	spellbook map[string]Spell
 	webview   glaze.WebView
 }
 
 func buildWorld(
 	options AppOptions,
-	stones Litholog,
-	spellbook Codex,
+	stones map[string]RuneStone,
+	spellbook map[string]Spell,
 ) *World {
 	return &World{
 		options:   options,
@@ -29,16 +30,13 @@ func (w *World) WebView() glaze.WebView {
 	return w.webview
 }
 
-func (w *World) SeekSpell(spellName string) Spell {
-	return w.spellbook[spellName]
-}
-
-func (w *World) OpenPortal() error {
+func (w *World) Enter() error {
 	w.options.OnWebViewReady = w.onWebViewReady
 	e := AppWindow(w.options)
 
+	w.Log("Freeing rune stones")
 	for name, rs := range w.stones {
-		w.Log("Freeing rune stone: %s", name)
+		w.Log("\t%s{}", name)
 		rs.Free()
 	}
 
@@ -53,8 +51,14 @@ func (w *World) onWebViewReady(wv glaze.WebView) error {
 		return e
 	}
 
+	w.Log("Inscribing spells:")
+	for name, _ := range w.spellbook {
+		w.Log("\t%s", name)
+	}
+
+	w.Log("Binding rune stones:")
 	for name, rs := range w.stones {
-		w.Log("Binding rune stone: %s", name)
+		w.Log("\t%s{}", name)
 		rs.Bind(w)
 	}
 
@@ -66,12 +70,12 @@ func (w *World) Go(
 	args ...any,
 ) (any, error) {
 	if spell, ok := w.spellbook[spellName]; ok {
-		w.Log("Invoking spell: %s", spellName)
+		w.Log("Invoking: %s", spellName)
 		return spell.Invoke(args...)
 	}
 
-	w.Log("Unknown spell '%s'", spellName)
-	return nil, fmt.Errorf("Unknown spell '%s'", spellName)
+	w.Log("Unknown spell: %s", spellName)
+	return nil, fmt.Errorf("Unknown spell: %s", spellName)
 }
 
 func (w *World) Log(msg string, args ...any) {
@@ -79,9 +83,17 @@ func (w *World) Log(msg string, args ...any) {
 		return
 	}
 
-	if len(args) == 0 {
+	if len(args) > 0 {
 		msg = fmt.Sprintf(msg, args...)
 	}
 
-	fmt.Print("[Sourcery] ", msg)
+	fmt.Printf("%s\n", prefixLines(msg, "[Sourcery] "))
+}
+
+func prefixLines(s, pre string) string {
+	lines := strings.Split(s, "\n")
+	for i, _ := range lines {
+		lines[i] = pre + lines[i]
+	}
+	return strings.Join(lines, "\n")
 }

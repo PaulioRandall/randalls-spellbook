@@ -53,15 +53,17 @@ func parseFunc(fn any) ([]refT, []refT) {
 		outputs[i] = typ.Out(i)
 	}
 
-	if len(outputs) < 1 || len(outputs) > 2 {
-		panic("All spells must return (error) or (T, error)")
+	if len(outputs) > 2 {
+		panic("All spells must return nothing, an error, or a value and an error")
 	}
 
-	lastTyp := outputs[len(outputs)-1]
-	errTyp := reflect.TypeOf((*error)(nil)).Elem()
+	if len(outputs) > 0 {
+		lastTyp := outputs[len(outputs)-1]
+		errTyp := reflect.TypeOf((*error)(nil)).Elem()
 
-	if !lastTyp.Implements(errTyp) {
-		panic("All spells must return (error) or (T, error)")
+		if !lastTyp.Implements(errTyp) {
+			panic("All spells must return (error) or (T, error)")
+		}
 	}
 
 	return inputs, outputs
@@ -104,16 +106,17 @@ func (sp Spell) Invoke(args ...any) (any, error) {
 	}
 
 	results := reflect.ValueOf(sp.Func).Call(params)
-	lastResult := results[len(results)-1]
-	var err error
 
-	if !lastResult.IsNil() {
-		err = lastResult.Interface().(error)
-	}
-
-	if err != nil || len(results) == 1 {
+	switch len(results) {
+	case 0:
+		return nil, nil
+	case 1:
+		// Type check done during parsing.
+		err, _ := results[0].Interface().(error)
 		return nil, err
+	default: // 2 return values
+		// Type check done during parsing.
+		err, _ := results[1].Interface().(error)
+		return results[0].Interface(), err
 	}
-
-	return results[0].Interface(), err
 }

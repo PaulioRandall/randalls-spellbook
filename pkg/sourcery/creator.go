@@ -8,10 +8,6 @@ import (
 	"github.com/crgimenes/glaze"
 )
 
-type Codex = map[string]Spell
-type Atlas = map[string]http.Handler
-type Litholog = map[string]RuneStone
-
 /*
 // server represents a HTTP handler and its path.
 type server struct {
@@ -25,61 +21,59 @@ type RuneStone interface {
 	Free()
 }
 
-type WorldBuilder struct {
+type Creator struct {
 	options AppOptions
-	stones  Litholog
-	portals Atlas
+	stones  map[string]RuneStone
+	portals map[string]http.Handler
 }
 
-func Summon() *WorldBuilder {
-	return &WorldBuilder{
+func New() *Creator {
+	return &Creator{
 		options: AppOptions{
 			Hint: glaze.HintNone,
 		},
-		stones:  Litholog{},
-		portals: Atlas{},
+		stones:  map[string]RuneStone{},
+		portals: map[string]http.Handler{},
 	}
 }
 
-func (wb *WorldBuilder) Debug(
-	state bool,
-) *WorldBuilder {
-	wb.options.Debug = state
+func (wb *Creator) Debug() *Creator {
+	wb.options.Debug = true
 	return wb
 }
 
-func (wb *WorldBuilder) Name(
+func (wb *Creator) Name(
 	name string,
-) *WorldBuilder {
+) *Creator {
 	wb.options.Title = name
 	return wb
 }
 
-func (wb *WorldBuilder) Resize(
+func (wb *Creator) Size(
 	width, height int,
-) *WorldBuilder {
+) *Creator {
 	wb.options.Width = width
 	wb.options.Height = height
 	return wb
 }
 
-func (wb *WorldBuilder) AddEnchant(
+func (wb *Creator) Bind(
 	name string,
 	rs RuneStone,
-) *WorldBuilder {
+) *Creator {
 	wb.stones[name] = rs
 	return wb
 }
 
-func (wb *WorldBuilder) AddPortal(
+func (wb *Creator) Serve(
 	path string,
 	handler http.Handler,
-) *WorldBuilder {
+) *Creator {
 	wb.portals[path] = handler
 	return wb
 }
 
-func (wb *WorldBuilder) Conjure() *World {
+func (wb *Creator) BuildWorld() *World {
 	op := wb.options
 	op.Handler = marryPortals(wb.portals)
 
@@ -103,22 +97,22 @@ func marryPortals(
 
 func compileSpellbook(
 	stones map[string]RuneStone,
-) Codex {
-	var cd Codex
+) map[string]Spell {
+	book := map[string]Spell{}
 
 	for _, rs := range stones {
 		spells := deriveSpells(rs)
-		maps.Copy(cd, spells)
+		maps.Copy(book, spells)
 	}
 
-	return cd
+	return book
 }
 
-func deriveSpells(rs RuneStone) Codex {
+func deriveSpells(rs RuneStone) map[string]Spell {
 	rsVal := reflect.ValueOf(rs)
 	rsTyp := rsVal.Type()
 
-	var spells Codex
+	chapter := map[string]Spell{}
 
 	for i := 0; i < rsVal.NumMethod(); i++ {
 		funcVal := rsVal.Method(i)
@@ -132,12 +126,12 @@ func deriveSpells(rs RuneStone) Codex {
 			continue
 		}
 
-		name := rsTyp.Name() + "." + funcTyp.Name
-		spells[name] = NewSpell(
+		name := rsTyp.Elem().Name() + "." + funcTyp.Name
+		chapter[name] = NewSpell(
 			name,
 			funcVal.Interface(),
 		)
 	}
 
-	return spells
+	return chapter
 }
