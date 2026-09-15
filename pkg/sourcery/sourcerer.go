@@ -3,6 +3,7 @@ package sourcery
 import (
 	"maps"
 	"net/http"
+	"reflect"
 
 	"github.com/crgimenes/glaze"
 )
@@ -19,9 +20,6 @@ type server struct {
 }
 */
 
-// RuneStone implementations add functionality to a [World]
-// when it is built. They can be added via the
-// [Sourcerer.Fuse] function.
 type RuneStone interface {
 	Bind(w *World)
 	Free()
@@ -106,11 +104,40 @@ func marryPortals(
 func compileSpellbook(
 	stones map[string]RuneStone,
 ) Codex {
-	var book Codex
-	// TODO
-	// + Get all methods
-	// + Add methods as spells, except Bind and Free
-	// + In the form 'RuneStoneName.Spellname'
+	var cd Codex
 
-	return book
+	for _, rs := range stones {
+		spells := deriveSpells(rs)
+		maps.Copy(cd, spells)
+	}
+
+	return cd
+}
+
+func deriveSpells(rs RuneStone) Codex {
+	rsVal := reflect.ValueOf(rs)
+	rsTyp := rsVal.Type()
+
+	var spells Codex
+
+	for i := 0; i < rsVal.NumMethod(); i++ {
+		funcVal := rsVal.Method(i)
+		funcTyp := rsTyp.Method(i)
+
+		if !funcTyp.IsExported() {
+			continue
+		}
+
+		if funcTyp.Name == "Bind" || funcTyp.Name == "Free" {
+			continue
+		}
+
+		name := rsTyp.Name() + "." + funcTyp.Name
+		spells[name] = NewSpell(
+			name,
+			funcVal.Interface(),
+		)
+	}
+
+	return spells
 }
