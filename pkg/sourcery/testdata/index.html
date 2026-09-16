@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+	<body>
+		<h1>Sourcery</h1>
+		<button onclick="addOne()">Increment</button>
+		<p>Count: <span id="count">0</span><p>
+		<p id="error" color="red"></p>
+
+		<script>
+			let count = 0
+
+			function addOne() {
+				count++
+				document.getElementById('count').innerHTML = count
+
+				return Go("Counter.Add", 1).catch((e) => {
+					document.getElementById('error').innerHTML = e
+				})
+			}
+
+			function autoButtonClick() {
+				if (count < 3) {
+					addOne()
+					setTimeout(autoButtonClick, 2000)
+				} else {
+					Go("Counter.ExitApp")
+				}
+			}
+
+			setTimeout(autoButtonClick, 500)
+		</script>
+	</body>
+</html>
