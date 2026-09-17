@@ -7,6 +7,7 @@
 		<p id="error" color="red"></p>
 
 		<script>
+			const delayMS = 100
 			let count = 0
 
 			function addOne() {
@@ -21,13 +22,13 @@
 			function autoButtonClick() {
 				if (count < 3) {
 					addOne()
-					setTimeout(autoButtonClick, 2000)
+					setTimeout(autoButtonClick, delayMS)
 				} else {
 					Go("Counter.ExitApp")
 				}
 			}
 
-			setTimeout(autoButtonClick, 500)
+			setTimeout(autoButtonClick, delayMS)
 		</script>
 	</body>
 </html>

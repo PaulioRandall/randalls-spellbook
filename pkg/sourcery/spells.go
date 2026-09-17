@@ -1,8 +1,23 @@
 package sourcery
 
 import (
-	"fmt"
 	"reflect"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
+)
+
+var (
+	ErrInvokeFail = curse.Proto(
+		"Failed to invoke %s",
+	)
+
+	ErrArgCount = curse.Proto(
+		"Require %d arguments, given %d",
+	)
+
+	ErrArgTypeMismatch = curse.Proto(
+		"Expected %s or compatible type, given %s",
+	)
 )
 
 // TODO: Clean up and test pkg
@@ -73,40 +88,102 @@ func parseFunc(fn any) ([]refT, []refT) {
 // must match the types and order of Spell.Accepts or an
 // error is returned.
 func (sp Spell) Invoke(args ...any) (any, error) {
-	lenArgs := len(args)
-	lenIns := len(sp.Accepts)
-
-	if lenArgs != lenIns {
-		return nil, fmt.Errorf(
-			"'%s' requires %d arguments, you gave me %d",
-			sp.Name,
-			lenIns,
-			lenArgs,
-		)
+	e := sp.checkArgsCount(args)
+	if e != nil {
+		return nil, ErrInvokeFail.Fmt(sp.Name).Wrap(e)
 	}
 
-	params := make([]reflect.Value, lenArgs, lenArgs)
+	argVals, e := parseArgs(args, sp.Accepts)
+	if e != nil {
+		return nil, ErrInvokeFail.Fmt(sp.Name).Wrap(e)
+	}
 
-	for i, v := range args {
-		argVal := reflect.ValueOf(v)
-		argTyp := argVal.Type()
+	results := reflect.ValueOf(sp.Func).Call(argVals)
+	return handleInvokeResults(results)
+}
 
-		params[i] = argVal
-		inTyp := sp.Accepts[i]
+func (sp Spell) checkArgsCount(args []any) error {
+	argsLen := len(args)
+	expLen := len(sp.Accepts)
 
-		if argTyp != inTyp {
-			return nil, fmt.Errorf(
-				"'%s' requires %s as argument %d, you gave me %s",
-				sp.Name,
-				inTyp.Name(),
-				i+1,
-				argTyp.Name(),
-			)
+	if argsLen != expLen {
+		return ErrArgCount.Fmt(expLen, argsLen)
+	}
+
+	return nil
+}
+
+func parseArgs(
+	args []any,
+	expTypes []reflect.Type,
+) ([]reflect.Value, error) {
+	argVals := make([]reflect.Value, len(args), len(args))
+
+	for i, arg := range args {
+		argVal, e := parseArg(arg, expTypes[i])
+
+		if e != nil {
+			return nil, curse.Fmt("For argument %d", i).Wrap(e)
 		}
+
+		argVals[i] = argVal
 	}
 
-	results := reflect.ValueOf(sp.Func).Call(params)
+	return argVals, nil
+}
 
+func parseArg(
+	arg any,
+	expTyp reflect.Type,
+) (reflect.Value, error) {
+	argVal := reflect.ValueOf(arg)
+	argTyp := argVal.Type()
+
+	if argTyp == expTyp {
+		return argVal, nil
+	}
+
+	if castVal, ok := castArgValToExpType(argVal, expTyp); ok {
+		return castVal, nil
+	}
+
+	return argVal, ErrArgTypeMismatch.Fmt(
+		expTyp.Name(),
+		argTyp.Name(),
+	)
+}
+
+func castArgValToExpType(
+	argVal reflect.Value,
+	expTyp reflect.Type,
+) (reflect.Value, bool) {
+	isFloat64 := argVal.Type().Kind() == reflect.Float64
+
+	if !isFloat64 {
+		return argVal, false
+	}
+
+	if isFloat64 && expTyp.Kind() == reflect.Int {
+		v, _ := argVal.Interface().(float64)
+		return reflect.ValueOf(int(v)), true
+	}
+
+	if isFloat64 && expTyp.Kind() == reflect.Int64 {
+		v, _ := argVal.Interface().(float64)
+		return reflect.ValueOf(int64(v)), true
+	}
+
+	if isFloat64 && expTyp.Kind() == reflect.Int32 {
+		v, _ := argVal.Interface().(float64)
+		return reflect.ValueOf(int32(v)), true
+	}
+
+	return argVal, false
+}
+
+func handleInvokeResults(
+	results []reflect.Value,
+) (any, error) {
 	switch len(results) {
 	case 0:
 		return nil, nil
