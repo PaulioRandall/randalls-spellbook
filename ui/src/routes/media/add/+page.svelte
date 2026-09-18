@@ -50,7 +50,7 @@
 			localPath,
 		}
 
-		CastSpell('AddMedia', JSON.stringify(media))
+		Go('AddMedia', JSON.stringify(media))
 			.then((media) => {
 				goto(`/media/view?entity_id=${media.entityId}`)
 			})

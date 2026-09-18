@@ -1,4 +1,4 @@
-package data2
+package app
 
 import (
 	"errors"
@@ -47,7 +47,7 @@ type Media struct {
 	LocalPath string `json:"localPath"`
 }
 
-// CleanMedia returns a new Media entity from an exsiting
+// Clean returns a new Media entity from an exsiting
 // one ensuring all properties are valid. All values are
 // trimmed and localPath is cleaned before being checked
 // and assigned to the new media. If the EntityId is empty

@@ -20,7 +20,7 @@
 	let media = $state(null)
 
 	onMount(() => {
-		CastSpell('GetMediaById', entityId) //
+		Go('GetMediaById', entityId) //
 			.then((result) => (media = result))
 			.catch(console.error)
 	})
