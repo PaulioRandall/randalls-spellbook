@@ -21,6 +21,11 @@ type RuneStone interface {
 	Free()
 }
 
+type Portal interface {
+	http.Handler
+	RuneStone
+}
+
 type Creator struct {
 	options AppOptions
 	stones  map[string]RuneStone
