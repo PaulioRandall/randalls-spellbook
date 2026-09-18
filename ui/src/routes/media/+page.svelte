@@ -11,13 +11,13 @@
 	}
 
 	function deleteMedia(event) {
-		CastSpell('DeleteMediaById', this.entityId) //
+		Go('DeleteMediaById', this.entityId) //
 			.then(updateMediaList)
 			.catch(console.error)
 	}
 
 	function updateMediaList() {
-		CastSpell('ListMedia', null) //
+		Go('ListMedia') //
 			.then((result) => (mediaList = result))
 			.catch(console.error)
 	}

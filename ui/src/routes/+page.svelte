@@ -1,12 +1,4 @@
 <script>
-	import { onMount } from 'svelte'
-	onMount(() => {
-		Go('abc', 123, [1, 2, 3], {
-			One: 1,
-			Two: 2,
-			Three: 3,
-		}).catch(console.error)
-	})
 </script>
 
 <main>
