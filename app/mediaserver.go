@@ -8,25 +8,26 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
 )
 
-type Res = http.ResponseWriter
-type Req = *http.Request
-type MS struct {
+type MediaServer struct {
 	w *sourcery.World
 }
 
-func NewMediaServer(w *sourcery.World) *MS {
-	return &MS{}
+type Res = http.ResponseWriter
+type PtrMS = *MediaServer
+
+func NewMediaServer(w *sourcery.World) PtrMS {
+	return &MediaServer{}
 }
 
-func (ms MS) Bind(w *sourcery.World) {
+func (ms PtrMS) Open(w *sourcery.World) {
 	ms.w = w
 }
 
-func (ms MS) Free() {
+func (ms PtrMS) Close() {
 	ms.w = nil
 }
 
-func (ms MS) ServeHTTP(w Res, r Req) {
+func (ms PtrMS) ServeHTTP(w Res, r *http.Request) {
 	entityId := r.URL.Query().Get("entity_id")
 	if entityId == "" {
 		httpErrBadIdParam(w)
@@ -121,3 +122,5 @@ func httpErrMediaFileAccess(w Res, e error) {
 		http.StatusInternalServerError,
 	)
 }
+
+var _ sourcery.HttpPortal = &MediaServer{}

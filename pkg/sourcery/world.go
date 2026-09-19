@@ -9,19 +9,19 @@ import (
 
 type World struct {
 	options   AppOptions
-	stones    map[string]RuneStone
-	spellbook map[string]Spell
+	portals   []Portal
+	spellbook Spellbook
 	webview   glaze.WebView
 }
 
 func buildWorld(
 	options AppOptions,
-	stones map[string]RuneStone,
-	spellbook map[string]Spell,
+	portals []Portal,
+	spellbook Spellbook,
 ) *World {
 	return &World{
 		options:   options,
-		stones:    stones,
+		portals:   portals,
 		spellbook: spellbook,
 	}
 }
@@ -34,10 +34,10 @@ func (w *World) Enter() error {
 	w.options.OnWebViewReady = w.onWebViewReady
 	e := AppWindow(w.options)
 
-	w.Log("Freeing rune stones")
-	for name, rs := range w.stones {
+	w.Log("Closing portals:")
+	for name, port := range w.portals {
 		w.Log("\t%s{}", name)
-		rs.Free()
+		port.Close()
 	}
 
 	return e
@@ -56,10 +56,10 @@ func (w *World) onWebViewReady(wv glaze.WebView) error {
 		w.Log("\t%s", name)
 	}
 
-	w.Log("Binding rune stones:")
-	for name, rs := range w.stones {
+	w.Log("Opening portals:")
+	for name, port := range w.portals {
 		w.Log("\t%s{}", name)
-		rs.Bind(w)
+		port.Open(w)
 	}
 
 	return nil

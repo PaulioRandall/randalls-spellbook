@@ -6,11 +6,12 @@ import (
 )
 
 type Datastore struct {
-	w  *sourcery.World
-	db *storm.Storm
+	path string
+	w    *sourcery.World
+	db   *storm.Storm
 }
 
-func (ds Datastore) Bind(w *sourcery.World) {
+func (ds *Datastore) Open(w *sourcery.World) {
 	// TODO: Allow user to specify DB path.
 	ds.w = w
 	ds.db = storm.New("./testproject/data.sqlite")
@@ -19,18 +20,22 @@ func (ds Datastore) Bind(w *sourcery.World) {
 	)
 }
 
-func (ds Datastore) Free() {
+func (ds *Datastore) Close() {
 	if ds.db != nil {
 		ds.db.Close()
 		ds.db = nil
 	}
 }
 
-func (ds Datastore) ListMedia() ([]Media, error) {
+func (ds *Datastore) SetPath(path string) {
+	ds.path = path
+}
+
+func (ds *Datastore) ListMedia() ([]Media, error) {
 	return ds.db.Select(Media{})
 }
 
-func (ds Datastore) AddMedia(media Media) (Media, error) {
+func (ds *Datastore) AddMedia(media Media) (Media, error) {
 	media, e := media.Clean()
 	if e == nil {
 		e = ds.db.Insert(media)
@@ -38,12 +43,12 @@ func (ds Datastore) AddMedia(media Media) (Media, error) {
 	return media, e
 }
 
-func (ds Datastore) GetMediaById(id string) (Media, error) {
+func (ds *Datastore) GetMediaById(id string) (Media, error) {
 	return ds.db.SelectById(Media{}, id)
 }
 
-func (ds Datastore) DeleteMediaById(id string) error {
+func (ds *Datastore) DeleteMediaById(id string) error {
 	return ds.db.DeleteById(Media{}, id)
 }
 
-var _ sourcery.RuneStone = Datastore{}
+var _ sourcery.GoPortal = &Datastore{}

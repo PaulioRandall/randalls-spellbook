@@ -13,12 +13,12 @@ type Counter struct {
 	value int
 }
 
-func (c *Counter) Bind(w *World) {
+func (c *Counter) Open(w *World) {
 	c.w = w
 	c.value = 0
 }
 
-func (c *Counter) Free() {
+func (c *Counter) Close() {
 	fmt.Printf("Counter.value = %d\n", c.value)
 }
 
@@ -42,8 +42,8 @@ func Example() {
 	e = New().
 		Name("Example App").
 		Size(400, 320).
-		Bind("Counter", &Counter{}).
-		Serve("/", http.FileServerFS(webpage)).
+		GoPortal("Counter", &Counter{}).
+		HttpPortal("/", http.FileServerFS(webpage)).
 		BuildWorld().
 		Enter() // Blocks until WebView closes.
 
