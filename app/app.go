@@ -11,13 +11,13 @@ type App struct {
 	dbPath string
 }
 
-func (app *App) Open(w *sourcery.World) {
+func (app *App) WorldEnter(w *sourcery.World) {
 	app.w = w
 	// TODO: Allow user to specify DB path.
 	app.dbPath = "./testproject/data.sqlite"
 }
 
-func (app *App) Close() {
+func (app *App) WorldExit() {
 	app.w = nil
 }
 

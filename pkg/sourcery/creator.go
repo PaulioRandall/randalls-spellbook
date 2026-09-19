@@ -9,8 +9,8 @@ import (
 )
 
 type Portal interface {
-	Open(w *World)
-	Close()
+	WorldEnter(w *World)
+	WorldExit()
 }
 type PortalMap = map[string]Portal
 type HandlerMap = map[string]http.Handler
@@ -22,8 +22,8 @@ type httpOnlyPortal struct {
 	handler http.Handler
 }
 
-func (httpOnlyPortal) Open(w *World) {}
-func (httpOnlyPortal) Close()        {}
+func (httpOnlyPortal) WorldEnter(w *World) {}
+func (httpOnlyPortal) WorldExit()          {}
 func (hop httpOnlyPortal) ServeHTTP(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -69,11 +69,9 @@ func (wb *Creator) Size(
 	return wb
 }
 
-func (wb *Creator) AddPortal(
-	name string,
-	portal Portal,
-) *Creator {
-	wb.pm[name] = portal
+func (wb *Creator) AddPortal(portal Portal) *Creator {
+	typ := reflect.TypeOf(portal)
+	wb.pm[typ.Name()] = portal
 	return wb
 }
 
@@ -134,7 +132,7 @@ func deriveSpellsFromPortal(port Portal) Spellbook {
 
 		// Ignore Portal & Handler functions.
 		n := funcTyp.Name
-		if n == "Open" || n == "Close" || n == "ServeHttp" {
+		if n == "WorldEnter" || n == "WorldExit" || n == "ServeHttp" {
 			continue
 		}
 

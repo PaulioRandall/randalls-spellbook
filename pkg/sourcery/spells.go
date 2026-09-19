@@ -69,15 +69,13 @@ func parseFunc(fn any) ([]refT, []refT) {
 	}
 
 	if len(outputs) > 2 {
-		panic("All spells must return nothing, an error, or a value and an error")
+		panic("All spells must return either nothing, a value, an error, or a value and an error")
 	}
 
-	if len(outputs) > 0 {
-		lastTyp := outputs[len(outputs)-1]
+	if len(outputs) == 2 {
 		errTyp := reflect.TypeOf((*error)(nil)).Elem()
-
-		if !lastTyp.Implements(errTyp) {
-			panic("All spells must return (error) or (T, error)")
+		if !outputs[1].Implements(errTyp) {
+			panic("Second return value my only be an error")
 		}
 	}
 
@@ -188,9 +186,11 @@ func handleInvokeResults(
 	case 0:
 		return nil, nil
 	case 1:
-		// Type check done during parsing.
-		err, _ := results[0].Interface().(error)
-		return nil, err
+		v := results[0].Interface()
+		if err, ok := v.(error); ok {
+			return nil, err
+		}
+		return v, nil
 	default: // 2 return values
 		// Type check done during parsing.
 		err, _ := results[1].Interface().(error)

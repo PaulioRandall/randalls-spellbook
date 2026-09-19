@@ -26,8 +26,8 @@ func main() {
 		Debug().
 		Name("Randall's Spellbook").
 		Size(800, 600).
-		AddPortal("App", appPortal).
-		AddPortal("Datastore", dsPortal).
+		AddPortal(appPortal).
+		AddPortal(dsPortal).
 		AddServer("/media/", dsPortal).
 		AddServer("/", http.FileServerFS(uiFiles)).
 		BuildWorld().

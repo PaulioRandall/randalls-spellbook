@@ -37,10 +37,14 @@ func (w *World) Enter() error {
 	w.Log("Closing portals:")
 	for name, port := range w.portals {
 		w.Log("\t%s{}", name)
-		port.Close()
+		port.WorldExit()
 	}
 
 	return e
+}
+
+func (w *World) Exit() {
+	w.WebView().Terminate()
 }
 
 func (w *World) onWebViewReady(wv glaze.WebView) error {
@@ -59,7 +63,7 @@ func (w *World) onWebViewReady(wv glaze.WebView) error {
 	w.Log("Opening portals:")
 	for name, port := range w.portals {
 		w.Log("\t%s{}", name)
-		port.Open(w)
+		port.WorldEnter(w)
 	}
 
 	return nil
