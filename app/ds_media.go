@@ -2,8 +2,13 @@ package app
 
 import (
 	"errors"
+	"log"
+	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
 )
 
 // MediaTypeVideo is only used by video implementations
@@ -124,3 +129,109 @@ func (m Media) GetDescription() string {
 func (m Media) GetLocalPath() string {
 	return m.LocalPath
 }
+
+func (ds *Datastore) ListMedia() ([]Media, error) {
+	return ds.db.Select(Media{})
+}
+
+func (ds *Datastore) AddMedia(media Media) (Media, error) {
+	media, e := media.Clean()
+	if e == nil {
+		e = ds.db.Insert(media)
+	}
+	return media, e
+}
+
+func (ds *Datastore) GetMediaById(id string) (Media, error) {
+	return ds.db.SelectById(Media{}, id)
+}
+
+func (ds *Datastore) DeleteMediaById(id string) error {
+	return ds.db.DeleteById(Media{}, id)
+}
+
+type Res = http.ResponseWriter
+
+func (ds *Datastore) ServeHTTP(w Res, r *http.Request) {
+	entityId := r.URL.Query().Get("entity_id")
+	if entityId == "" {
+		httpErrBadIdParam(w)
+		return
+	}
+
+	media, e := ds.GetMediaById(entityId)
+	if e != nil {
+		httpErrMediaLookup(w, e)
+		return
+	}
+
+	if media == (Media{}) {
+		httpErrMediaNotFound(w)
+		return
+	}
+
+	file, e := os.Open(media.LocalPath)
+	if e != nil {
+		// TODO: Create different response based on Not Found
+		//       error and access error.
+		httpErrMediaFileNotFound(w, e)
+		return
+	}
+
+	defer file.Close()
+
+	info, e := file.Stat()
+	if e != nil {
+		httpErrMediaFileAccess(w, e)
+		return
+	}
+
+	http.ServeContent(w, r, info.Name(), info.ModTime(), file)
+}
+
+func httpErrBadIdParam(w Res) {
+	http.Error(
+		w,
+		"Missing or invalid entity ID parameter",
+		http.StatusBadRequest,
+	)
+}
+
+func httpErrMediaLookup(w Res, e error) {
+	log.Println(e)
+	http.Error(
+		w,
+		"Error looking up media",
+		http.StatusInternalServerError,
+	)
+}
+
+func httpErrMediaNotFound(w Res) {
+	http.Error(
+		w,
+		"Could not find media by ID",
+		http.StatusNotFound,
+	)
+}
+
+func httpErrMediaFileNotFound(w Res, e error) {
+	// TODO: Create different response based on Not Found
+	//       error and access error.
+	log.Println(e)
+	http.Error(
+		w,
+		"Media in database, but could not find media file",
+		http.StatusNotFound,
+	)
+}
+
+func httpErrMediaFileAccess(w Res, e error) {
+	log.Println(e)
+	http.Error(
+		w,
+		"Could not read media file stats",
+		http.StatusInternalServerError,
+	)
+}
+
+var _ sourcery.HttpPortal = &Datastore{}

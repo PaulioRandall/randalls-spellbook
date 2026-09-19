@@ -1,54 +1,31 @@
 package app
 
 import (
+	"github.com/crgimenes/glaze"
+
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
-	"github.com/PaulioRandall/randalls-spellbook/pkg/storm"
 )
 
-type Datastore struct {
-	path string
-	w    *sourcery.World
-	db   *storm.Storm
+type App struct {
+	w      *sourcery.World
+	dbPath string
 }
 
-func (ds *Datastore) Open(w *sourcery.World) {
+func (app *App) Open(w *sourcery.World) {
+	app.w = w
 	// TODO: Allow user to specify DB path.
-	ds.w = w
-	ds.db = storm.New("./testproject/data.sqlite")
-	ds.db.Create(
-		Media{},
-	)
+	app.dbPath = "./testproject/data.sqlite"
 }
 
-func (ds *Datastore) Close() {
-	if ds.db != nil {
-		ds.db.Close()
-		ds.db = nil
-	}
+func (app *App) Close() {
+	app.w = nil
 }
 
-func (ds *Datastore) SetPath(path string) {
-	ds.path = path
+func (app *App) SelectLocalFile(
+	title string,
+) (string, error) {
+	// Blocks!
+	return app.w.WebView().OpenFile(glaze.FileDialogOptions{
+		Title: title,
+	})
 }
-
-func (ds *Datastore) ListMedia() ([]Media, error) {
-	return ds.db.Select(Media{})
-}
-
-func (ds *Datastore) AddMedia(media Media) (Media, error) {
-	media, e := media.Clean()
-	if e == nil {
-		e = ds.db.Insert(media)
-	}
-	return media, e
-}
-
-func (ds *Datastore) GetMediaById(id string) (Media, error) {
-	return ds.db.SelectById(Media{}, id)
-}
-
-func (ds *Datastore) DeleteMediaById(id string) error {
-	return ds.db.DeleteById(Media{}, id)
-}
-
-var _ sourcery.GoPortal = &Datastore{}
