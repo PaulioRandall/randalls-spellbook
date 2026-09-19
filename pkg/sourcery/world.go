@@ -9,14 +9,14 @@ import (
 
 type World struct {
 	options   AppOptions
-	portals   []Portal
+	portals   PortalMap
 	spellbook Spellbook
 	webview   glaze.WebView
 }
 
 func buildWorld(
 	options AppOptions,
-	portals []Portal,
+	portals PortalMap,
 	spellbook Spellbook,
 ) *World {
 	return &World{

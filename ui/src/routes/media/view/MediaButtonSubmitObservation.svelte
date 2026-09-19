@@ -16,7 +16,7 @@
 			description: textareaSvox.text,
 		}
 
-		CastSpell('AddObservation', JSON.stringify(ob))
+		Go('AddObservation', JSON.stringify(ob))
 			.then(() => textareaSvox.setText(''))
 			.catch(console.error)
 	}

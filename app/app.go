@@ -29,3 +29,5 @@ func (app *App) SelectLocalFile(
 		Title: title,
 	})
 }
+
+var _ sourcery.Portal = &App{}

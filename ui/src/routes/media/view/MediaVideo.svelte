@@ -20,7 +20,7 @@
 	let media = $state(null)
 
 	onMount(() => {
-		Go('GetMediaById', entityId) //
+		Go('Datastore.GetMediaById', entityId) //
 			.then((result) => (media = result))
 			.catch(console.error)
 	})

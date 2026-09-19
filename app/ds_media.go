@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
 )
 
 // MediaTypeVideo is only used by video implementations
@@ -234,4 +232,4 @@ func httpErrMediaFileAccess(w Res, e error) {
 	)
 }
 
-var _ sourcery.HttpPortal = &Datastore{}
+var _ http.Handler = &Datastore{}

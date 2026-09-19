@@ -6,8 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/business"
-	"github.com/PaulioRandall/randalls-spellbook/pkg/data"
+	"github.com/PaulioRandall/randalls-spellbook/app"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
 )
 
@@ -15,82 +14,26 @@ import (
 var webFiles embed.FS
 
 func main() {
-	rm := sourcery.NewRealm[data.Store]()
+	uiFiles, e := fs.Sub(webFiles, "ui/build")
+	if e != nil {
+		log.Fatal(e)
+	}
 
-	rm.Debug(true)
-	rm.Title("Randall's Spellbook")
-	rm.Size(1200, 800)
-	rm.Serve("/media/", business.NewMediaServer(rm))
-	rm.Serve("/", createHtmlServer())
+	appPortal := &app.App{}
+	dsPortal := &app.Datastore{}
 
-	rm.Transcribe(
-		"SelectLocalFile",
-		business.SelectLocalFile,
-	)
-	rm.Transcribe(
-		"ListMedia",
-		business.ListMedia,
-	)
-	rm.Transcribe(
-		"GetMediaById",
-		business.GetMediaById,
-	)
-	rm.Transcribe(
-		"AddMedia",
-		business.JsonToMedia,
-		business.AddMedia,
-	)
-	rm.Transcribe(
-		"DeleteMediaById",
-		business.DeleteMediaById,
-	)
-	rm.Transcribe(
-		"AddObservation",
-		business.JsonToObservation,
-		business.AddObservation,
-	)
-	rm.Transcribe(
-		"ListObservationsByMediaId",
-		business.ListObservationsByMediaId,
-	)
-
-	rm.AfterOpening(afterOpening)
-	rm.AfterClosing(afterClosing)
-
-	// Blocks!
-	e := rm.OpenPortal()
+	e = sourcery.NewCreator().
+		Debug().
+		Name("Randall's Spellbook").
+		Size(800, 600).
+		AddPortal("App", appPortal).
+		AddPortal("Datastore", dsPortal).
+		AddServer("/media/", dsPortal).
+		AddServer("/", http.FileServerFS(uiFiles)).
+		BuildWorld().
+		Enter() // Blocks until WebView closes.
 
 	if e != nil {
 		log.Fatal(e)
 	}
-}
-
-func createHtmlServer() http.Handler {
-	fs, e := fs.Sub(webFiles, "ui/build")
-	if e != nil {
-		panic(e)
-	}
-	return http.FileServerFS(fs)
-}
-
-func afterOpening(rm business.Realm) error {
-	rm.Inventory = data.NewStore("./testproject/data.sqlite")
-
-	e := rm.Inventory.Open()
-	if e != nil {
-		return e
-	}
-
-	return nil
-}
-
-func afterClosing(rm business.Realm) error {
-	var e error
-
-	if rm.Inventory != nil {
-		e = rm.Inventory.Close()
-		rm.Inventory = nil
-	}
-
-	return e
 }

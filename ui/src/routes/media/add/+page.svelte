@@ -19,10 +19,7 @@
 	let localPathError = $state('')
 
 	async function selectFile() {
-		localPath = await window.CastSpell(
-			'SelectLocalFile', //
-			null
-		)
+		localPath = await window.Go('App.SelectLocalFile', 'Select media file')
 
 		if (!name.trim()) {
 			name = extractNameFromLocalPath(localPath)
@@ -50,7 +47,10 @@
 			localPath,
 		}
 
-		Go('AddMedia', JSON.stringify(media))
+		// TODO: Bind GoRaw the use WebView.Init to create the
+		//       Go function that stringifies Objects and
+		//       Arrays, and provides metadata for the
+		Go('Datastore.AddMedia', JSON.stringify(media))
 			.then((media) => {
 				goto(`/media/view?entity_id=${media.entityId}`)
 			})

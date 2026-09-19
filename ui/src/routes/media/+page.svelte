@@ -11,13 +11,13 @@
 	}
 
 	function deleteMedia(event) {
-		Go('DeleteMediaById', this.entityId) //
+		Go('Datastore.DeleteMediaById', this.entityId) //
 			.then(updateMediaList)
 			.catch(console.error)
 	}
 
 	function updateMediaList() {
-		Go('ListMedia') //
+		Go('Datastore.ListMedia') //
 			.then((result) => (mediaList = result))
 			.catch(console.error)
 	}

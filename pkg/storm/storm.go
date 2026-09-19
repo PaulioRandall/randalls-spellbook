@@ -12,6 +12,12 @@ import (
 )
 
 var (
+	// ErrNotOpen occurs when trying to perform an operation
+	// before opening the database.
+	ErrNotOpen = curse.Proto(
+		"Database not open",
+	)
+
 	// ErrTableRequest occurs within an error chain when any
 	// error occurs involving a specific table/struct, except
 	// for 'not found' errors.
@@ -168,6 +174,10 @@ func (st *Storm) Close() error {
 //
 //	err := db.Create(Person{}, Role{})
 func (st *Storm) Create(models ...any) error {
+	if !st.IsOpen() {
+		return ErrNotOpen
+	}
+
 	for _, m := range models {
 		e := st.createTable(m)
 		if e != nil {
@@ -236,6 +246,10 @@ func (st *Storm) registerTable(model any) (Table, error) {
 //
 //	err := db.Insert(alice, bob)
 func (st *Storm) Insert[T any](objects ...T) error {
+	if !st.IsOpen() {
+		return ErrNotOpen
+	}
+
 	for _, o := range objects {
 		e := st.insertObject(o)
 		if e != nil {
@@ -287,6 +301,10 @@ func (st *Storm) insertObject(object any) error {
 //	alice.Name = "Alicia"
 //	err = db.Update(alice)
 func (st *Storm) Update[T any](objects ...T) error {
+	if !st.IsOpen() {
+		return ErrNotOpen
+	}
+
 	for _, obj := range objects {
 		e := st.updateObject(obj)
 		if e != nil {
@@ -330,6 +348,10 @@ func (st *Storm) updateObject(object any) error {
 //
 //	slice, err := Select(Model{})
 func (st *Storm) Select[T any](model T) ([]T, error) {
+	if !st.IsOpen() {
+		return nil, ErrNotOpen
+	}
+
 	err := ErrTableRequest.Fmt(typeName(model))
 
 	table, e := st.findTableForModel(model)
@@ -436,8 +458,12 @@ func (st *Storm) SelectById[T, ID any](
 	id ID,
 ) (T, error) {
 	var empty T
-	err := ErrTableRequest.Fmt(typeName(model), id)
 
+	if !st.IsOpen() {
+		return empty, ErrNotOpen
+	}
+
+	err := ErrTableRequest.Fmt(typeName(model), id)
 	table, e := st.findTableForModel(model)
 	if e != nil {
 		return empty, err.Wrap(e)
@@ -508,6 +534,10 @@ func (st *Storm) DeleteById[T, ID any](
 	model T,
 	ids ...ID,
 ) error {
+	if !st.IsOpen() {
+		return ErrNotOpen
+	}
+
 	table, e := st.findTableForModel(model)
 	if e != nil {
 		return ErrTableRequest.Fmt(typeName(model)).Wrap(e)
@@ -562,6 +592,10 @@ func (st *Storm) deleteById(table Table, id any) error {
 //
 //	err := db.Drop(Person{}, Role{})
 func (st *Storm) Drop(models ...any) error {
+	if !st.IsOpen() {
+		return ErrNotOpen
+	}
+
 	for _, m := range models {
 		e := st.dropTable(m)
 		if e != nil {

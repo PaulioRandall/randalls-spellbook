@@ -39,11 +39,11 @@ func Example() {
 		log.Fatal(e)
 	}
 
-	e = New().
+	e = NewCreator().
 		Name("Example App").
 		Size(400, 320).
-		GoPortal("Counter", &Counter{}).
-		HttpPortal("/", http.FileServerFS(webpage)).
+		AddPortal("Counter", &Counter{}).
+		AddServer("/", http.FileServerFS(webpage)).
 		BuildWorld().
 		Enter() // Blocks until WebView closes.
 

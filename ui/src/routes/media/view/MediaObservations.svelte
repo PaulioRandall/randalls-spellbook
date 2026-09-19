@@ -10,7 +10,7 @@
 	function updateObservationList(media) {
 		untrack(() => {
 			if (!!media) {
-				CastSpell('ListObservationsByMediaId', entityId) //
+				Go('ListObservationsByMediaId', entityId) //
 					.then((result) => (observationList = result))
 					.catch(console.error)
 			}

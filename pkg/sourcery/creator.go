@@ -12,53 +12,40 @@ type Portal interface {
 	Open(w *World)
 	Close()
 }
-
-type HttpPortal interface {
-	Portal
-	http.Handler
-}
-type HttpPortalMap = map[string]HttpPortal
-
-type GoPortal interface{ Portal }
-type GoPortalMap = map[string]GoPortal
+type PortalMap = map[string]Portal
+type HandlerMap = map[string]http.Handler
 type Spellbook = map[string]Spell
 
-type statelessHttpPortal struct {
+// ********************************************************
+
+type httpOnlyPortal struct {
 	handler http.Handler
 }
 
-func (hp statelessHttpPortal) Open(w *World) {
-	type opener interface{ Open(w *World) }
-	if portal, ok := hp.handler.(opener); ok {
-		portal.Open(w)
-	}
-}
-func (hp statelessHttpPortal) Close() {
-	type closer interface{ Close() }
-	if portal, ok := hp.handler.(closer); ok {
-		portal.Close()
-	}
-}
-func (hp statelessHttpPortal) ServeHTTP(
+func (httpOnlyPortal) Open(w *World) {}
+func (httpOnlyPortal) Close()        {}
+func (hop httpOnlyPortal) ServeHTTP(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	hp.handler.ServeHTTP(w, r)
+	hop.handler.ServeHTTP(w, r)
 }
+
+// ********************************************************
 
 type Creator struct {
 	options AppOptions
-	gpm     GoPortalMap
-	hpm     HttpPortalMap
+	pm      PortalMap
+	hm      HandlerMap
 }
 
-func New() *Creator {
+func NewCreator() *Creator {
 	return &Creator{
 		options: AppOptions{
 			Hint: glaze.HintNone,
 		},
-		gpm: GoPortalMap{},
-		hpm: HttpPortalMap{},
+		pm: PortalMap{},
+		hm: HandlerMap{},
 	}
 }
 
@@ -82,23 +69,23 @@ func (wb *Creator) Size(
 	return wb
 }
 
-func (wb *Creator) GoPortal(
+func (wb *Creator) AddPortal(
 	name string,
-	portal GoPortal,
+	portal Portal,
 ) *Creator {
-	wb.gpm[name] = portal
+	wb.pm[name] = portal
 	return wb
 }
 
-func (wb *Creator) HttpPortal(
+func (wb *Creator) AddServer(
 	path string,
-	portal http.Handler,
+	handler http.Handler,
 ) *Creator {
-	if hp, ok := portal.(HttpPortal); ok {
-		wb.hpm[path] = hp
+	if _, ok := handler.(Portal); ok {
+		wb.hm[path] = handler
 	} else {
-		wb.hpm[path] = statelessHttpPortal{
-			handler: portal,
+		wb.hm[path] = httpOnlyPortal{
+			handler: handler,
 		}
 	}
 	return wb
@@ -106,78 +93,57 @@ func (wb *Creator) HttpPortal(
 
 func (wb *Creator) BuildWorld() *World {
 	op := wb.options
-	op.Handler = httpPortalMux(wb.hpm)
-	portals := marryPortals(wb.hpm, wb.gpm)
-	spellbook := conjureSpellbook(wb.gpm)
-	return buildWorld(op, portals, spellbook)
+	op.Handler = marryHandlers(wb.hm)
+	spellbook := marrySpells(wb.pm)
+	return buildWorld(op, wb.pm, spellbook)
 }
 
-func httpPortalMux(hpm HttpPortalMap) *http.ServeMux {
+func marryHandlers(hm HandlerMap) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	for path, handler := range hpm {
+	for path, handler := range hm {
 		mux.Handle(path, handler)
 	}
 
 	return mux
 }
 
-func conjureSpellbook(gpm GoPortalMap) Spellbook {
+func marrySpells(pm PortalMap) Spellbook {
 	book := Spellbook{}
 
-	for _, gp := range gpm {
-		spells := deriveSpells(gp)
+	for _, port := range pm {
+		spells := deriveSpellsFromPortal(port)
 		maps.Copy(book, spells)
 	}
 
 	return book
 }
 
-func deriveSpells(gp GoPortal) Spellbook {
-	gpVal := reflect.ValueOf(gp)
-	gpTyp := gpVal.Type()
+func deriveSpellsFromPortal(port Portal) Spellbook {
+	portVal := reflect.ValueOf(port)
+	portTyp := portVal.Type()
+	book := Spellbook{}
 
-	chapter := Spellbook{}
-
-	for i := 0; i < gpVal.NumMethod(); i++ {
-		funcVal := gpVal.Method(i)
-		funcTyp := gpTyp.Method(i)
+	for i := 0; i < portVal.NumMethod(); i++ {
+		funcVal := portVal.Method(i)
+		funcTyp := portTyp.Method(i)
 
 		if !funcTyp.IsExported() {
 			continue
 		}
 
-		if funcTyp.Name == "Open" || funcTyp.Name == "Close" {
+		// Ignore Portal & Handler functions.
+		n := funcTyp.Name
+		if n == "Open" || n == "Close" || n == "ServeHttp" {
 			continue
 		}
 
-		name := gpTyp.Elem().Name() + "." + funcTyp.Name
-		chapter[name] = NewSpell(
+		name := portTyp.Elem().Name() + "." + funcTyp.Name
+		book[name] = NewSpell(
 			name,
 			funcVal.Interface(),
 		)
 	}
 
-	return chapter
-}
-
-func marryPortals(
-	hpm HttpPortalMap,
-	gpm GoPortalMap,
-) []Portal {
-	size := len(hpm) + len(gpm)
-	portals := make([]Portal, size, size)
-	index := 0
-
-	for _, hp := range hpm {
-		portals[index] = hp
-		index++
-	}
-
-	for _, gp := range gpm {
-		portals[index] = gp
-		index++
-	}
-
-	return portals
+	return book
 }

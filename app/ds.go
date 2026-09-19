@@ -15,9 +15,16 @@ func (ds *Datastore) Open(w *sourcery.World) {
 	// TODO: Allow user to specify DB path.
 	ds.w = w
 	ds.db = storm.New("./testproject/data.sqlite")
-	ds.db.Create(
-		Media{},
-	)
+
+	e := ds.db.Open()
+	if e != nil {
+		panic(e)
+	}
+
+	e = ds.db.Create(Media{})
+	if e != nil {
+		panic(e)
+	}
 }
 
 func (ds *Datastore) Close() {
@@ -26,3 +33,5 @@ func (ds *Datastore) Close() {
 		ds.db = nil
 	}
 }
+
+var _ sourcery.Portal = &Datastore{}
