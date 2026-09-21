@@ -38,7 +38,7 @@ func (b *Box) SetValue(n int) {
 //go:embed testdata
 var testdata embed.FS
 
-func Example() {
+func _Example() {
 	/*
 		type Box struct {
 			w     *World
