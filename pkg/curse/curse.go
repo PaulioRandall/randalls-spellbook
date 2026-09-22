@@ -7,59 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// ProtoCurse is a [Curse] with a formattable message
-// designed to be used as named exported package errors.
-// Use [Proto] to create one. [ProtoCurse.Fmt] should be
-// called with the correct formatting arguments when
-// returning the error. If the exported error needs no
-// formatting then use [Err] instead.
-type ProtoCurse struct {
-	curse Curse
-}
-
-// Proto creates a [ProtoCurse] used as named exported
-// errors for comparison. When an error occurs, the
-// [ProtoCurse.Fmt] should be called with the correct
-// formatting arguments.
-//
-//	var ErrParseNumericBool = curse.Proto(
-//		"Numeric bool must be 0 or 1, given %d",
-//	)
-//
-//	func parseNumericBool(n int) (bool, error) {
-//		if n == 0 {
-//			return false, nil
-//		}
-//
-//		if n == 1 {
-//			return true, nil
-//		}
-//
-//		return false, ErrParseNumericBool.Fmt(n)
-//	}
-func Proto(message string) ProtoCurse {
-	return ProtoCurse{
-		curse: Err(message),
-	}
-}
-
-// Error returns the error message, satisfying Go's error
-// interface.
-func (pc ProtoCurse) Error() string {
-	log.Println("WARNING: Use of unformatted ProtoCurse")
-	return pc.curse.Message
-}
-
-// Fmt formats the error message, which must be format
-// string, using fmt.Sprintf and returns a [Curse].
-//
-// This is used with template curses
-func (pc ProtoCurse) Fmt(args ...any) Curse {
-	cu := pc.curse
-	cu.Message = fmt.Sprintf(cu.Message, args...)
-	return cu
-}
-
 // Curse is an error with a Message and Cause. If
 // returned by [ProtoCurse.Fmt] then [Curse.Is] will return
 // true if called with itself or the original [ProtoCurse].
@@ -154,6 +101,59 @@ func (cu Curse) Error() string {
 		return cu.Cause.Error() + "\n\t" + cu.Message
 	}
 	return cu.Message
+}
+
+// ProtoCurse is a [Curse] with a formattable message
+// designed to be used as named exported package errors.
+// Use [Proto] to create one. [ProtoCurse.Fmt] should be
+// called with the correct formatting arguments when
+// returning the error. If the exported error needs no
+// formatting then use [Err] instead.
+type ProtoCurse struct {
+	curse Curse
+}
+
+// Proto creates a [ProtoCurse] used as named exported
+// errors for comparison. When an error occurs, the
+// [ProtoCurse.Fmt] should be called with the correct
+// formatting arguments.
+//
+//	var ErrParseNumericBool = curse.Proto(
+//		"Numeric bool must be 0 or 1, given %d",
+//	)
+//
+//	func parseNumericBool(n int) (bool, error) {
+//		if n == 0 {
+//			return false, nil
+//		}
+//
+//		if n == 1 {
+//			return true, nil
+//		}
+//
+//		return false, ErrParseNumericBool.Fmt(n)
+//	}
+func Proto(message string) ProtoCurse {
+	return ProtoCurse{
+		curse: Err(message),
+	}
+}
+
+// Error returns the error message, satisfying Go's error
+// interface.
+func (pc ProtoCurse) Error() string {
+	log.Println("WARNING: Use of unformatted ProtoCurse")
+	return pc.curse.Message
+}
+
+// Fmt formats the error message, which must be format
+// string, using fmt.Sprintf and returns a curse.
+//
+// This is used with template curses
+func (pc ProtoCurse) Fmt(args ...any) Curse {
+	cu := pc.curse
+	cu.Message = fmt.Sprintf(cu.Message, args...)
+	return cu
 }
 
 var _ error = Curse{}

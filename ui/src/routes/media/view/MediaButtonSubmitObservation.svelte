@@ -10,13 +10,13 @@
 
 	function onclick() {
 		const ob = {
-			mediaId: media.entityId,
-			startTime: mediaSvox.currentTime,
-			duration: 0,
-			description: textareaSvox.text,
+			MediaId: media.EntityId,
+			StartTime: mediaSvox.currentTime,
+			Duration: 0,
+			Description: textareaSvox.text,
 		}
 
-		Go('AddObservation', JSON.stringify(ob))
+		Go('AddObservation', ob)
 			.then(() => textareaSvox.setText(''))
 			.catch(console.error)
 	}

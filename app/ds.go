@@ -11,7 +11,7 @@ type Datastore struct {
 	db   *storm.Storm
 }
 
-func (ds *Datastore) WorldEnter(w *sourcery.World) {
+func (ds *Datastore) Init(w *sourcery.World) {
 	// TODO: Allow user to specify DB path.
 	ds.w = w
 	ds.db = storm.New("./testproject/data.sqlite")
@@ -27,7 +27,7 @@ func (ds *Datastore) WorldEnter(w *sourcery.World) {
 	}
 }
 
-func (ds *Datastore) WorldExit() {
+func (ds *Datastore) Free() {
 	if ds.db != nil {
 		ds.db.Close()
 		ds.db = nil

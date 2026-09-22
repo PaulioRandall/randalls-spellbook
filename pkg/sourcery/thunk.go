@@ -25,7 +25,7 @@ var (
 	)
 )
 
-type ValErrThunk struct {
+type ValErrFunc struct {
 	Func any
 	Args []reflect.Value
 }
@@ -44,8 +44,8 @@ func ValidateValErrFunc(f any) error {
 	return nil
 }
 
-func NoArgs(f any) (ValErrThunk, error) {
-	var result ValErrThunk
+func WithNoArgs(f any) (ValErrFunc, error) {
+	var result ValErrFunc
 
 	e := ValidateValErrFunc(f)
 	if e != nil {
@@ -56,10 +56,10 @@ func NoArgs(f any) (ValErrThunk, error) {
 	return result, nil
 }
 
-func WithJsonArgs(f any, jsonStr string) (ValErrThunk, error) {
-	var empty ValErrThunk
+func WithJsonArgs(f any, jsonStr string) (ValErrFunc, error) {
+	var empty ValErrFunc
 
-	vet, e := NoArgs(f)
+	vet, e := WithNoArgs(f)
 	if e != nil {
 		return empty, e
 	}
@@ -67,9 +67,9 @@ func WithJsonArgs(f any, jsonStr string) (ValErrThunk, error) {
 	return vet.WithJsonArgs(jsonStr)
 }
 
-// WithNoArgs returns a copy of the ValErrThunk with all
+// WithNoArgs returns a copy of the ValErrFunc with all
 // arguments removed.
-func (vet ValErrThunk) NoArgs() ValErrThunk {
+func (vet ValErrFunc) WithNoArgs() ValErrFunc {
 	vet.Args = nil
 	return vet
 }
@@ -78,10 +78,10 @@ func (vet ValErrThunk) NoArgs() ValErrThunk {
 // arguments replaced by those parsed from the passed
 // jsonStr. The JSON must be an array of values that map to
 // the function's parameters. Ordering matters!
-func (vet ValErrThunk) WithJsonArgs(
+func (vet ValErrFunc) WithJsonArgs(
 	jsonStr string,
-) (ValErrThunk, error) {
-	empty := ValErrThunk{}
+) (ValErrFunc, error) {
+	empty := ValErrFunc{}
 
 	args, e := parseJsonArgs(vet.Func, jsonStr)
 	if e != nil {
@@ -182,11 +182,11 @@ func createPointerValueToParam(
 	return reflect.New(paramTyp)
 }
 
-// Call invokes the thunk with its currently set arguments.
+// Call invokes the thunk with its set arguments.
 // If the function has 1 output that satisfies the error
 // interface then it will be returned as both the value and
 // the error. Call doesn't recover from panics.
-func (vet ValErrThunk) Call() (any, error) {
+func (vet ValErrFunc) Call() (any, error) {
 	val := reflect.ValueOf(vet.Func)
 	results := val.Call(vet.Args)
 
@@ -209,7 +209,7 @@ func (vet ValErrThunk) Call() (any, error) {
 // CallRecover does the same as Call except it recovers
 // from a panic and returns the recovered value as a third
 // return value.
-func (vet ValErrThunk) CallRecover() (v any, e error, r any) {
+func (vet ValErrFunc) CallRecover() (v any, e error, r any) {
 	defer func() {
 		r = recover()
 	}()

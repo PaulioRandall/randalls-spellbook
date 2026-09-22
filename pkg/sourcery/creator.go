@@ -6,15 +6,17 @@ import (
 	"reflect"
 
 	"github.com/crgimenes/glaze"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
 )
 
 type Portal interface {
-	WorldEnter(w *World)
-	WorldExit()
+	Init(w *World)
+	Free()
 }
 type PortalMap = map[string]Portal
 type HandlerMap = map[string]http.Handler
-type Spellbook = map[string]Spell
+type FuncMap = map[string]any
 
 // ********************************************************
 
@@ -22,8 +24,8 @@ type httpOnlyPortal struct {
 	handler http.Handler
 }
 
-func (httpOnlyPortal) WorldEnter(w *World) {}
-func (httpOnlyPortal) WorldExit()          {}
+func (httpOnlyPortal) Init(w *World) {}
+func (httpOnlyPortal) Free()         {}
 func (hop httpOnlyPortal) ServeHTTP(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -34,9 +36,10 @@ func (hop httpOnlyPortal) ServeHTTP(
 // ********************************************************
 
 type Creator struct {
-	options AppOptions
-	pm      PortalMap
-	hm      HandlerMap
+	options    AppOptions
+	portalMap  PortalMap
+	handlerMap HandlerMap
+	funcMap    FuncMap
 }
 
 func NewCreator() *Creator {
@@ -44,8 +47,9 @@ func NewCreator() *Creator {
 		options: AppOptions{
 			Hint: glaze.HintNone,
 		},
-		pm: PortalMap{},
-		hm: HandlerMap{},
+		portalMap:  PortalMap{},
+		handlerMap: HandlerMap{},
+		funcMap:    FuncMap{},
 	}
 }
 
@@ -69,10 +73,35 @@ func (wb *Creator) Size(
 	return wb
 }
 
-func (wb *Creator) AddPortal(portal Portal) *Creator {
-	typ := reflect.TypeOf(portal)
-	wb.pm[typ.Name()] = portal
+func (wb *Creator) AddPortal(port Portal) *Creator {
+	funcMap := identifyFuncs(port)
+	validateFuncMap(funcMap)
+	maps.Copy(wb.funcMap, funcMap)
+	wb.portalMap[nameOfPortal(port)] = port
 	return wb
+}
+
+func validateFuncMap(funcMap FuncMap) {
+	for name, f := range funcMap {
+		e := ValidateValErrFunc(f)
+		if e != nil {
+			e = curse.Fmt(
+				"'%s' has invalid function signature",
+				name,
+			).Wraps(e)
+			panic(e)
+		}
+	}
+}
+
+func nameOfPortal(port Portal) string {
+	typ := reflect.TypeOf(port)
+
+	for typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+	}
+
+	return typ.Name()
 }
 
 func (wb *Creator) AddServer(
@@ -80,9 +109,9 @@ func (wb *Creator) AddServer(
 	handler http.Handler,
 ) *Creator {
 	if _, ok := handler.(Portal); ok {
-		wb.hm[path] = handler
+		wb.handlerMap[path] = handler
 	} else {
-		wb.hm[path] = httpOnlyPortal{
+		wb.handlerMap[path] = httpOnlyPortal{
 			handler: handler,
 		}
 	}
@@ -90,37 +119,41 @@ func (wb *Creator) AddServer(
 }
 
 func (wb *Creator) BuildWorld() *World {
-	op := wb.options
-	op.Handler = marryHandlers(wb.hm)
-	spellbook := marrySpells(wb.pm)
-	return buildWorld(op, wb.pm, spellbook)
+	options := wb.options
+	options.Handler = marryHandlers(wb.handlerMap)
+
+	for name, _ := range wb.portalMap {
+		println(name)
+	}
+
+	return buildWorld(options, wb.portalMap, wb.funcMap)
 }
 
-func marryHandlers(hm HandlerMap) *http.ServeMux {
+func marryHandlers(handlerMap HandlerMap) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	for path, handler := range hm {
+	for path, handler := range handlerMap {
 		mux.Handle(path, handler)
 	}
 
 	return mux
 }
 
-func marrySpells(pm PortalMap) Spellbook {
-	book := Spellbook{}
+func gatherFuncs(portalMap PortalMap) FuncMap {
+	result := FuncMap{}
 
-	for _, port := range pm {
-		spells := deriveSpellsFromPortal(port)
-		maps.Copy(book, spells)
+	for _, port := range portalMap {
+		funcMap := identifyFuncs(port)
+		maps.Copy(result, funcMap)
 	}
 
-	return book
+	return result
 }
 
-func deriveSpellsFromPortal(port Portal) Spellbook {
+func identifyFuncs(port Portal) FuncMap {
 	portVal := reflect.ValueOf(port)
 	portTyp := portVal.Type()
-	book := Spellbook{}
+	funcMap := FuncMap{}
 
 	for i := 0; i < portVal.NumMethod(); i++ {
 		funcVal := portVal.Method(i)
@@ -132,16 +165,13 @@ func deriveSpellsFromPortal(port Portal) Spellbook {
 
 		// Ignore Portal & Handler functions.
 		n := funcTyp.Name
-		if n == "WorldEnter" || n == "WorldExit" || n == "ServeHttp" {
+		if n == "Init" || n == "Free" || n == "ServeHttp" {
 			continue
 		}
 
 		name := portTyp.Elem().Name() + "." + funcTyp.Name
-		book[name] = NewSpell(
-			name,
-			funcVal.Interface(),
-		)
+		funcMap[name] = funcVal.Interface()
 	}
 
-	return book
+	return funcMap
 }

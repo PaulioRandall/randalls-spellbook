@@ -50,12 +50,12 @@ func Test_ValidateValErrFunc_3(t *testing.T) {
 	require.NoError(t, e)
 }
 
-func Test_NoArgs_1(t *testing.T) {
+func Test_WithNoArgs_1(t *testing.T) {
 	// GIVEN valid func.
-	// WHEN calling NoArgs.
-	// THEN returns ValErrThunk with Func set and Args as nil.
+	// WHEN calling WithNoArgs.
+	// THEN returns ValErrFunc with Func set and Args as nil.
 
-	thunk, e := NoArgs(func() {})
+	thunk, e := WithNoArgs(func() {})
 
 	require.NoError(t, e)
 	require.NotNil(t, thunk.Func)
@@ -161,7 +161,7 @@ func Test_WithJsonArgs_6(t *testing.T) {
 func Test_WithJsonArgs_7(t *testing.T) {
 	// GIVEN no args for func with no parameters.
 	// WHEN calling WithJsonArgs.
-	// THEN returns ValErrThunk with no args.
+	// THEN returns ValErrFunc with no args.
 
 	thunk, e := WithJsonArgs(
 		func() {},
@@ -292,16 +292,16 @@ func Test_WithJsonArgs_11(t *testing.T) {
 	require.Equal(t, 2, len(thunk.Args))
 }
 
-func Test_ValErrThunk_Call_1(t *testing.T) {
+func Test_ValErrFunc_Call_1(t *testing.T) {
 	// GIVEN func with many parameters.
-	// WHEN calling ValErrThunk.CallRecover.
+	// WHEN calling ValErrFunc.CallRecover.
 	// THEN function is called with expected arguments.
 
 	var v1 int
 	var v2 string
 	var v3 []float64
 
-	thunk := ValErrThunk{
+	thunk := ValErrFunc{
 		Func: func(arg1 int, arg2 string, arg3 ...float64) {
 			v1 = arg1
 			v2 = arg2
@@ -325,14 +325,14 @@ func Test_ValErrThunk_Call_1(t *testing.T) {
 	require.Equal(t, exp3, v3)
 }
 
-func Test_ValErrThunk_Call_2(t *testing.T) {
+func Test_ValErrFunc_Call_2(t *testing.T) {
 	// GIVEN func with outputs.
-	// WHEN calling ValErrThunk.Call.
+	// WHEN calling ValErrFunc.Call.
 	// THEN returns values returned by the function.
 
 	var BadToTheBone = errors.New("Bad to the bone")
 
-	thunk := ValErrThunk{
+	thunk := ValErrFunc{
 		Func: func() (string, error) {
 			return "abc", BadToTheBone
 		},
@@ -344,12 +344,12 @@ func Test_ValErrThunk_Call_2(t *testing.T) {
 	require.Equal(t, "abc", v)
 }
 
-func Test_ValErrThunk_CallRecover_1(t *testing.T) {
+func Test_ValErrFunc_CallRecover_1(t *testing.T) {
 	// GIVEN func that panics.
-	// WHEN calling ValErrThunk.CallRecover.
+	// WHEN calling ValErrFunc.CallRecover.
 	// Then recovers and returns recovered value.
 
-	thunk := ValErrThunk{
+	thunk := ValErrFunc{
 		Func: func() {
 			panic("Moo")
 		},

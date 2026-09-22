@@ -23,11 +23,11 @@ type Media struct {
 	//
 	// It must be unique within the project, never empty, and
 	// never change.
-	EntityId string `json:"entityId"`
+	EntityId string
 
 	// MediaType is type of the media, e.g. video, audio,
 	// PDF, etc.
-	MediaType string `json:"mediaType"`
+	MediaType string
 
 	// Name is the user defined readable and meaningful name
 	// for human users and AI agents. This is not the
@@ -35,7 +35,7 @@ type Media struct {
 	//
 	// It must never be empty and should should be trimmed
 	// of whitespace.
-	Name string `json:"name"`
+	Name string
 
 	// Description is the user defined detailed explanation
 	// of the video for human users and AI agents.
@@ -43,11 +43,11 @@ type Media struct {
 	// It should compliment the Name field but is also
 	// intended for general notes. It may be may be empty and
 	// should should be trimmed of whitespace.
-	Description string `json:"description"`
+	Description string
 
 	// LocalPath is the file path to the video file within
 	// the local file system.
-	LocalPath string `json:"localPath"`
+	LocalPath string
 }
 
 // Clean returns a new Media entity from an exsiting

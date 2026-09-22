@@ -6,12 +6,12 @@
 
 	function selectMedia(event) {
 		selectedMedia = mediaList.find((m) => {
-			return m.entityId === this.entityId
+			return m.EntityId === this.EntityId
 		})
 	}
 
 	function deleteMedia(event) {
-		Go('Datastore.DeleteMediaById', this.entityId) //
+		Go('Datastore.DeleteMediaById', this.EntityId) //
 			.then(updateMediaList)
 			.catch(console.error)
 	}
@@ -30,17 +30,17 @@
 		<a href="/media/add">Add New Media</a>
 	</div>
 	<div class="media-list" role="list">
-		{#each mediaList as media (media.entityId)}
+		{#each mediaList as media (media.EntityId)}
 			<div class="media-item" role="listitem">
 				<div
 					class="selectable-media"
 					role="button"
 					onclick={selectMedia.bind(media)}>
-					<span class="media-name">{media.name}</span>
+					<span class="media-name">{media.Name}</span>
 				</div>
 				<a
 					class="media-view-button"
-					href="/media/view?entity_id={media.entityId}">
+					href="/media/view?entity_id={media.EntityId}">
 					View
 				</a>
 				<button class="media-delete-button" onclick={deleteMedia.bind(media)}>
@@ -51,8 +51,8 @@
 	</div>
 	<p class="selected-media-description">
 		{#if selectedMedia}
-			<span class="media-name">{selectedMedia.name}:</span>
-			{selectedMedia.description}
+			<span class="media-name">{selectedMedia.Name}:</span>
+			{selectedMedia.Description}
 		{/if}
 	</p>
 </main>

@@ -10,7 +10,7 @@
 	function updateObservationList(media) {
 		untrack(() => {
 			if (!!media) {
-				Go('ListObservationsByMediaId', entityId) //
+				Go('ListObservationsByMediaId', media.EntityId) //
 					.then((result) => (observationList = result))
 					.catch(console.error)
 			}
@@ -18,12 +18,12 @@
 	}
 
 	function jumpToStartTime() {
-		mediaSvox.seekTo(this.startTime)
+		mediaSvox.seekTo(this.StartTime)
 	}
 </script>
 
-{#each observationList as ob (ob.entityId)}
-	<MediaButton onclick={jumpToStartTime.bind(ob)} title={ob.description}>
-		{ob.startTime} ({ob.duration})
+{#each observationList as ob (ob.EntityId)}
+	<MediaButton onclick={jumpToStartTime.bind(ob)} title={ob.Description}>
+		{ob.StartTime} ({ob.Duration})
 	</MediaButton>
 {/each}

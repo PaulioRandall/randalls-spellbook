@@ -13,12 +13,12 @@ type Box struct {
 	value int
 }
 
-func (b *Box) WorldEnter(w *World) {
+func (b *Box) Init(w *World) {
 	b.w = w
 	fmt.Printf("Initial box value is %d\n", b.value)
 }
 
-func (b *Box) WorldExit() {
+func (b *Box) Free() {
 	fmt.Printf("Final box value is %d\n", b.value)
 }
 
@@ -45,12 +45,12 @@ func _Example() {
 			value int
 		}
 
-		func (b *Box) WorldEnter(w *World) {
+		func (b *Box) Init(w *World) {
 			b.w = w
 			fmt.Printf("Initial box value is %d\n", b.value)
 		}
 
-		func (b *Box) WorldExit() {
+		func (b *Box) Free() {
 			fmt.Printf("Final box value is %d\n", b.value)
 		}
 

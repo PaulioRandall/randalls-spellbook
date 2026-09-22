@@ -13,14 +13,14 @@
 	class:media-video-loaded={mediaSvox.loaded}
 	width="320"
 	height="240"
-	title={media?.name}
-	alt={media?.description}
+	title={media?.Name}
+	alt={media?.Description}
 	onclick={() => mediaSvox.playPause()}>
 	{#if !media}
 		Waiting for media...
-	{:else if media?.entityId}
+	{:else if media?.EntityId}
 		<source
-			src="/media?entity_id={encodeURI(media.entityId)}"
+			src="/media?entity_id={encodeURI(media.EntityId)}"
 			type="video/mp4" />
 	{:else}
 		HTML videos not supported by the WebView.
