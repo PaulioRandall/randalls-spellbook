@@ -143,3 +143,65 @@ func Test_Operation_WithJsonArgs_6(t *testing.T) {
 
 	require.NoError(t, e)
 }
+
+func Test_Operation_WithJsonArgs_7(t *testing.T) {
+	// Given valid arguments for non-variadic func.
+	// Sets Operation.Args with them.
+
+	f := func(s string, i int) {}
+	op, _ := NewOperation(f)
+
+	act, e := op.WithJsonArgs(`
+		[
+			"abc",
+			123
+		]
+	`)
+
+	require.NoError(t, e)
+	require.Equal(t, "abc", act.Args[0])
+	require.Equal(t, 123, act.Args[1])
+	require.Equal(t, 2, len(act.Args))
+}
+
+func Test_Operation_WithJsonArgs_8(t *testing.T) {
+	// Given no variadic args for variadic func.
+	// Sets Operation.Args with them.
+
+	f := func(s string, numbers ...float64) {}
+	op, _ := NewOperation(f)
+
+	act, e := op.WithJsonArgs(`
+		[
+			"abc"
+		]
+	`)
+
+	require.NoError(t, e)
+	require.Equal(t, "abc", act.Args[0])
+	require.Equal(t, 1, len(act.Args))
+}
+
+func Test_Operation_WithJsonArgs_9(t *testing.T) {
+	// Given many variadic args for variadic func.
+	// Sets Operation.Args with them.
+
+	f := func(s string, numbers ...float64) {}
+	op, _ := NewOperation(f)
+
+	act, e := op.WithJsonArgs(`
+		[
+			"abc",
+			1.11,
+			2.22,
+			3.33
+		]
+	`)
+
+	require.NoError(t, e)
+	require.Equal(t, "abc", act.Args[0])
+	require.Equal(t, 1.11, act.Args[1])
+	require.Equal(t, 2.22, act.Args[2])
+	require.Equal(t, 3.33, act.Args[3])
+	require.Equal(t, 4, len(act.Args))
+}

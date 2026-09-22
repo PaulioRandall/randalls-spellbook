@@ -86,8 +86,43 @@ func Fmt(message string, args ...any) Curse {
 	}
 }
 
-// Wrap wraps the cause error replacing any existing cause.
-func (cu Curse) Wrap(cause error) Curse {
+// WrapIn wraps the curse in the passed symptom curse or
+// proto curse, replacing any existing cuase, then returns
+// the symptom.
+func (cu Curse) WrapIn[T Curse | ProtoCurse](symptom T) T {
+	if pc, ok := any(symptom).(ProtoCurse); ok {
+		pc.curse.Cause = cu
+		return any(pc).(T)
+	}
+
+	sc, _ := any(symptom).(Curse)
+	sc.Cause = cu
+	return any(sc).(T)
+}
+
+// WrapErr wraps the curse in a new curse with the given
+// message.
+func (cu Curse) WrapErr(message string) Curse {
+	return Curse{
+		errId:   uuid.New().String(),
+		Message: message,
+		Cause:   cu,
+	}
+}
+
+// WrapFmt wraps the curse in a new curse with the given
+// message and formatting arguments.
+func (cu Curse) WrapFmt(message string, args ...any) Curse {
+	return Curse{
+		errId:   uuid.New().String(),
+		Message: fmt.Sprintf(message, args...),
+		Cause:   cu,
+	}
+}
+
+// Wraps wraps the cause error replacing any existing
+// cause.
+func (cu Curse) Wraps(cause error) Curse {
 	cu.Cause = cause
 	return cu
 }

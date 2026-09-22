@@ -46,7 +46,7 @@ func Parse(object any) (Table, error) {
 		return table, nil
 	}
 
-	return Table{}, ErrParsingTable.Fmt(typ.Name()).Wrap(e)
+	return Table{}, ErrParsingTable.Fmt(typ.Name()).Wraps(e)
 }
 
 func parseTable(table *Table, typ reflect.Type) error {

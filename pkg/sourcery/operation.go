@@ -27,6 +27,7 @@ var (
 
 type Operation struct {
 	Func any
+	Args []any
 }
 
 func NewOperation(f any) (Operation, error) {
@@ -56,31 +57,84 @@ func (op Operation) WithJsonArgs(
 	var jsonArgs []json.RawMessage
 	e := json.Unmarshal([]byte(jsonStr), &jsonArgs)
 	if e != nil {
-		return empty, ErrBadJsonString.Wrap(e)
+		return empty, ErrBadJsonString.Wraps(e)
 	}
 
-	// TODO: Create arg len checking func.
-	if !typ.IsVariadic() && len(jsonArgs) != typ.NumIn() {
-		return empty, curse.Fmt(
+	e = validateArgsLength(typ, len(jsonArgs))
+	if e != nil {
+		return empty, ErrArgMismatch.Wraps(e)
+	}
+
+	op.Args, e = parseJsonArgs(typ, jsonArgs)
+	if e != nil {
+		return empty, ErrBadJsonString.Wraps(e)
+	}
+
+	return op, nil
+}
+
+func validateArgsLength(typ reflect.Type, size int) error {
+	if !typ.IsVariadic() && size != typ.NumIn() {
+		return curse.Fmt(
 			"Expected %d arguments, given %d",
 			typ.NumIn(),
-			len(jsonArgs),
-		).Wrap(ErrArgMismatch)
+			size,
+		)
 	}
-	if typ.IsVariadic() && len(jsonArgs) < typ.NumIn()-1 {
-		return empty, curse.Fmt(
+
+	if typ.IsVariadic() && size < typ.NumIn()-1 {
+		return curse.Fmt(
 			"Expected %d or more arguments, given %d",
 			typ.NumIn(),
-			len(jsonArgs),
-		).Wrap(ErrArgMismatch)
+			size,
+		)
 	}
 
-	// NEXT: iterate raw messages,
-	//       unmarshal each creating new container using
-	//       reflect.New (creates pointer to value) then
-	//       pass Value.Interface() to json.Unmarshal,
-	//       REMEMBER to call Value.Elem() to get value
-	//       being pointed at afterwards!!
+	return nil
+}
 
-	return empty, nil
+func parseJsonArgs(
+	funcTyp reflect.Type,
+	jsonArgs []json.RawMessage,
+) ([]any, error) {
+	args := make([]any, len(jsonArgs), len(jsonArgs))
+
+	for i, arg := range jsonArgs {
+		val := createPointerValueToParam(funcTyp, i)
+
+		e := json.Unmarshal(arg, val.Interface())
+		if e == nil {
+			// Elem() because we're using ValueOf pointer.
+			args[i] = val.Elem().Interface()
+			continue
+		}
+
+		return nil, curse.Fmt(
+			"JSON array argument index %d",
+			i,
+		).Wraps(e)
+	}
+
+	return args, nil
+}
+
+func createPointerValueToParam(
+	funcTyp reflect.Type,
+	idx int,
+) reflect.Value {
+	lastParamIdx := funcTyp.NumIn() - 1
+	var paramTyp reflect.Type
+
+	if funcTyp.IsVariadic() && idx >= lastParamIdx {
+		paramTyp = funcTyp.In(lastParamIdx).Elem()
+	} else {
+		paramTyp = funcTyp.In(idx)
+	}
+
+	return reflect.New(paramTyp)
+}
+
+func (op Operation) Invoke() (any, error) {
+	// NEXT: Call and return output based upon func outputs.
+	return nil, nil
 }

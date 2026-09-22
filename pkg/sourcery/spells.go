@@ -88,12 +88,12 @@ func parseFunc(fn any) ([]refT, []refT) {
 func (sp Spell) Invoke(args ...any) (any, error) {
 	e := sp.checkArgsCount(args)
 	if e != nil {
-		return nil, ErrInvokeFail.Fmt(sp.Name).Wrap(e)
+		return nil, ErrInvokeFail.Fmt(sp.Name).Wraps(e)
 	}
 
 	argVals, e := parseArgs(args, sp.Accepts)
 	if e != nil {
-		return nil, ErrInvokeFail.Fmt(sp.Name).Wrap(e)
+		return nil, ErrInvokeFail.Fmt(sp.Name).Wraps(e)
 	}
 
 	results := reflect.ValueOf(sp.Func).Call(argVals)
@@ -121,7 +121,7 @@ func parseArgs(
 		argVal, e := parseArg(arg, expTypes[i])
 
 		if e != nil {
-			return nil, curse.Fmt("For argument %d", i).Wrap(e)
+			return nil, curse.Fmt("For argument %d", i).Wraps(e)
 		}
 
 		argVals[i] = argVal
