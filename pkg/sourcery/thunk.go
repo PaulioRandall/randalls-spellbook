@@ -25,52 +25,95 @@ var (
 	)
 )
 
-type Operation struct {
+type ValErrThunk struct {
 	Func any
 	Args []any
 }
 
-func NewOperation(f any) (Operation, error) {
-	result := Operation{}
+func ValidateValErrFunc(f any) error {
 	typ := reflect.TypeOf(f)
 
 	if typ.Kind() != reflect.Func {
-		return result, ErrNotFunc.Fmt(typ.Kind())
+		return ErrNotFunc.Fmt(typ.Kind())
 	}
 
 	if typ.NumOut() > 2 {
-		return result, ErrTooManyOutputs.Fmt(typ.NumOut())
+		return ErrTooManyOutputs.Fmt(typ.NumOut())
+	}
+
+	return nil
+}
+
+func NoArgs(f any) (ValErrThunk, error) {
+	var result ValErrThunk
+
+	e := ValidateValErrFunc(f)
+	if e != nil {
+		return result, e
 	}
 
 	result.Func = f
 	return result, nil
 }
 
-// WithJsonArgs accepts a JSON string containing an array
-// of values to be used as operation arguments.
-func (op Operation) WithJsonArgs(
-	jsonStr string,
-) (Operation, error) {
-	empty := Operation{}
-	typ := reflect.TypeOf(op.Func)
+func WithJsonArgs(f any, jsonStr string) (ValErrThunk, error) {
+	var empty ValErrThunk
+
+	vet, e := NoArgs(f)
+	if e != nil {
+		return empty, e
+	}
+
+	return vet.WithJsonArgs(jsonStr)
+}
+
+// WithNoArgs returns a copy of the ValErrThunk with all
+// arguments removed.
+func (vet ValErrThunk) NoArgs() ValErrThunk {
+	vet.Args = nil
+	return vet
+}
+
+// WithJsonArgs returns a copy of the ValErrThink with
+// arguments replaced by those parsed from the passed
+// jsonStr. The JSON must be an array of values that map to
+// the function's parameters. Ordering matters!
+func (vet ValErrThunk) WithJsonArgs(jsonStr string) (ValErrThunk, error) {
+	empty := ValErrThunk{}
+
+	args, e := parseJsonArgs(vet.Func, jsonStr)
+	if e != nil {
+		return empty, e
+	}
+
+	vet.Args = args
+	return vet, nil
+}
+
+func parseJsonArgs(f any, jsonStr string) ([]any, error) {
+	typ := reflect.TypeOf(f)
 
 	var jsonArgs []json.RawMessage
 	e := json.Unmarshal([]byte(jsonStr), &jsonArgs)
 	if e != nil {
-		return empty, ErrBadJsonString.Wraps(e)
+		return nil, ErrBadJsonString.Wraps(e)
 	}
 
 	e = validateArgsLength(typ, len(jsonArgs))
 	if e != nil {
-		return empty, ErrArgMismatch.Wraps(e)
+		return nil, ErrArgMismatch.Wraps(e)
 	}
 
-	op.Args, e = parseJsonArgs(typ, jsonArgs)
+	if len(jsonArgs) == 0 {
+		return nil, nil
+	}
+
+	args, e := parseJsonMessages(typ, jsonArgs)
 	if e != nil {
-		return empty, ErrBadJsonString.Wraps(e)
+		return nil, ErrBadJsonString.Wraps(e)
 	}
 
-	return op, nil
+	return args, nil
 }
 
 func validateArgsLength(typ reflect.Type, size int) error {
@@ -93,7 +136,7 @@ func validateArgsLength(typ reflect.Type, size int) error {
 	return nil
 }
 
-func parseJsonArgs(
+func parseJsonMessages(
 	funcTyp reflect.Type,
 	jsonArgs []json.RawMessage,
 ) ([]any, error) {
@@ -132,9 +175,4 @@ func createPointerValueToParam(
 	}
 
 	return reflect.New(paramTyp)
-}
-
-func (op Operation) Invoke() (any, error) {
-	// NEXT: Call and return output based upon func outputs.
-	return nil, nil
 }
