@@ -1,22 +1,26 @@
 package sourcery
 
 import (
+	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func Test_ValidateValErrFunc_1(t *testing.T) {
-	// Given f is not a function.
-	// Return named error.
+	// GIVEN f is not a function.
+	// WHEN calling ValidateValErrFunc.
+	// THEN returns named error.
 
 	e := ValidateValErrFunc(0)
 	require.ErrorIs(t, e, ErrNotFunc)
 }
 
 func Test_ValidateValErrFunc_2(t *testing.T) {
-	// Given f has 3 or more outputs.
-	// Return named error.
+	// GIVEN f has 3 or more outputs.
+	// WHEN calling ValidateValErrFunc.
+	// THEN returns named error.
 
 	f := func() (bool, int, error) {
 		return true, 2, nil
@@ -27,8 +31,9 @@ func Test_ValidateValErrFunc_2(t *testing.T) {
 }
 
 func Test_ValidateValErrFunc_3(t *testing.T) {
-	// Given f has 0, 1, or 2 outputs.
-	// Return nil error.
+	// GIVEN f has 0, 1, or 2 outputs.
+	// WHEN calling ValidateValErrFunc.
+	// THEN returns nil error.
 
 	var e error
 
@@ -46,8 +51,9 @@ func Test_ValidateValErrFunc_3(t *testing.T) {
 }
 
 func Test_NoArgs_1(t *testing.T) {
-	// Given valid func.
-	// Returns ValErrThunk with Func and nil Args.
+	// GIVEN valid func.
+	// WHEN calling NoArgs.
+	// THEN returns ValErrThunk with Func set and Args as nil.
 
 	thunk, e := NoArgs(func() {})
 
@@ -57,8 +63,9 @@ func Test_NoArgs_1(t *testing.T) {
 }
 
 func Test_WithJsonArgs_1(t *testing.T) {
-	// Given bad JSON string.
-	// Returns named error.
+	// GIVEN bad JSON string.
+	// WHEN calling WithJsonArgs.
+	// THEN returns named error.
 
 	_, e := WithJsonArgs(
 		func() {},
@@ -69,8 +76,9 @@ func Test_WithJsonArgs_1(t *testing.T) {
 }
 
 func Test_WithJsonArgs_2(t *testing.T) {
-	// Given too few args for non-variadic func.
-	// Returns named error.
+	// GIVEN too few args for non-variadic func.
+	// WHEN calling WithJsonArgs.
+	// THEN returns named error.
 
 	_, e := WithJsonArgs(
 		func(v any) {},
@@ -83,8 +91,9 @@ func Test_WithJsonArgs_2(t *testing.T) {
 }
 
 func Test_WithJsonArgs_3(t *testing.T) {
-	// Given too many args for non-variadic func.
-	// Returns named error.
+	// GIVEN too many args for non-variadic func.
+	// WHEN calling WithJsonArgs.
+	// THEN returns named error.
 
 	_, e := WithJsonArgs(
 		func() {},
@@ -99,8 +108,9 @@ func Test_WithJsonArgs_3(t *testing.T) {
 }
 
 func Test_WithJsonArgs_4(t *testing.T) {
-	// Given too few args for variadic func.
-	// Returns named error.
+	// GIVEN too few args for variadic func.
+	// WHEN calling WithJsonArgs.
+	// THEN returns named error.
 
 	_, e := WithJsonArgs(
 		func(v any, more ...any) {},
@@ -113,8 +123,9 @@ func Test_WithJsonArgs_4(t *testing.T) {
 }
 
 func Test_WithJsonArgs_5(t *testing.T) {
-	// Given valid number of args for non-variadic func.
-	// Returns no error.
+	// GIVEN valid number of args for non-variadic func.
+	// WHEN calling WithJsonArgs.
+	// THEN returns no error.
 
 	_, e := WithJsonArgs(
 		func(v1 any, v2 any) {},
@@ -130,8 +141,9 @@ func Test_WithJsonArgs_5(t *testing.T) {
 }
 
 func Test_WithJsonArgs_6(t *testing.T) {
-	// Given valid number of args for variadic func.
-	// Returns no error.
+	// GIVEN valid number of args for variadic func.
+	// WHEN calling WithJsonArgs.
+	// THEN returns no error.
 
 	_, e := WithJsonArgs(
 		func(v1 any, v2 any, more ...any) {},
@@ -147,8 +159,9 @@ func Test_WithJsonArgs_6(t *testing.T) {
 }
 
 func Test_WithJsonArgs_7(t *testing.T) {
-	// Given no args for func with no parameters.
-	// Returns ValErrThunk with no args.
+	// GIVEN no args for func with no parameters.
+	// WHEN calling WithJsonArgs.
+	// THEN returns ValErrThunk with no args.
 
 	thunk, e := WithJsonArgs(
 		func() {},
@@ -162,8 +175,9 @@ func Test_WithJsonArgs_7(t *testing.T) {
 }
 
 func Test_WithJsonArgs_8(t *testing.T) {
-	// Given valid arguments for non-variadic func.
-	// Sets ValErrFunction.Args with them.
+	// GIVEN valid arguments for non-variadic func.
+	// WHEN calling WithJsonArgs.
+	// THEN sets ValErrFunction.Args with the arguments.
 
 	thunk, e := WithJsonArgs(
 		func(s string, i int) {},
@@ -176,14 +190,15 @@ func Test_WithJsonArgs_8(t *testing.T) {
 	)
 
 	require.NoError(t, e)
-	require.Equal(t, "abc", thunk.Args[0])
-	require.Equal(t, 123, thunk.Args[1])
+	require.Equal(t, "abc", thunk.Args[0].Interface())
+	require.Equal(t, 123, thunk.Args[1].Interface())
 	require.Equal(t, 2, len(thunk.Args))
 }
 
 func Test_WithJsonArgs_9(t *testing.T) {
-	// Given no variadic args for variadic func.
-	// Sets ValErrFunction.Args with them.
+	// GIVEN no variadic args for variadic func.
+	// WHEN calling WithJsonArgs.
+	// THEN sets ValErrFunction.Args with the arguments.
 
 	thunk, e := WithJsonArgs(
 		func(s string, numbers ...float64) {},
@@ -195,13 +210,14 @@ func Test_WithJsonArgs_9(t *testing.T) {
 	)
 
 	require.NoError(t, e)
-	require.Equal(t, "abc", thunk.Args[0])
+	require.Equal(t, "abc", thunk.Args[0].Interface())
 	require.Equal(t, 1, len(thunk.Args))
 }
 
 func Test_WithJsonArgs_10(t *testing.T) {
-	// Given many variadic args for variadic func.
-	// Sets ValErrFunction.Args with them.
+	// GIVEN many variadic args for variadic func.
+	// WHEN calling WithJsonArgs.
+	// THEN sets ValErrFunction.Args with the arguments.
 
 	thunk, e := WithJsonArgs(
 		func(s string, numbers ...float64) {},
@@ -216,9 +232,129 @@ func Test_WithJsonArgs_10(t *testing.T) {
 	)
 
 	require.NoError(t, e)
-	require.Equal(t, "abc", thunk.Args[0])
-	require.Equal(t, 1.11, thunk.Args[1])
-	require.Equal(t, 2.22, thunk.Args[2])
-	require.Equal(t, 3.33, thunk.Args[3])
+	require.Equal(t, "abc", thunk.Args[0].Interface())
+	require.Equal(t, 1.11, thunk.Args[1].Interface())
+	require.Equal(t, 2.22, thunk.Args[2].Interface())
+	require.Equal(t, 3.33, thunk.Args[3].Interface())
 	require.Equal(t, 4, len(thunk.Args))
+}
+
+func Test_WithJsonArgs_11(t *testing.T) {
+	// Test not really needed but wanted extra confidence
+	// there wasn't any issue with paarsing structs and
+	// arrays.
+
+	// GIVEN func has struct and array parameters.
+	// WHEN calling WithJsonArgs.
+	// THEN sets ValErrFunction.Args with the arguments.
+
+	type DummyArg struct {
+		One int
+		Two string
+	}
+
+	thunk, e := WithJsonArgs(
+		func(
+			dummy DummyArg,
+			dummies []DummyArg,
+		) {
+		},
+		`
+			[
+				{
+					"One": 123,
+					"Two": "abc",
+					"Ignored": true
+				},
+				[
+					{
+						"One": 4
+					},
+					{
+						"One": 5
+					}
+				]
+			]
+		`,
+	)
+
+	require.NoError(t, e)
+
+	expStruct := DummyArg{One: 123, Two: "abc"}
+	require.Equal(t, expStruct, thunk.Args[0].Interface())
+
+	expArray := []DummyArg{
+		DummyArg{One: 4},
+		DummyArg{One: 5},
+	}
+	require.Equal(t, expArray, thunk.Args[1].Interface())
+
+	require.Equal(t, 2, len(thunk.Args))
+}
+
+func Test_ValErrThunk_Call_1(t *testing.T) {
+	// GIVEN func with many parameters.
+	// WHEN calling ValErrThunk.CallRecover.
+	// THEN function is called with expected arguments.
+
+	var v1 int
+	var v2 string
+	var v3 []float64
+
+	thunk := ValErrThunk{
+		Func: func(arg1 int, arg2 string, arg3 ...float64) {
+			v1 = arg1
+			v2 = arg2
+			v3 = arg3
+		},
+		Args: []reflect.Value{
+			reflect.ValueOf(123),
+			reflect.ValueOf("abc"),
+			reflect.ValueOf(1.11),
+			reflect.ValueOf(2.22),
+			reflect.ValueOf(3.33),
+		},
+	}
+
+	_, _ = thunk.Call()
+
+	require.Equal(t, 123, v1)
+	require.Equal(t, "abc", v2)
+
+	exp3 := []float64{1.11, 2.22, 3.33}
+	require.Equal(t, exp3, v3)
+}
+
+func Test_ValErrThunk_Call_2(t *testing.T) {
+	// GIVEN func with outputs.
+	// WHEN calling ValErrThunk.Call.
+	// THEN returns values returned by the function.
+
+	var BadToTheBone = errors.New("Bad to the bone")
+
+	thunk := ValErrThunk{
+		Func: func() (string, error) {
+			return "abc", BadToTheBone
+		},
+	}
+
+	v, e := thunk.Call()
+
+	require.ErrorIs(t, e, BadToTheBone)
+	require.Equal(t, "abc", v)
+}
+
+func Test_ValErrThunk_CallRecover_1(t *testing.T) {
+	// GIVEN func that panics.
+	// WHEN calling ValErrThunk.CallRecover.
+	// Then recovers and returns recovered value.
+
+	thunk := ValErrThunk{
+		Func: func() {
+			panic("Moo")
+		},
+	}
+
+	_, _, r := thunk.CallRecover()
+	require.Equal(t, "Moo", r)
 }

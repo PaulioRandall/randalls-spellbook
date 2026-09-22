@@ -27,7 +27,7 @@ var (
 
 type ValErrThunk struct {
 	Func any
-	Args []any
+	Args []reflect.Value
 }
 
 func ValidateValErrFunc(f any) error {
@@ -78,7 +78,9 @@ func (vet ValErrThunk) NoArgs() ValErrThunk {
 // arguments replaced by those parsed from the passed
 // jsonStr. The JSON must be an array of values that map to
 // the function's parameters. Ordering matters!
-func (vet ValErrThunk) WithJsonArgs(jsonStr string) (ValErrThunk, error) {
+func (vet ValErrThunk) WithJsonArgs(
+	jsonStr string,
+) (ValErrThunk, error) {
 	empty := ValErrThunk{}
 
 	args, e := parseJsonArgs(vet.Func, jsonStr)
@@ -90,7 +92,10 @@ func (vet ValErrThunk) WithJsonArgs(jsonStr string) (ValErrThunk, error) {
 	return vet, nil
 }
 
-func parseJsonArgs(f any, jsonStr string) ([]any, error) {
+func parseJsonArgs(
+	f any,
+	jsonStr string,
+) ([]reflect.Value, error) {
 	typ := reflect.TypeOf(f)
 
 	var jsonArgs []json.RawMessage
@@ -139,8 +144,8 @@ func validateArgsLength(typ reflect.Type, size int) error {
 func parseJsonMessages(
 	funcTyp reflect.Type,
 	jsonArgs []json.RawMessage,
-) ([]any, error) {
-	args := make([]any, len(jsonArgs), len(jsonArgs))
+) ([]reflect.Value, error) {
+	args := make([]reflect.Value, len(jsonArgs), len(jsonArgs))
 
 	for i, arg := range jsonArgs {
 		val := createPointerValueToParam(funcTyp, i)
@@ -148,7 +153,7 @@ func parseJsonMessages(
 		e := json.Unmarshal(arg, val.Interface())
 		if e == nil {
 			// Elem() because we're using ValueOf pointer.
-			args[i] = val.Elem().Interface()
+			args[i] = val.Elem()
 			continue
 		}
 
@@ -175,4 +180,40 @@ func createPointerValueToParam(
 	}
 
 	return reflect.New(paramTyp)
+}
+
+// Call invokes the thunk with its currently set arguments.
+// If the function has 1 output that satisfies the error
+// interface then it will be returned as both the value and
+// the error. Call doesn't recover from panics.
+func (vet ValErrThunk) Call() (any, error) {
+	val := reflect.ValueOf(vet.Func)
+	results := val.Call(vet.Args)
+
+	switch len(results) {
+	case 0:
+		return nil, nil
+	case 1:
+		v := results[0].Interface()
+		if err, ok := v.(error); ok {
+			return v, err
+		}
+		return v, nil
+	default: // 2 return values
+		// Type check done during parsing.
+		err, _ := results[1].Interface().(error)
+		return results[0].Interface(), err
+	}
+}
+
+// CallRecover does the same as Call except it recovers
+// from a panic and returns the recovered value as a third
+// return value.
+func (vet ValErrThunk) CallRecover() (v any, e error, r any) {
+	defer func() {
+		r = recover()
+	}()
+
+	v, e = vet.Call()
+	return v, e, nil
 }
