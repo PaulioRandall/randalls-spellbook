@@ -11,6 +11,9 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 )
 
+// TODO: Make Storm thread safe. Lock on function entry
+//       and defer the unlock.
+
 var (
 	// ErrNotOpen occurs when trying to perform an operation
 	// before opening the database.

@@ -50,18 +50,15 @@ func openCreateInsert(
 	e := db.Open()
 	require.NoError(t, e)
 
-	defer func() {
-		if r := recover(); r != nil {
-			db.Close()
-			panic(r)
-		}
-	}()
+	if len(models) > 0 {
+		e = db.Create(models...)
+		require.NoError(t, e)
+	}
 
-	e = db.Create(models...)
-	require.NoError(t, e)
-
-	e = db.Insert(objects...)
-	require.NoError(t, e)
+	if len(objects) > 0 {
+		e = db.Insert(objects...)
+		require.NoError(t, e)
+	}
 
 	return db
 }

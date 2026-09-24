@@ -2,7 +2,8 @@ package storm
 
 import (
 	"database/sql"
-	"fmt"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
 )
 
 // sqlite_schema is the Go representation of sqlite_schema
@@ -11,7 +12,7 @@ import (
 //
 // See https://sqlite.org/schematab.html
 type sqlite_schema struct {
-	// objectType as defined as 'type' in
+	// Type as defined as 'type' in
 	// https://sqlite.org/schematab.html. Because 'type' is a
 	// reserved word in Go.
 	//
@@ -20,9 +21,10 @@ type sqlite_schema struct {
 	// 'trigger' according to the type of object defined. The
 	// 'table' string is used for both ordinary and virtual
 	// tables."
-	objectType string
+	Type string
 
-	// name as defined in https://sqlite.org/schematab.html.
+	// Name as defined as 'name' in
+	// https://sqlite.org/schematab.html.
 	//
 	// "The sqlite_schema.name column will hold the name of
 	// the object. UNIQUE and PRIMARY KEY constraints on
@@ -39,9 +41,9 @@ type sqlite_schema struct {
 	// UNIQUE constraints. The "sqlite_autoindex_TABLE_N"
 	// name is never allocated for an INTEGER PRIMARY KEY,
 	// either in rowid tables or WITHOUT ROWID tables."
-	name string
+	Name string
 
-	// tbl_name as defined in
+	// TableName as defined as 'tbl_name' in
 	// https://sqlite.org/schematab.html.
 	//
 	// "The sqlite_schema.tbl_name column holds the name of a
@@ -51,18 +53,22 @@ type sqlite_schema struct {
 	// the table that is indexed. For a trigger, the tbl_name
 	// column stores the name of the table or view that
 	// causes the trigger to fire."
-	tbl_name string
+	TableName string
 
-	// rootpage as defined in
+	// Columns as extracted using PRAGMA table_info.
+	Columns []string
+
+	// Rootpage as defined as 'rootpage' in
 	// https://sqlite.org/schematab.html.
 	//
 	// "The sqlite_schema.rootpage column stores the page
 	// number of the root b-tree page for tables and indexes.
 	// For rows that define views, triggers, and virtual
 	// tables, the rootpage column is 0 or NULL."
-	rootpage int
+	Rootpage int
 
-	// sql as defined in https://sqlite.org/schematab.html.
+	// Sql as defined as 'sql' in
+	// https://sqlite.org/schematab.html.
 	//
 	// "The sqlite_schema.sql column stores SQL text that
 	// describes the object. This SQL text is a CREATE TABLE,
@@ -90,11 +96,48 @@ type sqlite_schema struct {
 	// sqlite_schema.sql is NULL for the internal indexes
 	// that are automatically created by UNIQUE or
 	// PRIMARY KEY constraints."
-	sql string
+	Sql string
 }
 
-func listSqliteSchema(
-	db *sql.DB,
+var (
+	// ErrFetchingMetadata occurs when querying for table
+	// metadata.
+	ErrFetchingMetadata = curse.Err(
+		"Could not obtain table metadata",
+	)
+)
+
+func (st *Storm) prepareTable(model any) error {
+	tableName := typeName(model)
+
+	metadata, e := st.querySqliteSchema(tableName)
+	if e != nil {
+		return e
+	}
+
+	if len(metadata) == 0 {
+		e = st.createTable(model)
+		if e != nil {
+			return e
+		}
+	}
+
+	tableInfo, e := st.queryPragmaTableInfo(tableName)
+	if e != nil {
+		return e
+	}
+
+	_ = tableInfo
+	// NEXT: Filter tableInfo using the struct's fields so
+	//       only columns that map to a field remain.
+	// THEN: Design new struct types that hold info about
+	//       the table and columns to be operated on.
+
+	return nil
+}
+
+func (st *Storm) querySqliteSchema(
+	tableName string,
 ) ([]sqlite_schema, error) {
 	query := `
 		SELECT
@@ -105,14 +148,13 @@ func listSqliteSchema(
 			sql
 		FROM
 			sqlite_schema
+		WHERE
+			tbl_name = ?
 	`
 
-	rows, e := db.Query(query)
+	rows, e := st.db.Query(query, tableName)
 	if e != nil {
-		return nil, fmt.Errorf(
-			"Failed to query project table: %w",
-			e,
-		)
+		return nil, ErrFetchingMetadata.Wraps(e)
 	}
 
 	defer rows.Close()
@@ -121,31 +163,75 @@ func listSqliteSchema(
 
 func parseSqliteSchemaTableRows(
 	rows *sql.Rows,
-) (
-	[]sqlite_schema,
-	error,
-) {
+) ([]sqlite_schema, error) {
 	var result []sqlite_schema
 
-	for rows.Next() {
+	for i := 0; rows.Next(); i++ {
 		var ss sqlite_schema
 
 		e := rows.Scan(
-			&ss.objectType,
-			&ss.name,
-			&ss.tbl_name,
-			&ss.rootpage,
-			&ss.sql,
+			&ss.Type,
+			&ss.Name,
+			&ss.TableName,
+			&ss.Rootpage,
+			&ss.Sql,
 		)
 
 		if e != nil {
-			return nil, fmt.Errorf(
-				"Failed to scan project table row: %w",
-				e,
-			)
+			return nil, ErrScanningRow.Fmt(i).Wraps(e)
 		}
 
 		result = append(result, ss)
+	}
+
+	return result, rows.Err()
+}
+
+type table_info struct {
+	ColumnId     int
+	Name         string
+	Type         string
+	Notnull      bool
+	DefaultValue any
+	PrimaryKey   any
+}
+
+func (st *Storm) queryPragmaTableInfo(
+	tableName string,
+) ([]table_info, error) {
+	query := `SELECT * FROM pragma_table_info(?)`
+
+	rows, e := st.db.Query(query, tableName)
+	if e != nil {
+		return nil, ErrFetchingMetadata.Wraps(e)
+	}
+
+	defer rows.Close()
+	return parsePragmaTableInfoRows(rows)
+}
+
+func parsePragmaTableInfoRows(
+	rows *sql.Rows,
+) ([]table_info, error) {
+	var result []table_info
+
+	for i := 0; rows.Next(); i++ {
+		var ti table_info
+
+		e := rows.Scan(
+			&ti.ColumnId,
+			&ti.Name,
+			&ti.Type,
+			&ti.Notnull,
+			&ti.DefaultValue,
+			&ti.PrimaryKey,
+		)
+
+		if e != nil {
+			return nil, ErrScanningRow.Fmt(i).Wraps(e)
+		}
+
+		result = append(result, ti)
 	}
 
 	return result, rows.Err()
