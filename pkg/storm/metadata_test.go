@@ -19,7 +19,7 @@ func Test_Storm_prepareTable_1(t *testing.T) {
 	e := db.prepareTable(testCheeseMaker{})
 	require.NoError(t, e)
 
-	metadata, e := db.querySqliteSchema("testCheeseMaker")
+	metadata, e := querySqliteSchema(db.db, "testCheeseMaker")
 	require.NoError(t, e)
 
 	for _, m := range metadata {
