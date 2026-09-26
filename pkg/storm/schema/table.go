@@ -1,4 +1,4 @@
-package storm
+package schema
 
 import (
 	"database/sql"
@@ -6,11 +6,11 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
 )
 
-// SqliteSchema is the Go representation of sqlite_schema
+// TableSchema is a Go representation of sqlite_schema
 // (AKA sqlite_master) within SQLite3.
 //
 // See https://sqlite.org/schematab.html
-type SqliteSchema struct {
+type TableSchema struct {
 	// Type as defined as 'type' in
 	// https://sqlite.org/schematab.html. Because 'type' is a
 	// reserved word in Go.
@@ -54,9 +54,6 @@ type SqliteSchema struct {
 	// causes the trigger to fire."
 	TableName string
 
-	// Columns as extracted using PRAGMA table_info.
-	Columns []string
-
 	// Rootpage as defined as 'rootpage' in
 	// https://sqlite.org/schematab.html.
 	//
@@ -99,23 +96,29 @@ type SqliteSchema struct {
 }
 
 var (
-	// ErrQuerySqliteSchema occurs when querying
+	// ErrQueryTable occurs when querying
 	// sqlite_schema table.
-	ErrQuerySqliteSchema = curse.Proto(
+	ErrQueryTable = curse.Proto(
 		"Could not query sqlite_schema for table '%s'",
 	)
 
-	// ErrScanSqliteSchema occurs when scanning rows returned
+	// ErrScanningRows occurs when scanning rows returned
 	// from sqlite_schema table.
-	ErrScanSqliteSchema = curse.Proto(
+	ErrScanningRows = curse.Proto(
 		"Could not scan sqlite_schema row %d for table '%s'",
+	)
+
+	// ErrTableNotFound occurs when the requested
+	// table could not be found in sqlite_schema.
+	ErrTableNotFound = curse.Proto(
+		"sqlite_schema entry not found for table '%s'",
 	)
 )
 
-func querySqliteSchema(
+func QueryTable(
 	db *sql.DB,
 	tableName string,
-) ([]SqliteSchema, error) {
+) (TableSchema, error) {
 	query := `
 		SELECT
 			type,
@@ -129,30 +132,29 @@ func querySqliteSchema(
 			tbl_name = ?
 	`
 
+	var ts TableSchema
+
 	rows, e := db.Query(query, tableName)
 	if e != nil {
-		return nil, ErrQuerySqliteSchema.Fmt(tableName).Wraps(e)
+		return ts, ErrQueryTable.Fmt(tableName).Wraps(e)
 	}
 	defer rows.Close()
 
-	var result []SqliteSchema
-	var ss SqliteSchema
-
-	for i := 0; rows.Next(); i++ {
-		e := rows.Scan(
-			&ss.Type,
-			&ss.Name,
-			&ss.TableName,
-			&ss.Rootpage,
-			&ss.Sql,
-		)
-
-		if e != nil {
-			return nil, ErrScanSqliteSchema.Fmt(i).Wraps(e)
-		}
-
-		result = append(result, ss)
+	if !rows.Next() {
+		return ts, ErrTableNotFound.Fmt(tableName)
 	}
 
-	return result, rows.Err()
+	e = rows.Scan(
+		&ts.Type,
+		&ts.Name,
+		&ts.TableName,
+		&ts.Rootpage,
+		&ts.Sql,
+	)
+
+	if e != nil {
+		return ts, ErrScanningRows.Fmt(0).Wraps(e)
+	}
+
+	return ts, rows.Err()
 }

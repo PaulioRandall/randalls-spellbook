@@ -1,4 +1,4 @@
-package storm
+package schema
 
 import (
 	"database/sql"
@@ -6,13 +6,13 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
 )
 
-type TableInfo struct {
+type ColumnSchema struct {
 	ColumnId     int
 	Name         string
 	Type         string
 	Notnull      bool
 	DefaultValue any
-	PrimaryKey   any
+	PrimaryKey   int
 }
 
 var (
@@ -29,10 +29,10 @@ var (
 	)
 )
 
-func queryPragmaTableInfo(
+func QueryColumns(
 	db *sql.DB,
 	tableName string,
-) ([]TableInfo, error) {
+) ([]ColumnSchema, error) {
 
 	query := `
 		SELECT
@@ -52,24 +52,24 @@ func queryPragmaTableInfo(
 	}
 	defer rows.Close()
 
-	var result []TableInfo
-	var ti TableInfo
+	var result []ColumnSchema
+	var cs ColumnSchema
 
 	for i := 0; rows.Next(); i++ {
 		e := rows.Scan(
-			&ti.ColumnId,
-			&ti.Name,
-			&ti.Type,
-			&ti.Notnull,
-			&ti.DefaultValue,
-			&ti.PrimaryKey,
+			&cs.ColumnId,
+			&cs.Name,
+			&cs.Type,
+			&cs.Notnull,
+			&cs.DefaultValue,
+			&cs.PrimaryKey,
 		)
 
 		if e != nil {
 			return nil, ErrScanTableInfo.Fmt(i, tableName).Wraps(e)
 		}
 
-		result = append(result, ti)
+		result = append(result, cs)
 	}
 
 	return result, rows.Err()

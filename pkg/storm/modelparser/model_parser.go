@@ -1,4 +1,4 @@
-package storm
+package modelparser
 
 import (
 	R "reflect"
@@ -20,7 +20,7 @@ type Column2 struct {
 	PrimaryKey bool
 }
 
-func ParseModel(model any) Table2 {
+func Parse(model any) Table2 {
 	modelType := derefModelType(model)
 
 	if modelType.Kind() != R.Struct {
@@ -41,7 +41,6 @@ func derefModelType(model any) R.Type {
 	modelType := R.TypeOf(model)
 
 	for modelType.Kind() == R.Ptr {
-		println(modelType.Kind().String())
 		modelType = modelType.Elem()
 	}
 
@@ -91,7 +90,7 @@ func mapGoToSqlType(fieldKind R.Kind) string {
 	case R.String:
 		return "TEXT"
 	default:
-		panic("Unsupported Go kind used as exported field: " + fieldKind.String())
+		panic("Unsupported Go kind used for exported field: " + fieldKind.String())
 	}
 }
 

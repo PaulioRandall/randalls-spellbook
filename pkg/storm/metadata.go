@@ -1,34 +1,36 @@
 package storm
 
 import (
-// "github.com/PaulioRandall/randalls-spellbook/pkg/curse"
+	"errors"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/modelparser"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/schema"
 )
 
 func (st *Storm) prepareTable(model any) error {
-	tableName := typeName(model)
+	structModel := modelparser.Parse(model)
+	tableSchema, e := schema.Query(st.db, structModel.SqlName)
 
-	metadata, e := querySqliteSchema(st.db, tableName)
+	if errors.Is(e, schema.ErrTableNotFound) {
+		return st.createTable(model)
+	}
+
 	if e != nil {
 		return e
 	}
 
-	if len(metadata) == 0 {
-		e = st.createTable(model)
-		if e != nil {
-			return e
-		}
-	}
-
-	tableInfo, e := queryPragmaTableInfo(st.db, tableName)
-	if e != nil {
-		return e
-	}
-
-	_ = tableInfo
+	_ = structModel
+	_ = tableSchema
 	// NEXT: Filter tableInfo using the struct's fields so
 	//       only columns that map to a field remain.
 	// THEN: Design new struct types that hold info about
 	//       the table and columns to be operated on.
 
 	return nil
+}
+
+// diffTable returns the differences between a table model
+// and the table and row schemas.
+func diffTable(model modelparser.Table2) {
+
 }
