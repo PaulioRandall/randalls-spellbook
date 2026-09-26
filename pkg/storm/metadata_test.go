@@ -4,8 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/PaulioRandall/randalls-spellbook/pkg/sprints"
+	//"github.com/PaulioRandall/randalls-spellbook/pkg/sprints"
 )
 
 func Test_Storm_prepareTable_1(t *testing.T) {
@@ -22,9 +21,9 @@ func Test_Storm_prepareTable_1(t *testing.T) {
 	metadata, e := querySqliteSchema(db.db, "testCheeseMaker")
 	require.NoError(t, e)
 
-	for _, m := range metadata {
-		sprints.Println(m)
-	}
+	//for _, m := range metadata {
+	//sprints.Println(m)
+	//}
 
 	require.Equal(t, "table", metadata[0].Type)
 	require.Equal(t, "testCheeseMaker", metadata[0].Name)
