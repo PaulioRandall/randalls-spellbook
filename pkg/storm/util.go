@@ -35,5 +35,5 @@ func makeParentDirs(path string) error {
 		return nil
 	}
 
-	return ErrMkDirPath.Wraps(e)
+	return ErrMkDirPath.Wrap(e)
 }

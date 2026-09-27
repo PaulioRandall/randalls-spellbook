@@ -7,6 +7,11 @@ import (
 	"github.com/google/uuid"
 )
 
+// TODO: Rename 'ProtoCurse' to 'Template' and rename
+//       functions accordingly.
+// TODO: Consider renaming package to 'sin' but leaving
+//       main error type as 'Curse'.
+
 // Curse is an error with a Message and Cause. If
 // returned by [ProtoCurse.Fmt] then [Curse.Is] will return
 // true if called with itself or the original [ProtoCurse].
@@ -33,8 +38,19 @@ func Fmt(message string, args ...any) Curse {
 	}
 }
 
+// Plunder returns a new Curse using the message of the
+// passed error as the curse's message. It does not wrap
+// the passed error. It will panic if the passed error is
+// nil.
+func Plunder(e error) Curse {
+	return Curse{
+		errId:   uuid.New().String(),
+		Message: e.Error(),
+	}
+}
+
 // WrapIn wraps the curse in the passed symptom curse or
-// proto curse, replacing any existing cuase, then returns
+// proto curse, replacing any existing cause, then returns
 // the symptom.
 func (cu Curse) WrapIn[T Curse | ProtoCurse](symptom T) T {
 	if pc, ok := any(symptom).(ProtoCurse); ok {
@@ -67,9 +83,9 @@ func (cu Curse) WrapFmt(message string, args ...any) Curse {
 	}
 }
 
-// Wraps wraps the cause error replacing any existing
+// Wrap wraps the cause error replacing any existing
 // cause.
-func (cu Curse) Wraps(cause error) Curse {
+func (cu Curse) Wrap(cause error) Curse {
 	cu.Cause = cause
 	return cu
 }
@@ -97,10 +113,19 @@ func (cu Curse) Is(target error) bool {
 // Error returns the error message, satisfying Go's error
 // interface.
 func (cu Curse) Error() string {
-	if cu.Cause != nil {
-		return cu.Cause.Error() + "\n\t" + cu.Message
-	}
 	return cu.Message
+}
+
+// Stack returns the result of passing the Curse to
+// [Stack].
+func (cu Curse) Stack(reversed bool) string {
+	return Stack(cu, reversed)
+}
+
+// RawStack returns the result of passing the Curse to
+// [RawStack].
+func (cu Curse) RawStack(reversed bool) string {
+	return RawStack(cu, reversed)
 }
 
 // ProtoCurse is a [Curse] with a formattable message

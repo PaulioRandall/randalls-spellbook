@@ -74,7 +74,7 @@ func QueryTableInfo(
 
 	rows, e := db.Query(query, tableName)
 	if e != nil {
-		return nil, ErrQueryTableInfo.Fmt(tableName).Wraps(e)
+		return nil, ErrQueryTableInfo.Fmt(tableName).Wrap(e)
 	}
 
 	defer rows.Close()
@@ -92,7 +92,7 @@ func QueryTableInfo(
 		)
 
 		if e != nil {
-			return nil, ErrScanTableInfo.Fmt(i, tableName).Wraps(e)
+			return nil, ErrScanTableInfo.Fmt(i, tableName).Wrap(e)
 		}
 
 		cols = append(cols, ti)

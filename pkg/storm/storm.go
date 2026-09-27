@@ -99,7 +99,7 @@ func (st *Storm) Open() error {
 	db, e := sql.Open("sqlite", st.path)
 	if e != nil {
 		return curse.Err("Unable to open SQLite database").
-			Wraps(e).
+			Wrap(e).
 			WrapIn(ErrDatabaseFile).
 			Fmt(st.path)
 	}
@@ -137,7 +137,7 @@ func (st *Storm) Close() error {
 	}
 
 	return curse.Err("Unable to close SQLite database").
-		Wraps(e).
+		Wrap(e).
 		WrapIn(ErrDatabaseFile).
 		Fmt(st.path)
 }
@@ -188,7 +188,7 @@ func (st *Storm) Create(models ...any) error {
 	for _, m := range models {
 		e := st.createTable(m)
 		if e != nil {
-			return ErrTableRequest.Fmt(typeName(m)).Wraps(e)
+			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
 		}
 	}
 
@@ -260,7 +260,7 @@ func (st *Storm) Insert[T any](objects ...T) error {
 	for _, o := range objects {
 		e := st.insertObject(o)
 		if e != nil {
-			return ErrTableRequest.Fmt(typeName(o)).Wraps(e)
+			return ErrTableRequest.Fmt(typeName(o)).Wrap(e)
 		}
 	}
 
@@ -315,7 +315,7 @@ func (st *Storm) Update[T any](objects ...T) error {
 	for _, obj := range objects {
 		e := st.updateObject(obj)
 		if e != nil {
-			return ErrTableRequest.Fmt(typeName(obj)).Wraps(e)
+			return ErrTableRequest.Fmt(typeName(obj)).Wrap(e)
 		}
 	}
 
@@ -363,7 +363,7 @@ func (st *Storm) Select[T any](model T) ([]T, error) {
 
 	table, e := st.findTableForModel(model)
 	if e != nil {
-		return nil, err.Wraps(e)
+		return nil, err.Wrap(e)
 	}
 
 	query := nidoking.Given(`
@@ -378,12 +378,12 @@ func (st *Storm) Select[T any](model T) ([]T, error) {
 
 	rows, e := st.db.Query(query)
 	if e != nil {
-		return nil, err.Wraps(e)
+		return nil, err.Wrap(e)
 	}
 
 	result, e := st.scanSelectedRows[T](table, rows)
 	if e != nil {
-		return nil, err.Wraps(e)
+		return nil, err.Wrap(e)
 	}
 
 	return result, nil
@@ -399,7 +399,7 @@ func (st *Storm) scanSelectedRows[T any](
 	for i := 0; rows.Next(); i++ {
 		e := rows.Scan(valuePtrs...)
 		if e != nil {
-			return nil, ErrScanningRow.Fmt(i).Wraps(e)
+			return nil, ErrScanningRow.Fmt(i).Wrap(e)
 		}
 
 		object := constructObject[T](values)
@@ -473,12 +473,12 @@ func (st *Storm) SelectById[T, ID any](
 	err := ErrTableRequest.Fmt(typeName(model), id)
 	table, e := st.findTableForModel(model)
 	if e != nil {
-		return empty, err.Wraps(e)
+		return empty, err.Wrap(e)
 	}
 
 	e = validateIdType(table, id)
 	if e != nil {
-		return empty, err.Wraps(e)
+		return empty, err.Wrap(e)
 	}
 
 	query := nidoking.Given(`
@@ -496,12 +496,12 @@ func (st *Storm) SelectById[T, ID any](
 
 	rows, e := st.db.Query(query, id)
 	if e != nil {
-		return empty, err.Wraps(e)
+		return empty, err.Wrap(e)
 	}
 
 	result, e := st.scanSelectedRows[T](table, rows)
 	if e != nil {
-		return empty, err.Wraps(e)
+		return empty, err.Wrap(e)
 	}
 
 	object, ok := getFirstItemIfArray[T](result)
@@ -547,13 +547,13 @@ func (st *Storm) DeleteById[T, ID any](
 
 	table, e := st.findTableForModel(model)
 	if e != nil {
-		return ErrTableRequest.Fmt(typeName(model)).Wraps(e)
+		return ErrTableRequest.Fmt(typeName(model)).Wrap(e)
 	}
 
 	for _, id := range ids {
 		e = st.deleteById(table, id)
 		if e != nil {
-			return ErrTableRequest.Fmt(typeName(model)).Wraps(e)
+			return ErrTableRequest.Fmt(typeName(model)).Wrap(e)
 		}
 	}
 
@@ -606,7 +606,7 @@ func (st *Storm) Drop(models ...any) error {
 	for _, m := range models {
 		e := st.dropTable(m)
 		if e != nil {
-			return ErrTableRequest.Fmt(typeName(m)).Wraps(e)
+			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
 		}
 	}
 

@@ -101,12 +101,12 @@ func parseJsonArgs(
 	var jsonArgs []json.RawMessage
 	e := json.Unmarshal([]byte(jsonStr), &jsonArgs)
 	if e != nil {
-		return nil, ErrBadJsonString.Wraps(e)
+		return nil, ErrBadJsonString.Wrap(e)
 	}
 
 	e = validateArgsLength(typ, len(jsonArgs))
 	if e != nil {
-		return nil, ErrArgMismatch.Wraps(e)
+		return nil, ErrArgMismatch.Wrap(e)
 	}
 
 	if len(jsonArgs) == 0 {
@@ -115,7 +115,7 @@ func parseJsonArgs(
 
 	args, e := parseJsonMessages(typ, jsonArgs)
 	if e != nil {
-		return nil, ErrBadJsonString.Wraps(e)
+		return nil, ErrBadJsonString.Wrap(e)
 	}
 
 	return args, nil
@@ -160,7 +160,7 @@ func parseJsonMessages(
 		return nil, curse.Fmt(
 			"JSON array argument index %d",
 			i,
-		).Wraps(e)
+		).Wrap(e)
 	}
 
 	return args, nil

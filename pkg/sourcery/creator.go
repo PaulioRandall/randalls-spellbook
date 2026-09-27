@@ -88,7 +88,7 @@ func validateFuncMap(funcMap FuncMap) {
 			e = curse.Fmt(
 				"'%s' has invalid function signature",
 				name,
-			).Wraps(e)
+			).Wrap(e)
 			panic(e)
 		}
 	}

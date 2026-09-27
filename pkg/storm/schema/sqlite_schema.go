@@ -92,7 +92,7 @@ func QuerySqliteSchema(
 
 	rows, e := db.Query(query, entityName)
 	if e != nil {
-		return zero, ErrQueryEntity.Fmt(entityName).Wraps(e)
+		return zero, ErrQueryEntity.Fmt(entityName).Wrap(e)
 	}
 	defer rows.Close()
 
@@ -109,7 +109,7 @@ func QuerySqliteSchema(
 	)
 
 	if e != nil {
-		return zero, ErrScanningRows.Fmt(0).Wraps(e)
+		return zero, ErrScanningRows.Fmt(0).Wrap(e)
 	}
 
 	return ss, rows.Err()
