@@ -40,13 +40,13 @@ type TableInfo struct {
 var (
 	// ErrQueryTableInfo occurs when querying table_info
 	// PRAGMA.
-	ErrQueryTableInfo = curse.Proto(
+	ErrQueryTableInfo = curse.Template(
 		"Could not query table_info for table '%s'",
 	)
 
 	// ErrScanTableInfo occurs when scanning rows returned
 	// from table_info PRAGMA.
-	ErrScanTableInfo = curse.Proto(
+	ErrScanTableInfo = curse.Template(
 		"Could not scan table_info row %d for table '%s'",
 	)
 )

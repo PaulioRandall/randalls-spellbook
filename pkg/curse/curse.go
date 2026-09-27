@@ -7,21 +7,17 @@ import (
 	"github.com/google/uuid"
 )
 
-// TODO: Rename 'ProtoCurse' to 'Template' and rename
-//       functions accordingly.
-// TODO: Consider renaming package to 'sin' but leaving
-//       main error type as 'Curse'.
-
-// Curse is an error with a Message and Cause. If
-// returned by [ProtoCurse.Fmt] then [Curse.Is] will return
-// true if called with itself or the original [ProtoCurse].
+// Curse is an error with a Message and optional Cause. If
+// created via [TemplateCurse.Fmt] then [Curse.Is] will
+// return true if called with itself or the original
+// [TemplateCurse].
 type Curse struct {
 	errId   string
 	Message string
 	Cause   error
 }
 
-// Err creates a new Curse with the given message.
+// Err creates a new curse with the given message.
 func Err(message string) Curse {
 	return Curse{
 		errId:   uuid.New().String(),
@@ -29,7 +25,7 @@ func Err(message string) Curse {
 	}
 }
 
-// Fmt creates a new Curse with the given message and
+// Fmt creates a new curse with the given message and
 // formatting arguments.
 func Fmt(message string, args ...any) Curse {
 	return Curse{
@@ -38,7 +34,7 @@ func Fmt(message string, args ...any) Curse {
 	}
 }
 
-// Plunder returns a new Curse using the message of the
+// Plunder returns a new curse using the message of the
 // passed error as the curse's message. It does not wrap
 // the passed error. It will panic if the passed error is
 // nil.
@@ -50,12 +46,12 @@ func Plunder(e error) Curse {
 }
 
 // WrapIn wraps the curse in the passed symptom curse or
-// proto curse, replacing any existing cause, then returns
-// the symptom.
-func (cu Curse) WrapIn[T Curse | ProtoCurse](symptom T) T {
-	if pc, ok := any(symptom).(ProtoCurse); ok {
-		pc.curse.Cause = cu
-		return any(pc).(T)
+// template curse, replacing any existing cause, then
+// returns the symptom.
+func (cu Curse) WrapIn[T Curse | TemplateCurse](symptom T) T {
+	if tc, ok := any(symptom).(TemplateCurse); ok {
+		tc.curse.Cause = cu
+		return any(tc).(T)
 	}
 
 	sc, _ := any(symptom).(Curse)
@@ -96,11 +92,12 @@ func (cu Curse) Unwrap() error {
 	return cu.Cause
 }
 
-// Is returns true if the target is the same type and has
-// the same ID as the receiving error.
+// Is returns true if the target is a [Curse] or
+// [TemplateCurse] and has the same internal ID as the
+// receiving curse.
 func (cu Curse) Is(target error) bool {
-	if pc, ok := target.(ProtoCurse); ok {
-		return cu.errId == pc.curse.errId
+	if tc, ok := target.(TemplateCurse); ok {
+		return cu.errId == tc.curse.errId
 	}
 
 	if cu2, ok := target.(Curse); ok {
@@ -128,58 +125,52 @@ func (cu Curse) RawStack(reversed bool) string {
 	return RawStack(cu, reversed)
 }
 
-// ProtoCurse is a [Curse] with a formattable message
-// designed to be used as named exported package errors.
-// Use [Proto] to create one. [ProtoCurse.Fmt] should be
+// TemplateCurse is a [Curse] with a formattable message
+// designed to be used as named package errors. Use
+// [Template] to create one. [TemplateCurse.Fmt] should be
 // called with the correct formatting arguments when
 // returning the error. If the exported error needs no
-// formatting then use [Err] instead.
-type ProtoCurse struct {
+// formatting then use [Err] to create the package error.
+type TemplateCurse struct {
 	curse Curse
 }
 
-// Proto creates a [ProtoCurse] used as named exported
-// errors for comparison. When an error occurs, the
-// [ProtoCurse.Fmt] should be called with the correct
-// formatting arguments.
+// Template creates a [TemplateCurse] designed for use as
+// named package errors tht may be coompared. When an error
+// occurs, [TemplateCurse.Fmt] should be called with the
+// relevant formatting arguments.
 //
-//	var ErrParseNumericBool = curse.Proto(
-//		"Numeric bool must be 0 or 1, given %d",
+//	var ErrUserNotFound = curse.Template(
+//		"User with ID '%d' not found",
 //	)
 //
-//	func parseNumericBool(n int) (bool, error) {
-//		if n == 0 {
-//			return false, nil
-//		}
-//
-//		if n == 1 {
-//			return true, nil
-//		}
-//
-//		return false, ErrParseNumericBool.Fmt(n)
+//	func GetUserDetails(id int) (string, error) {
+//		// ...
+//		return false, ErrUserNotFound.Fmt(id)
 //	}
-func Proto(message string) ProtoCurse {
-	return ProtoCurse{
+func Template(message string) TemplateCurse {
+	return TemplateCurse{
 		curse: Err(message),
 	}
 }
 
 // Error returns the error message, satisfying Go's error
 // interface.
-func (pc ProtoCurse) Error() string {
-	log.Println("WARNING: Use of unformatted ProtoCurse")
-	return pc.curse.Message
+func (tc TemplateCurse) Error() string {
+	log.Println("WARNING: Use of unformatted TemplateCurse")
+	return tc.curse.Message
 }
 
-// Fmt formats the error message, which must be format
-// string, using fmt.Sprintf and returns a curse.
-//
-// This is used with template curses
-func (pc ProtoCurse) Fmt(args ...any) Curse {
-	cu := pc.curse
+// Fmt formats the template's error message, which must be
+// using the passed args and fmt.Sprintf. Calling
+// [Curse.Is] with the receiving template will
+// return true for all curses created from the receiving
+// template.
+func (tc TemplateCurse) Fmt(args ...any) Curse {
+	cu := tc.curse
 	cu.Message = fmt.Sprintf(cu.Message, args...)
 	return cu
 }
 
 var _ error = Curse{}
-var _ error = ProtoCurse{}
+var _ error = TemplateCurse{}

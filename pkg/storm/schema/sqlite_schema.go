@@ -46,20 +46,20 @@ type SqliteSchema struct {
 var (
 	// ErrQueryEntity occurs when querying the sqlite_schema
 	// table.
-	ErrQueryEntity = curse.Proto(
+	ErrQueryEntity = curse.Template(
 		"Could not query sqlite_schema for entity '%s'",
 	)
 
 	// ErrScanningRows occurs when scanning rows returned
 	// from a sqlite_schema select.
-	ErrScanningRows = curse.Proto(
+	ErrScanningRows = curse.Template(
 		"Could not scan sqlite_schema row %d for entity '%s'",
 	)
 
 	// ErrEntityNotFound occurs when the requested entity
 	// does not exist within the database's sqlite_schema
 	// table.
-	ErrEntityNotFound = curse.Proto(
+	ErrEntityNotFound = curse.Template(
 		"Entity not found '%s'",
 	)
 )

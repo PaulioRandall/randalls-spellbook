@@ -8,11 +8,11 @@ import (
 )
 
 var (
-	ErrNotFunc = curse.Proto(
+	ErrNotFunc = curse.Template(
 		"Expected a function but given %s",
 	)
 
-	ErrTooManyOutputs = curse.Proto(
+	ErrTooManyOutputs = curse.Template(
 		"Too many output parameters, given %d: either return nothing, a value (T), an error (error), or a value then an error (T, error)",
 	)
 

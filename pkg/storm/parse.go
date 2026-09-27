@@ -9,25 +9,25 @@ import (
 var (
 	// ErrParsingTable returned when failing to parse a
 	// model (struct) into a [Table].
-	ErrParsingTable = curse.Proto(
+	ErrParsingTable = curse.Template(
 		"Parse error with struct/table: %s",
 	)
 
 	// ErrNotStruct is returned when attempting to use a
 	// model type with a non-struct kind.
-	ErrNotStruct = curse.Proto("Model must be a struct: %s")
+	ErrNotStruct = curse.Template("Model must be a struct: %s")
 
 	// ErrBadFieldKind is returned when a model's type
 	// contains an unsupported kind for one of its exported
 	// fields.
-	ErrBadFieldKind = curse.Proto(
+	ErrBadFieldKind = curse.Template(
 		"Model '%s' has unsupported field kind: %s",
 	)
 
 	// ErrNoExportedFields is returned when a model's type
 	// has no exported fields. Every table must have at
 	// least one column.
-	ErrNoExportedFields = curse.Proto(
+	ErrNoExportedFields = curse.Template(
 		"Model must have at least one exported field: %s",
 	)
 )

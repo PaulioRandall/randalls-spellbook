@@ -17,39 +17,39 @@ import (
 var (
 	// ErrNotOpen occurs when trying to perform an operation
 	// before opening the database.
-	ErrNotOpen = curse.Proto(
+	ErrNotOpen = curse.Template(
 		"Database not open",
 	)
 
 	// ErrTableRequest occurs within an error chain when any
 	// error occurs involving a specific table/struct, except
 	// for 'not found' errors.
-	ErrTableRequest = curse.Proto(
+	ErrTableRequest = curse.Template(
 		"Request failed for table: %s",
 	)
 
 	// ErrScanningRow is returned when an error occurs
 	// scanning database results.
-	ErrScanningRow = curse.Proto(
+	ErrScanningRow = curse.Template(
 		"Scanning row: %d",
 	)
 
 	// ErrObjectNotFound is returned when a search for a
 	// specific object/row failed.
-	ErrObjectNotFound = curse.Proto(
+	ErrObjectNotFound = curse.Template(
 		"Object not found: %s with ID %v",
 	)
 
 	// ErrDatabaseFile is returned when an error occurs with
 	// or while opening or closing the database.
-	ErrDatabaseFile = curse.Proto(
+	ErrDatabaseFile = curse.Template(
 		"Database IO error: %s",
 	)
 
 	// ErrNoSuchTable is returned when an object is passed
 	// to a function which does not have a registered table
 	// for its type.
-	ErrNoSuchTable = curse.Proto(
+	ErrNoSuchTable = curse.Template(
 		"No matching table for object type: %s",
 	)
 
@@ -58,7 +58,7 @@ var (
 	// the ID field of the associated model type. This may
 	// be returned even for compatible types like int when
 	// int64 is expected.
-	ErrBadIdType = curse.Proto(
+	ErrBadIdType = curse.Template(
 		"ID type mismatch for '%s', got %s, want %s",
 	)
 )

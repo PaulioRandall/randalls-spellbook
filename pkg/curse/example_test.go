@@ -40,7 +40,7 @@ func Example() {
 	curseErr = curseErr.WrapFmt("%d. Wrapper for curse (%s)", 6, "formatted")
 	printStack(curseErr)
 
-	// Wrapping within a Curse or ProtoCurse returns the
+	// Wrapping within a Curse or TemplateCurse returns the
 	// does the opposite of Wrap, i.e. the symptom wraps the
 	// calling cause and is returned.
 	symptom := Err("7. Symptom curse")
@@ -49,12 +49,12 @@ func Example() {
 	printStack(curseErr)
 
 	// Declaring a prototype curse.
-	protoErr := Proto("%d. %s prototype curse")
+	protoErr := Template("%d. %s prototype curse")
 	printStack(protoErr)
 
 	// Using a prototype curse.
 	// A warning message is printed via log package if you
-	// call Error() on ProtoCurse, but the unformatted error
+	// call Error() on TemplateCurse, but the unformatted error
 	// message will still be returned.
 	curseErr = protoErr.Fmt(9, "Formatted")
 	printStack(curseErr)

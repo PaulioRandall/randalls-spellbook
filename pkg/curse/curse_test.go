@@ -31,12 +31,12 @@ func Test_Curse_WrapIn_1(t *testing.T) {
 }
 
 func Test_Curse_WrapIn_2(t *testing.T) {
-	// GIVEN a ProtoCurse symptom
+	// GIVEN a TemplateCurse symptom
 	// WHEN  calling Curse.WrapIn
-	// THEN  cause is wrapped by the ProtoCurse symptom
+	// THEN  cause is wrapped by the TemplateCurse symptom
 	// AND   that symptom is returned
 
-	symptom := ProtoCurse{
+	symptom := TemplateCurse{
 		curse: Curse{
 			Message: "Symptom: %s",
 		},
@@ -48,7 +48,7 @@ func Test_Curse_WrapIn_2(t *testing.T) {
 
 	act := cause.WrapIn(symptom)
 
-	exp := ProtoCurse{
+	exp := TemplateCurse{
 		curse: Curse{
 			Message: "Symptom: %s",
 			Cause:   cause,
@@ -80,10 +80,10 @@ func Test_Curse_Is_2(t *testing.T) {
 }
 
 func Test_Curse_Is_3(t *testing.T) {
-	// GIVEN a Curse B that was create from ProtoCurse A
+	// GIVEN a Curse B that was create from TemplateCurse A
 	// THEN  they must be considered meaningfully the same
 
-	p := Proto("%s")
+	p := Template("%s")
 	a := p.Fmt("A")
 	b := p.Fmt("B")
 
