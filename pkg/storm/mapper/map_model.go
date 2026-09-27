@@ -3,14 +3,20 @@ package mapper
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/schema"
 )
 
-// NEXT
-// 1. Write tests for this package.
-// 2. Reorg, refactor, & clean up package.
+var (
+	ErrMapModel = sin.Template(
+		"Regarding model '%s' (table '%s')",
+	)
+
+	ErrFieldTypeMismatch = sin.Template(
+		"Model's field type '%s' is not compatible with existing column type '%s'",
+	)
+)
 
 func MapModel(db *sql.DB, model any) (Table, error) {
 	var zero Table
@@ -19,7 +25,9 @@ func MapModel(db *sql.DB, model any) (Table, error) {
 	qCols, found, e := queryModel(db, pTable.SqlName)
 
 	if e != nil {
-		return zero, e
+		return zero, ErrMapModel.
+			Fmt(pTable.GoName, pTable.SqlName).
+			Wrap(e)
 	}
 
 	if !found {
@@ -28,14 +36,20 @@ func MapModel(db *sql.DB, model any) (Table, error) {
 		return pTable, nil
 	}
 
-	pTable.Columns = filterAndCheckColumns(pTable.Columns, qCols)
+	pTable.Columns, e = filterAndCheckColumns(pTable.Columns, qCols)
+	if e != nil {
+		return zero, ErrMapModel.
+			Fmt(pTable.GoName, pTable.SqlName).
+			Wrap(e)
+	}
+
 	return pTable, nil
 }
 
 func filterAndCheckColumns(
 	pCols []Column,
 	qCols []sqlQueryCol,
-) []Column {
+) ([]Column, error) {
 	var filteredCols []Column
 
 	for _, pCol := range pCols {
@@ -54,20 +68,15 @@ func filterAndCheckColumns(
 		pCol.PrimaryKey = qCol.PrimaryKey
 
 		if pCol.SqlType != qCol.SqlType {
-			// TODO: Refactor to return an error instead.
-			msg := fmt.Sprintf(
-				"For column '%s', model's field type '%s' is not compatible with existing column type '%s'",
-				pCol.SqlName,
-				pCol.SqlType,
-				qCol.SqlType,
-			)
-			panic(msg)
+			return nil, sin.Fmt("For column '%s'", pCol.SqlName).
+				WrapIn(ErrFieldTypeMismatch).
+				Fmt(pCol.SqlType, qCol.SqlType)
 		}
 
 		filteredCols = append(filteredCols, pCol)
 	}
 
-	return filteredCols
+	return filteredCols, nil
 }
 
 func findQueryColumn(
@@ -89,9 +98,9 @@ type sqlQueryCol struct {
 }
 
 func queryModel(db *sql.DB, tableName string) ([]sqlQueryCol, bool, error) {
-	_, e := schema.QuerySqliteSchema(db, tableName)
 
-	// TODO: Redundant?
+	// Check if table exists at all.
+	_, e := schema.QuerySqliteSchema(db, tableName)
 	if errors.Is(e, schema.ErrEntityNotFound) {
 		return nil, false, nil
 	}

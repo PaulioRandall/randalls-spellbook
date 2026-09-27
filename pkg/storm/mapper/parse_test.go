@@ -13,7 +13,6 @@ func typeOf(model any) reflect.Type {
 
 func Test_ParseModel_1(t *testing.T) {
 	// GIVEN non-struct model
-	// WHEN calling ParseModel
 	// THEN panic ensues
 
 	require.Panics(t, func() {
@@ -23,9 +22,8 @@ func Test_ParseModel_1(t *testing.T) {
 
 func Test_ParseModel_2(t *testing.T) {
 	// GIVEN empty model
-	// WHEN calling ParseModel and returning Table
-	// THEN Table fields match expected values
-	// AND Table.Columns is empty
+	// THEN  Table fields match expected values
+	// AND   Table.Columns is empty
 
 	type TestModel struct{}
 
@@ -43,9 +41,7 @@ func Test_ParseModel_2(t *testing.T) {
 
 func Test_ParseModel_3(t *testing.T) {
 	// GIVEN model being pointed to
-	// WHEN calling ParseModel
-	// THEN derefences and returns Table of the underlying
-	//      struct type.
+	// THEN  derefences and returns expect Table
 
 	type TestModel struct{}
 
@@ -65,8 +61,7 @@ func Test_ParseModel_3(t *testing.T) {
 
 func Test_ParseModel_4(t *testing.T) {
 	// GIVEN model with single unexported field
-	// WHEN calling ParseModel and returning Table
-	// THEN Table.Columns is empty
+	// THEN  Table.Columns is empty
 
 	type TestModel struct {
 		id int
@@ -78,8 +73,7 @@ func Test_ParseModel_4(t *testing.T) {
 
 func Test_ParseModel_5(t *testing.T) {
 	// GIVEN model with exported field of unsupported type
-	// WHEN calling ParseModel
-	// THEN panic ensues
+	// THEN  panic ensues
 
 	type TestModel struct {
 		Id *int
@@ -92,8 +86,7 @@ func Test_ParseModel_5(t *testing.T) {
 
 func Test_ParseModel_6(t *testing.T) {
 	// GIVEN model with single exported field
-	// WHEN calling ParseModel and returning Table
-	// THEN Table.Columns contains ID field
+	// THEN  Table.Columns contains ID field
 
 	type TestModel struct {
 		ignored bool
@@ -118,8 +111,7 @@ func Test_ParseModel_6(t *testing.T) {
 
 func Test_ParseModel_7(t *testing.T) {
 	// GIVEN model with multiple exported fields
-	// WHEN calling ParseModel and returning Table
-	// THEN Table.Columns contains all exported fields
+	// THEN  Table.Columns contains all exported fields
 
 	type TestModel struct {
 		ignored1 bool
@@ -164,8 +156,7 @@ func Test_ParseModel_7(t *testing.T) {
 
 func Test_Table_PrimaryKeyColumn_1(t *testing.T) {
 	// GIVEN model with multiple exported fields
-	// WHEN calling Table.PrimaryKeyColumn
-	// THEN returned column is the primary key column
+	// THEN  returns expected primary key column
 
 	type TestModel struct {
 		ignored1 bool
