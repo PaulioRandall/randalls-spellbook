@@ -21,15 +21,23 @@ type TableInfo struct {
 	// Type or 'type' is the column type.
 	Type string
 
-	// Notnull or 'notnull' is true if the column was given
+	// NotNull or 'notnull' is true if the column was given
 	// a not null constraint.
-	Notnull bool
+	NotNull bool
+
+	// HasDefaultValue is true if the 'dflt_value' column is
+	// not null. This field is needed to differentiate
+	// between null and an empty string without resorting to
+	// making DefaultValue a pointer to a string. This
+	// approach felt nicer when I wrote the test and example
+	// code.
+	HasDefaultValue bool
 
 	// DefaultValue or 'dflt_value' is the default value used
 	// when the a row is created but a value for the column
-	// was not provided. The data type will depend on the
-	// Type field.
-	DefaultValue any
+	// was not provided. Sqlite stores and returns the
+	// value as text (string) so you must parse it yourself.
+	DefaultValue string
 
 	// PrimaryKey or 'pk' is the 1-based index of the column
 	// within the primary key. It will be 0 if the column is
@@ -82,18 +90,22 @@ func QueryTableInfo(
 
 	for i := 0; rows.Next(); i++ {
 		var ti TableInfo
+		var defaultValue sql.NullString
 
 		e := rows.Scan(
 			&ti.Name,
 			&ti.Type,
-			&ti.Notnull,
-			&ti.DefaultValue,
+			&ti.NotNull,
+			&defaultValue,
 			&ti.PrimaryKey,
 		)
 
 		if e != nil {
 			return nil, ErrScanTableInfo.Fmt(i, tableName).Wrap(e)
 		}
+
+		ti.HasDefaultValue = defaultValue.Valid
+		ti.DefaultValue = defaultValue.String
 
 		cols = append(cols, ti)
 	}
