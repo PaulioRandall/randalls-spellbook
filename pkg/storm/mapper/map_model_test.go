@@ -68,7 +68,7 @@ func Test_MapModel_1(t *testing.T) {
 	db := createAndPopulateTestDb(t)
 	defer db.Close()
 
-	act, e := MapModel(db, NotPlayer{})
+	act, exists, e := MapModel(db, NotPlayer{})
 	exp := Table{
 		GoType:  ref.TypeOf(NotPlayer{}),
 		GoName:  "NotPlayer",
@@ -81,6 +81,7 @@ func Test_MapModel_1(t *testing.T) {
 	}
 
 	require.NoError(t, e)
+	require.Equal(t, false, exists)
 	require.Equal(t, exp, act)
 }
 
@@ -97,7 +98,7 @@ func Test_MapModel_2(t *testing.T) {
 	db := createAndPopulateTestDb(t)
 	defer db.Close()
 
-	act, e := MapModel(db, Player{})
+	act, exists, e := MapModel(db, Player{})
 	exp := Table{
 		GoType:  ref.TypeOf(Player{}),
 		GoName:  "Player",
@@ -110,6 +111,7 @@ func Test_MapModel_2(t *testing.T) {
 	}
 
 	require.NoError(t, e)
+	require.Equal(t, true, exists)
 	require.Equal(t, exp, act)
 }
 
@@ -126,7 +128,7 @@ func Test_MapModel_3(t *testing.T) {
 	db := createAndPopulateTestDb(t)
 	defer db.Close()
 
-	act, e := MapModel(db, Player{})
+	act, _, e := MapModel(db, Player{})
 	exp := Table{
 		GoType:  ref.TypeOf(Player{}),
 		GoName:  "Player",
@@ -157,7 +159,7 @@ func Test_MapModel_4(t *testing.T) {
 	db := createAndPopulateTestDb(t)
 	defer db.Close()
 
-	act, e := MapModel(db, Player{})
+	act, _, e := MapModel(db, Player{})
 
 	exp := Table{
 		GoType:  ref.TypeOf(Player{}),
@@ -191,7 +193,7 @@ func Test_MapModel_5(t *testing.T) {
 	db := createAndPopulateTestDb(t)
 	defer db.Close()
 
-	_, e := MapModel(db, Player{})
+	_, _, e := MapModel(db, Player{})
 	require.ErrorIs(t, e, ErrMapModel)
 	require.ErrorIs(t, e, ErrFieldTypeMismatch)
 }

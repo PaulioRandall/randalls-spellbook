@@ -18,14 +18,14 @@ var (
 	)
 )
 
-func MapModel(db *sql.DB, model any) (Table, error) {
+func MapModel(db *sql.DB, model any) (Table, bool, error) {
 	var zero Table
 
 	pTable := ParseModel(model)
 	qCols, found, e := queryModel(db, pTable.SqlName)
 
 	if e != nil {
-		return zero, ErrMapModel.
+		return zero, false, ErrMapModel.
 			Fmt(pTable.GoName, pTable.SqlName).
 			Wrap(e)
 	}
@@ -33,17 +33,17 @@ func MapModel(db *sql.DB, model any) (Table, error) {
 	if !found {
 		// Table doesn't exist yet so pass the Table derived
 		// from the model without filtered columns.
-		return pTable, nil
+		return pTable, false, nil
 	}
 
 	pTable.Columns, e = filterAndCheckColumns(pTable.Columns, qCols)
 	if e != nil {
-		return zero, ErrMapModel.
+		return zero, false, ErrMapModel.
 			Fmt(pTable.GoName, pTable.SqlName).
 			Wrap(e)
 	}
 
-	return pTable, nil
+	return pTable, true, nil
 }
 
 func filterAndCheckColumns(

@@ -186,6 +186,11 @@ func (st *Storm) Create(models ...any) error {
 	}
 
 	for _, m := range models {
+		// TODO: mapper.MapModel(m)
+		//			 IF exists then return an error
+		//       ELSE update st.createTable to accept
+		//       mapper.Table instead of model
+		//       AND remove tables field from Storm
 		e := st.createTable(m)
 		if e != nil {
 			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
