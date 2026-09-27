@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
 
 var (
-	ErrMkDirPath = curse.Err(
+	ErrMkDirPath = sin.Err(
 		"Unable to check or create path to SQLite database",
 	)
 )

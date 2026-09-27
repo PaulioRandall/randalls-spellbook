@@ -3,31 +3,31 @@ package storm
 import (
 	"reflect"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
 
 var (
 	// ErrParsingTable returned when failing to parse a
 	// model (struct) into a [Table].
-	ErrParsingTable = curse.Template(
+	ErrParsingTable = sin.Template(
 		"Parse error with struct/table: %s",
 	)
 
 	// ErrNotStruct is returned when attempting to use a
 	// model type with a non-struct kind.
-	ErrNotStruct = curse.Template("Model must be a struct: %s")
+	ErrNotStruct = sin.Template("Model must be a struct: %s")
 
 	// ErrBadFieldKind is returned when a model's type
 	// contains an unsupported kind for one of its exported
 	// fields.
-	ErrBadFieldKind = curse.Template(
+	ErrBadFieldKind = sin.Template(
 		"Model '%s' has unsupported field kind: %s",
 	)
 
 	// ErrNoExportedFields is returned when a model's type
 	// has no exported fields. Every table must have at
 	// least one column.
-	ErrNoExportedFields = curse.Template(
+	ErrNoExportedFields = sin.Template(
 		"Model must have at least one exported field: %s",
 	)
 )

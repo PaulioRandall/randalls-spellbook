@@ -4,23 +4,23 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
 
 var (
-	ErrNotFunc = curse.Template(
+	ErrNotFunc = sin.Template(
 		"Expected a function but given %s",
 	)
 
-	ErrTooManyOutputs = curse.Template(
+	ErrTooManyOutputs = sin.Template(
 		"Too many output parameters, given %d: either return nothing, a value (T), an error (error), or a value then an error (T, error)",
 	)
 
-	ErrBadJsonString = curse.Err(
+	ErrBadJsonString = sin.Err(
 		"Failed to parse JSON string",
 	)
 
-	ErrArgMismatch = curse.Err(
+	ErrArgMismatch = sin.Err(
 		"Mismatch between expected and given arguments",
 	)
 )
@@ -123,7 +123,7 @@ func parseJsonArgs(
 
 func validateArgsLength(typ reflect.Type, size int) error {
 	if !typ.IsVariadic() && size != typ.NumIn() {
-		return curse.Fmt(
+		return sin.Fmt(
 			"Expected %d arguments, given %d",
 			typ.NumIn(),
 			size,
@@ -131,7 +131,7 @@ func validateArgsLength(typ reflect.Type, size int) error {
 	}
 
 	if typ.IsVariadic() && size < typ.NumIn()-1 {
-		return curse.Fmt(
+		return sin.Fmt(
 			"Expected %d or more arguments, given %d",
 			typ.NumIn(),
 			size,
@@ -157,7 +157,7 @@ func parseJsonMessages(
 			continue
 		}
 
-		return nil, curse.Fmt(
+		return nil, sin.Fmt(
 			"JSON array argument index %d",
 			i,
 		).Wrap(e)

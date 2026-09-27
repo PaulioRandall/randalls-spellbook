@@ -3,7 +3,7 @@ package schema
 import (
 	"database/sql"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
 
 // TableInfo is a Go representation of table_info within
@@ -40,13 +40,13 @@ type TableInfo struct {
 var (
 	// ErrQueryTableInfo occurs when querying table_info
 	// PRAGMA.
-	ErrQueryTableInfo = curse.Template(
+	ErrQueryTableInfo = sin.Template(
 		"Could not query table_info for table '%s'",
 	)
 
 	// ErrScanTableInfo occurs when scanning rows returned
 	// from table_info PRAGMA.
-	ErrScanTableInfo = curse.Template(
+	ErrScanTableInfo = sin.Template(
 		"Could not scan table_info row %d for table '%s'",
 	)
 )

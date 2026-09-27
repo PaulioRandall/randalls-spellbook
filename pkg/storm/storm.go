@@ -7,8 +7,8 @@ import (
 
 	_ "github.com/glebarez/go-sqlite"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
 
 // TODO: Make Storm thread safe. Lock on function entry
@@ -17,39 +17,39 @@ import (
 var (
 	// ErrNotOpen occurs when trying to perform an operation
 	// before opening the database.
-	ErrNotOpen = curse.Template(
+	ErrNotOpen = sin.Template(
 		"Database not open",
 	)
 
 	// ErrTableRequest occurs within an error chain when any
 	// error occurs involving a specific table/struct, except
 	// for 'not found' errors.
-	ErrTableRequest = curse.Template(
+	ErrTableRequest = sin.Template(
 		"Request failed for table: %s",
 	)
 
 	// ErrScanningRow is returned when an error occurs
 	// scanning database results.
-	ErrScanningRow = curse.Template(
+	ErrScanningRow = sin.Template(
 		"Scanning row: %d",
 	)
 
 	// ErrObjectNotFound is returned when a search for a
 	// specific object/row failed.
-	ErrObjectNotFound = curse.Template(
+	ErrObjectNotFound = sin.Template(
 		"Object not found: %s with ID %v",
 	)
 
 	// ErrDatabaseFile is returned when an error occurs with
 	// or while opening or closing the database.
-	ErrDatabaseFile = curse.Template(
+	ErrDatabaseFile = sin.Template(
 		"Database IO error: %s",
 	)
 
 	// ErrNoSuchTable is returned when an object is passed
 	// to a function which does not have a registered table
 	// for its type.
-	ErrNoSuchTable = curse.Template(
+	ErrNoSuchTable = sin.Template(
 		"No matching table for object type: %s",
 	)
 
@@ -58,7 +58,7 @@ var (
 	// the ID field of the associated model type. This may
 	// be returned even for compatible types like int when
 	// int64 is expected.
-	ErrBadIdType = curse.Template(
+	ErrBadIdType = sin.Template(
 		"ID type mismatch for '%s', got %s, want %s",
 	)
 )
@@ -98,7 +98,7 @@ func (st *Storm) Open() error {
 
 	db, e := sql.Open("sqlite", st.path)
 	if e != nil {
-		return curse.Err("Unable to open SQLite database").
+		return sin.Err("Unable to open SQLite database").
 			Wrap(e).
 			WrapIn(ErrDatabaseFile).
 			Fmt(st.path)
@@ -136,7 +136,7 @@ func (st *Storm) Close() error {
 		return nil
 	}
 
-	return curse.Err("Unable to close SQLite database").
+	return sin.Err("Unable to close SQLite database").
 		Wrap(e).
 		WrapIn(ErrDatabaseFile).
 		Fmt(st.path)

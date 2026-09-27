@@ -7,7 +7,7 @@ import (
 
 	"github.com/crgimenes/glaze"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/curse"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
 
 type Portal interface {
@@ -85,7 +85,7 @@ func validateFuncMap(funcMap FuncMap) {
 	for name, f := range funcMap {
 		e := ValidateValErrFunc(f)
 		if e != nil {
-			e = curse.Fmt(
+			e = sin.Fmt(
 				"'%s' has invalid function signature",
 				name,
 			).Wrap(e)

@@ -1,4 +1,4 @@
-package curse
+package sin
 
 import (
 	"fmt"
@@ -9,8 +9,8 @@ import (
 
 // Curse is an error with a Message and optional Cause. If
 // created via [TemplateCurse.Fmt] then [Curse.Is] will
-// return true if called with itself or the original
-// [TemplateCurse].
+// return true if called with itself or any curse created
+// via the original [TemplateCurse].
 type Curse struct {
 	errId   string
 	Message string
@@ -113,41 +113,31 @@ func (cu Curse) Error() string {
 	return cu.Message
 }
 
-// Stack returns the result of passing the Curse to
-// [Stack].
-func (cu Curse) Stack(reversed bool) string {
-	return Stack(cu, reversed)
+// AsStack returns the result of passing the Curse to
+// [AsStack].
+func (cu Curse) AsStack(reversed bool) string {
+	return AsStack(cu, reversed)
 }
 
-// RawStack returns the result of passing the Curse to
-// [RawStack].
-func (cu Curse) RawStack(reversed bool) string {
-	return RawStack(cu, reversed)
+// AsRawStack returns the result of passing the Curse to
+// [AsRawStack].
+func (cu Curse) AsRawStack(reversed bool) string {
+	return AsRawStack(cu, reversed)
 }
 
-// TemplateCurse is a [Curse] with a formattable message
-// designed to be used as named package errors. Use
-// [Template] to create one. [TemplateCurse.Fmt] should be
-// called with the correct formatting arguments when
-// returning the error. If the exported error needs no
-// formatting then use [Err] to create the package error.
+// TemplateCurse creates [Curse]s with formattable message.
+// It is designed to be used as named package errors.
+// [TemplateCurse.Fmt] should be called at the site
+// of an error to create an error that is returned. If the
+// exported error needs no formatting then create the
+// package error with [Err].
 type TemplateCurse struct {
 	curse Curse
 }
 
 // Template creates a [TemplateCurse] designed for use as
-// named package errors tht may be coompared. When an error
-// occurs, [TemplateCurse.Fmt] should be called with the
-// relevant formatting arguments.
-//
-//	var ErrUserNotFound = curse.Template(
-//		"User with ID '%d' not found",
-//	)
-//
-//	func GetUserDetails(id int) (string, error) {
-//		// ...
-//		return false, ErrUserNotFound.Fmt(id)
-//	}
+// named package errors. Calling [Curse.Is] with the
+// template that created it will return true.
 func Template(message string) TemplateCurse {
 	return TemplateCurse{
 		curse: Err(message),
