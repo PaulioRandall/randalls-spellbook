@@ -97,7 +97,9 @@ type sqlQueryCol struct {
 	PrimaryKey bool
 }
 
-func queryModel(db *sql.DB, tableName string) ([]sqlQueryCol, bool, error) {
+func queryModel(
+	db *sql.DB, tableName string,
+) ([]sqlQueryCol, bool, error) {
 
 	// Check if table exists at all.
 	_, e := schema.QuerySqliteSchema(db, tableName)

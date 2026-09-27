@@ -9,6 +9,7 @@ import (
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/mapper"
 )
 
 // TODO: Make Storm thread safe. Lock on function entry
@@ -186,13 +187,22 @@ func (st *Storm) Create(models ...any) error {
 	}
 
 	for _, m := range models {
-		// TODO: mapper.MapModel(m)
-		//			 IF exists then return an error
-		//       ELSE update st.createTable to accept
-		//       mapper.Table instead of model
-		//       AND remove tables field from Storm
-		e := st.createTable(m)
+		table, exists, e := mapper.MapModel(st.db, m)
 		if e != nil {
+			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
+		}
+
+		if exists {
+			return sin.Err("Table already exists in database")
+		}
+
+		e = st.createTable(table)
+		if e != nil {
+			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
+		}
+
+		// TEMP
+		if _, e = st.registerTable(m); e != nil {
 			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
 		}
 	}
@@ -200,27 +210,23 @@ func (st *Storm) Create(models ...any) error {
 	return nil
 }
 
-func (st *Storm) createTable(model any) error {
-	table, e := st.registerTable(model)
-	if e != nil {
-		return e
-	}
-
+func (st *Storm) createTable(table mapper.Table) error {
 	query := nidoking.Given(`
-		CREATE TABLE IF NOT EXISTS {{table.GoName}} (
-			{{col.GoName}} {{col.SqlType}} NOT NULL,
-		  PRIMARY KEY ({{id_col.GoName}})
+		CREATE TABLE IF NOT EXISTS {{table.SqlName}} (
+			{{col.SqlName}} {{col.SqlType}} NOT NULL DEFAULT {{col.SqlDefault}},
+		  PRIMARY KEY ({{pk_col.SqlName}})
 		)
 	`).
 		InlineMap("table", table).
 		ListMap("col", "", table.Columns...).
-		InlineMap("id_col", table.IdColumn()).
+		InlineMap("pk_col", table.PrimaryKeyColumn()).
 		String()
 
-	_, e = st.db.Exec(query)
+	_, e := st.db.Exec(query)
 	return e
 }
 
+// TODO: Remove
 func (st *Storm) registerTable(model any) (Table, error) {
 	table, e := st.findTableForModel(model)
 	if e == nil {
@@ -273,14 +279,14 @@ func (st *Storm) Insert[T any](objects ...T) error {
 }
 
 func (st *Storm) insertObject(object any) error {
-	table, e := st.findTableForModel(object)
+	table, e := st.getOrCreateTable(object)
 	if e != nil {
 		return e
 	}
 
 	query := nidoking.Given(`
-		INSERT INTO {{table.GoName}} (
-		  {{col.GoName}}
+		INSERT INTO {{table.SqlName}} (
+		  {{col.SqlName}}
 		)
 		VALUES (
 			{{q_marks}}
@@ -288,10 +294,10 @@ func (st *Storm) insertObject(object any) error {
 	`).
 		InlineMap("table", table).
 		ListMap("col", ",", table.Columns...).
-		ListRepeat("q_marks", ",", "?", table.ColumnCount()).
+		ListRepeat("q_marks", ",", "?", len(table.Columns)).
 		String()
 
-	values := extractColumnValues(table.Columns, object)
+	values := extractColumnValues2(table.Columns, object)
 	_, e = st.db.Exec(query, values...)
 	return e
 }
@@ -638,6 +644,26 @@ func (st *Storm) dropTable(model any) error {
 	return e
 }
 
+func (st *Storm) getOrCreateTable(model any) (mapper.Table, error) {
+	var zero mapper.Table
+
+	table, exists, e := mapper.MapModel(st.db, model)
+	if e != nil {
+		return zero, e
+	}
+
+	if exists {
+		return table, nil
+	}
+
+	e = st.createTable(table)
+	if e != nil {
+		return zero, e
+	}
+
+	return table, nil
+}
+
 func (st *Storm) findTableForModel(
 	object any,
 ) (Table, error) {
@@ -654,6 +680,22 @@ func (st *Storm) findTableForModel(
 
 func extractColumnValues(
 	columns []Column,
+	object any,
+) []any {
+	value := reflect.ValueOf(object)
+	result := make([]any, len(columns))
+
+	for i := 0; i < len(columns); i++ {
+		col := columns[i]
+		field := value.FieldByName(col.GoName)
+		result[i] = field.Interface()
+	}
+
+	return result
+}
+
+func extractColumnValues2(
+	columns []mapper.Column,
 	object any,
 ) []any {
 	value := reflect.ValueOf(object)

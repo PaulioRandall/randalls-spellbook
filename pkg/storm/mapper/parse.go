@@ -17,6 +17,7 @@ type Column struct {
 	GoName     string
 	SqlType    string
 	SqlName    string
+	SqlDefault any
 	PrimaryKey bool
 }
 
@@ -79,12 +80,20 @@ func parseColumns(modelType ref.Type) []Column {
 
 func parseColumn(f ref.StructField, i int, isIdField bool) Column {
 	var col Column
+	var defaultValue any
+
+	if f.Type == ref.TypeOf("") {
+		defaultValue = "''"
+	} else {
+		defaultValue = ref.Zero(f.Type).Interface()
+	}
 
 	col.GoType = f.Type
 	col.GoIndex = i
 	col.GoName = f.Name
 	col.SqlType = mapGoToSqlType(f.Type.Kind())
 	col.SqlName = f.Name
+	col.SqlDefault = defaultValue
 	col.PrimaryKey = isIdField
 
 	return col

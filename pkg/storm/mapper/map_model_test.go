@@ -28,11 +28,12 @@ func createAndPopulateTestDb(t *testing.T) *sql.DB {
 
 var (
 	TestIdCol = Column{
-		GoType:     ref.TypeOf(int(123)),
+		GoType:     ref.TypeOf(int(0)),
 		GoIndex:    0,
 		GoName:     "Id",
 		SqlType:    "INTEGER",
 		SqlName:    "Id",
+		SqlDefault: int(0),
 		PrimaryKey: true,
 	}
 
@@ -42,15 +43,17 @@ var (
 		GoName:     "Name",
 		SqlType:    "TEXT",
 		SqlName:    "Name",
+		SqlDefault: "''",
 		PrimaryKey: false,
 	}
 
 	TestRatingCol = Column{
-		GoType:     ref.TypeOf(float64(1.23)),
+		GoType:     ref.TypeOf(float64(0)),
 		GoIndex:    2,
 		GoName:     "Rating",
 		SqlType:    "REAL",
 		SqlName:    "Rating",
+		SqlDefault: float64(0),
 		PrimaryKey: false,
 	}
 )

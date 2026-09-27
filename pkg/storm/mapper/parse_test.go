@@ -97,11 +97,12 @@ func Test_ParseModel_6(t *testing.T) {
 
 	exp := []Column{
 		Column{
-			GoType:     typeOf(int(123)),
+			GoType:     typeOf(int(0)),
 			GoIndex:    1,
 			GoName:     "Id",
 			SqlType:    "INTEGER",
 			SqlName:    "Id",
+			SqlDefault: int(0),
 			PrimaryKey: true,
 		},
 	}
@@ -126,11 +127,12 @@ func Test_ParseModel_7(t *testing.T) {
 
 	exp := []Column{
 		Column{
-			GoType:     typeOf(int(123)),
+			GoType:     typeOf(int(0)),
 			GoIndex:    1,
 			GoName:     "Id",
 			SqlType:    "INTEGER",
 			SqlName:    "Id",
+			SqlDefault: int(0),
 			PrimaryKey: true,
 		},
 		Column{
@@ -139,14 +141,16 @@ func Test_ParseModel_7(t *testing.T) {
 			GoName:     "Name",
 			SqlType:    "TEXT",
 			SqlName:    "Name",
+			SqlDefault: "''",
 			PrimaryKey: false,
 		},
 		Column{
-			GoType:     typeOf(float64(1.23)),
+			GoType:     typeOf(float64(0)),
 			GoIndex:    5,
 			GoName:     "Value",
 			SqlType:    "REAL",
 			SqlName:    "Value",
+			SqlDefault: float64(0),
 			PrimaryKey: false,
 		},
 	}
@@ -171,11 +175,12 @@ func Test_Table_PrimaryKeyColumn_1(t *testing.T) {
 	pkCol := table.PrimaryKeyColumn()
 
 	exp := Column{
-		GoType:     typeOf(int(123)),
+		GoType:     typeOf(int(0)),
 		GoIndex:    1,
 		GoName:     "Id",
 		SqlType:    "INTEGER",
 		SqlName:    "Id",
+		SqlDefault: int(0),
 		PrimaryKey: true,
 	}
 
