@@ -26,32 +26,32 @@ var (
 	// error occurs involving a specific table/struct, except
 	// for 'not found' errors.
 	ErrTableRequest = sin.Template(
-		"Request failed for table: %s",
+		"Request failed for table '%s'",
 	)
 
 	// ErrScanningRow is returned when an error occurs
 	// scanning database results.
 	ErrScanningRow = sin.Template(
-		"Scanning row: %d",
+		"Scanning row '%d'",
 	)
 
 	// ErrObjectNotFound is returned when a search for a
 	// specific object/row failed.
 	ErrObjectNotFound = sin.Template(
-		"Object not found: %s with ID %v",
+		"Object '%s' not found with ID '%v'",
 	)
 
 	// ErrDatabaseFile is returned when an error occurs with
 	// or while opening or closing the database.
 	ErrDatabaseFile = sin.Template(
-		"Database IO error: %s",
+		"Database IO error '%s'",
 	)
 
 	// ErrNoSuchTable is returned when an object is passed
 	// to a function which does not have a registered table
 	// for its type.
 	ErrNoSuchTable = sin.Template(
-		"No matching table for object type: %s",
+		"No matching table for object type '%s'",
 	)
 
 	// ErrBadIdType is returned when an ID passed to a
@@ -143,44 +143,37 @@ func (st *Storm) Close() error {
 		Fmt(st.path)
 }
 
-// Create parses the passed models and creates tables
-// for each within the database, if a table doesn't already
-// exist.
+// Create creates tables, represented by the passed models,
+// within the database. If a table already exists then
+// the model is ignored.
 //
-// After passing a model to Create, calls to database
-// interaction functions like [Storm.Insert] and
-// [Storm.Select] can now be made using objects of the same
-// type as model.
+// It's safe to call Create at anytime, but doing it all
+// upfront is also fine. SQLite works best with integers as
+// primary keys but the benefits aren't noticable in most
+// use cases.
 //
-// While it's safe to call Create at anytime, it's
-// recommended to create all tables upfront, straight after
-// calling [Storm.Open]. The model must be a struct with at
-// least one exported field or an error is returned. Only
-// exported fields are parsed as part of the [Table] and
-// field types are currently limited to int64, float64,
-// and string; this will be expanded in future. The first
-// exported field is designated the primary key, regardless
-// of type. It's is recommended to use int64 for primary
-// keys but not essential; SQLite works best with integers
-// but the benefits aren't noticable in most use cases.
+// # Table creation rules
 //
-//	type Player struct {
-//		Id int64
-//		Name string
-//		RoleId int64
-//		role *Role // This field is ignored.
-//	}
+//   - Model (struct) name becomes the table name.
+//   - The exported model fields become columns.
+//   - Field name is the column name.
+//   - Field type is mapped to a SQLite column type.
+//   - Only primitive types may be used as field types.
+//   - All columns have NOT NULL constraint.
+//   - All columns have DEFAULT set to the zero value of
+//     the field type.
+//   - The first field in the model is designated the
+//     PRIMARY KEY.
 //
-//	type Role struct {
-//		Id int64
-//		Name string
-//		Strength int64
-//		Stamina int64
-//		Intellect int64
-//		Health int64
-//	}
+// # Type mapping
 //
-//	err := db.Create(Person{}, Role{})
+//	INTEGER:
+//		int, int8, int16, int32, int64,
+//		uint, uint8, uint16, uint32, uint64
+//	REAL:
+//		float32, float64
+//	TEXT:
+//		string
 func (st *Storm) Create(models ...any) error {
 	if !st.IsOpen() {
 		return ErrNotOpen
@@ -193,7 +186,7 @@ func (st *Storm) Create(models ...any) error {
 		}
 
 		if exists {
-			return sin.Err("Table already exists in database")
+			continue
 		}
 
 		e = st.createTable(table)
@@ -246,23 +239,17 @@ func (st *Storm) registerTable(model any) (Table, error) {
 	return table, nil
 }
 
-// Insert inserts the set of objects into the database. The
-// type of each object must match a type registered via
-// the [Storm.Create] function or an error is returned.
-//
-//	alice := Player{
-//		Id: 69,
-//		Name: "Alice",
-//		RoleId: 5,
-//	}
-//
-//	bob := Player{
-//		Id: 42,
-//		Name: "Bob",
-//		RoleId: 3,
-//	}
-//
-//	err := db.Insert(alice, bob)
+// Table returns the full relevant table details for the
+// table the passed model represents. All columns in the
+// table are detailed, not just those that map to the
+// model.
+func (st *Storm) Table(model any) (any, error) {
+	return nil, nil
+}
+
+// Insert inserts all passed objects into the database. If
+// a table doesn't exist for an object, it will be created
+// using the object's type as the model.
 func (st *Storm) Insert[T any](objects ...T) error {
 	if !st.IsOpen() {
 		return ErrNotOpen

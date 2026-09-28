@@ -170,7 +170,7 @@ func ExampleStackError() {
 	err2 := fmt.Errorf("Cause: %w", err1)
 	err3 := fmt.Errorf("Top level: %w", err2)
 
-	st := Stack(err3).Raw().Reverse()
+	st := Stack(err3, true, true)
 
 	fmt.Println(st.Error())
 	// Output:

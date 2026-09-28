@@ -72,31 +72,21 @@ type StackError struct {
 
 // Stack returns an error that will return the error
 // chain like a stack trace, according to [AsStack]
-// (default) or [AsRawStack], when [StackError.Error]
-// is called.
-func Stack(err error) StackError {
+// (default), when [StackError.Error] is called. If raw is
+// true then [AsRawStack] is used instead of AsStack. If
+// reverse is true then the stack is reversed so the root
+// cause appears first. If the error is nil then nil is
+// returned.
+func Stack(err error, raw bool, reverse bool) error {
+	if err == nil {
+		return nil
+	}
+
 	return StackError{
 		err:     err,
-		raw:     false,
-		reverse: false,
+		raw:     raw,
+		reverse: reverse,
 	}
-}
-
-// Raw configure the returned stack error to call
-// [AsRawStack]. Toggles so calling twice will revert back
-// to using [AsStack].
-func (se StackError) Raw() StackError {
-	se.raw = !se.raw
-	return se
-}
-
-// Reverse reverses the error chain when calling
-// [StackError.Error] so the root cause will be at the
-// top of the stack. Toggles so calling twice will revert
-// the change.
-func (se StackError) Reverse() StackError {
-	se.reverse = !se.reverse
-	return se
 }
 
 // Error returns the error chain like a stack trace from

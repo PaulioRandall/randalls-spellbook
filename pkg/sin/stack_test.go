@@ -78,6 +78,6 @@ func Test_AsStackErr_1(t *testing.T) {
 	e2 := fmt.Errorf("Message 2: %w", e1)
 	e3 := fmt.Errorf("Message 3: %w", e2)
 
-	err := Stack(e3)
+	err := Stack(e3, false, false)
 	_ = err.Error()
 }

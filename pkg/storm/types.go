@@ -21,6 +21,7 @@ var (
 
 	typeMappings = map[reflect.Kind]string{
 		reflect.String:  "TEXT",
+		reflect.Int:     "INTEGER",
 		reflect.Int64:   "INTEGER",
 		reflect.Float64: "REAL",
 	}
