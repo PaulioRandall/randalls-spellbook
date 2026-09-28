@@ -30,7 +30,7 @@ func stringifyValue[T any](value T) string {
 }
 
 func stringifyValues[T any](values []T) []string {
-	strs := make([]string, len(values), len(values))
+	strs := make([]string, len(values))
 
 	for i, v := range values {
 		strs[i] = stringifyValue(v)

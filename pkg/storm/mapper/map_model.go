@@ -116,7 +116,7 @@ func queryModel(
 		return nil, false, e
 	}
 
-	cols := make([]sqlQueryCol, len(colInfo), len(colInfo))
+	cols := make([]sqlQueryCol, len(colInfo))
 
 	for i, col := range colInfo {
 		cols[i] = sqlQueryCol{

@@ -10,6 +10,7 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/mapper"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/schema"
 )
 
 // TODO: Make Storm thread safe. Lock on function entry
@@ -239,17 +240,19 @@ func (st *Storm) registerTable(model any) (Table, error) {
 	return table, nil
 }
 
-// Table returns the full relevant table details for the
-// table the passed model represents. All columns in the
-// table are detailed, not just those that map to the
-// model.
+// Table returns the full table details the passed model
+// represents. All columns in the table are included, not
+// just those that map to the passed model type.
 func (st *Storm) Table(model any) (any, error) {
-	return nil, nil
+	return schema.QueryTable(
+		st.db,
+		reflect.TypeOf(model).Name(),
+	)
 }
 
 // Insert inserts all passed objects into the database. If
 // a table doesn't exist for an object, it will be created
-// using the object's type as the model.
+// as if passed to [Storm.Create].
 func (st *Storm) Insert[T any](objects ...T) error {
 	if !st.IsOpen() {
 		return ErrNotOpen
@@ -631,6 +634,18 @@ func (st *Storm) dropTable(model any) error {
 	return e
 }
 
+// TODO: Could results be cached temp for the current API
+//
+//	call, e.g. Insert, with defered cache wipe once
+//	call is finished? Then we can greatly reduce the
+//	DB reads needed for bulk inserts, which often
+//	contain all the same struct type.
+//
+// TODO: How about a session cache which caches struct
+//
+//	types against their TableModel? This would require
+//	the cache to be cleaned after dropping or altering
+//	any table.
 func (st *Storm) getOrCreateTable(model any) (mapper.Table, error) {
 	var zero mapper.Table
 

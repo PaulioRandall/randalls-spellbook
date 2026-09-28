@@ -22,5 +22,15 @@ func createAndPopulateTestDb(t *testing.T) *sql.DB {
 	`)
 	require.NoError(t, e)
 
+	_, e = db.Exec(`
+		CREATE TABLE Player (
+			Id INTEGER NOT NULL DEFAULT 0,
+			Name TEXT NOT NULL DEFAULT '',
+			Rating REAL NOT NULL DEFAULT 0.0,
+			PRIMARY KEY (Id)
+		)
+	`)
+	require.NoError(t, e)
+
 	return db
 }

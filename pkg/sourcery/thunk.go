@@ -145,7 +145,7 @@ func parseJsonMessages(
 	funcTyp reflect.Type,
 	jsonArgs []json.RawMessage,
 ) ([]reflect.Value, error) {
-	args := make([]reflect.Value, len(jsonArgs), len(jsonArgs))
+	args := make([]reflect.Value, len(jsonArgs))
 
 	for i, arg := range jsonArgs {
 		val := createPointerValueToParam(funcTyp, i)
