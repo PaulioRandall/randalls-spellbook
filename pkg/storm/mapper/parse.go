@@ -4,34 +4,6 @@ import (
 	ref "reflect"
 )
 
-type Table struct {
-	GoType  ref.Type
-	GoName  string
-	SqlName string
-	Columns []Column
-}
-
-type Column struct {
-	GoType     ref.Type
-	GoIndex    int
-	GoName     string
-	SqlType    string
-	SqlName    string
-	SqlDefault any
-	PrimaryKey bool
-}
-
-// PrimaryKeyColumn returns the column representing the
-// table's primary key. Zero value is returned if
-func (t Table) PrimaryKeyColumn() Column {
-	for _, col := range t.Columns {
-		if col.PrimaryKey {
-			return col
-		}
-	}
-	return Column{}
-}
-
 func ParseModel(model any) Table {
 	modelType := derefModelType(model)
 
