@@ -15,6 +15,11 @@ import (
 
 // TODO: Make Storm thread safe. Lock on function entry
 //       and defer the unlock.
+// TODO: Check the ordering of fields when scanning
+//       database rows. Ensure the order the rows appear in
+//       the select statement is the order they are
+//       scanned to avoid the wrong info appearing in the
+//       wrong struct fields.
 
 var (
 	// ErrNotOpen occurs when trying to perform an operation
@@ -71,13 +76,15 @@ type Storm struct {
 	path   string
 	tables []Table
 	db     *sql.DB
+	cache  modelCache
 }
 
 // New returns a new [Storm] for the database represented
 // by path.
 func New(path string) *Storm {
 	return &Storm{
-		path: path,
+		path:  path,
+		cache: modelCache{},
 	}
 }
 
@@ -204,7 +211,7 @@ func (st *Storm) Create(models ...any) error {
 	return nil
 }
 
-func (st *Storm) createTable(table mapper.Table) error {
+func (st *Storm) createTable(table mapper.ModelTable) error {
 	query := nidoking.Given(`
 		CREATE TABLE IF NOT EXISTS {{table.SqlName}} (
 			{{col.SqlName}} {{col.SqlType}} NOT NULL DEFAULT {{col.SqlDefault}},
@@ -417,8 +424,8 @@ func (st *Storm) scanSelectedRows[T any](
 
 func createValueContainers(table Table) ([]any, []any) {
 	colCount := table.ColumnCount()
-	values := make([]any, colCount, colCount)
-	valuePtrs := make([]any, colCount, colCount)
+	values := make([]any, colCount)
+	valuePtrs := make([]any, colCount)
 
 	for i, col := range table.Columns {
 		values[i] = col.Zero()
@@ -646,13 +653,19 @@ func (st *Storm) dropTable(model any) error {
 //	types against their TableModel? This would require
 //	the cache to be cleaned after dropping or altering
 //	any table.
-func (st *Storm) getOrCreateTable(model any) (mapper.Table, error) {
-	var zero mapper.Table
+func (st *Storm) getOrCreateTable(model any) (mapper.ModelTable, error) {
+	var zero mapper.ModelTable
+
+	cachedTable, found := st.cache.get(model)
+	if found {
+		return cachedTable, nil
+	}
 
 	table, exists, e := mapper.MapModel(st.db, model)
 	if e != nil {
 		return zero, e
 	}
+	st.cache.set(model, table)
 
 	if exists {
 		return table, nil
@@ -697,7 +710,7 @@ func extractColumnValues(
 }
 
 func extractColumnValues2(
-	columns []mapper.Column,
+	columns []mapper.ModelColumn,
 	object any,
 ) []any {
 	value := reflect.ValueOf(object)

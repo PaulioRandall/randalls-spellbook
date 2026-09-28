@@ -72,8 +72,9 @@
 // Insert data by passing the objects you want stored to
 // [Storm.Insert]. If the table doesn't exist then the
 // object's type (model) information will be used to create
-// it first. You can also pass objects of partial models to
-// insert a subset of data; the other columns will default
+// before inseting the data. You can also pass objects of
+// partial models to insert a subset of data when the
+// database already exists; the other columns will default
 // to their zero values.
 //
 // # Updating data

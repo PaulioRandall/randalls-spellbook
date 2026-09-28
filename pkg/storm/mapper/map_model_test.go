@@ -27,7 +27,7 @@ func createAndPopulateTestDb(t *testing.T) *sql.DB {
 }
 
 var (
-	TestIdCol = Column{
+	TestIdCol = ModelColumn{
 		GoType:     ref.TypeOf(int(0)),
 		GoIndex:    0,
 		GoName:     "Id",
@@ -37,7 +37,7 @@ var (
 		PrimaryKey: true,
 	}
 
-	TestNameCol = Column{
+	TestNameCol = ModelColumn{
 		GoType:     ref.TypeOf(""),
 		GoIndex:    1,
 		GoName:     "Name",
@@ -47,7 +47,7 @@ var (
 		PrimaryKey: false,
 	}
 
-	TestRatingCol = Column{
+	TestRatingCol = ModelColumn{
 		GoType:     ref.TypeOf(float64(0)),
 		GoIndex:    2,
 		GoName:     "Rating",
@@ -60,7 +60,7 @@ var (
 
 func Test_MapModel_1(t *testing.T) {
 	// GIVEN model not in database
-	// THEN  mapped Table is representing the full model
+	// THEN  mapped ModelTable is representing the full model
 
 	type NotPlayer struct {
 		Id     int
@@ -72,11 +72,11 @@ func Test_MapModel_1(t *testing.T) {
 	defer db.Close()
 
 	act, exists, e := MapModel(db, NotPlayer{})
-	exp := Table{
+	exp := ModelTable{
 		GoType:  ref.TypeOf(NotPlayer{}),
 		GoName:  "NotPlayer",
 		SqlName: "NotPlayer",
-		Columns: []Column{
+		Columns: []ModelColumn{
 			TestIdCol,
 			TestNameCol,
 			TestRatingCol,
@@ -90,7 +90,7 @@ func Test_MapModel_1(t *testing.T) {
 
 func Test_MapModel_2(t *testing.T) {
 	// GIVEN model in database with same fields/columns
-	// THEN  mapped Table is representing the full model
+	// THEN  mapped ModelTable is representing the full model
 
 	type Player struct {
 		Id     int
@@ -102,11 +102,11 @@ func Test_MapModel_2(t *testing.T) {
 	defer db.Close()
 
 	act, exists, e := MapModel(db, Player{})
-	exp := Table{
+	exp := ModelTable{
 		GoType:  ref.TypeOf(Player{}),
 		GoName:  "Player",
 		SqlName: "Player",
-		Columns: []Column{
+		Columns: []ModelColumn{
 			TestIdCol,
 			TestNameCol,
 			TestRatingCol,
@@ -120,7 +120,7 @@ func Test_MapModel_2(t *testing.T) {
 
 func Test_MapModel_3(t *testing.T) {
 	// GIVEN model with exported field not in database
-	// THEN  field is not omitted from Table
+	// THEN  field is not omitted from ModelTable
 
 	type Player struct {
 		Id         int
@@ -132,11 +132,11 @@ func Test_MapModel_3(t *testing.T) {
 	defer db.Close()
 
 	act, _, e := MapModel(db, Player{})
-	exp := Table{
+	exp := ModelTable{
 		GoType:  ref.TypeOf(Player{}),
 		GoName:  "Player",
 		SqlName: "Player",
-		Columns: []Column{
+		Columns: []ModelColumn{
 			TestIdCol,
 			TestNameCol,
 		},
@@ -148,7 +148,7 @@ func Test_MapModel_3(t *testing.T) {
 
 func Test_MapModel_4(t *testing.T) {
 	// GIVEN ID field is not first field in model
-	// THEN  Table is returned with corrected ID field
+	// THEN  ModelTable is returned with corrected ID field
 	// AND   GoIndex matches model struct
 
 	type Player struct {
@@ -164,11 +164,11 @@ func Test_MapModel_4(t *testing.T) {
 
 	act, _, e := MapModel(db, Player{})
 
-	exp := Table{
+	exp := ModelTable{
 		GoType:  ref.TypeOf(Player{}),
 		GoName:  "Player",
 		SqlName: "Player",
-		Columns: []Column{
+		Columns: []ModelColumn{
 			TestNameCol,
 			TestRatingCol,
 			TestIdCol,

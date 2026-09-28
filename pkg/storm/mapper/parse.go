@@ -4,14 +4,14 @@ import (
 	ref "reflect"
 )
 
-func ParseModel(model any) Table {
+func ParseModel(model any) ModelTable {
 	modelType := derefModelType(model)
 
 	if modelType.Kind() != ref.Struct {
 		panic("Model must be a struct, got " + modelType.Kind().String())
 	}
 
-	var table Table
+	var table ModelTable
 
 	table.GoType = modelType
 	table.GoName = modelType.Name()
@@ -31,10 +31,10 @@ func derefModelType(model any) ref.Type {
 	return modelType
 }
 
-func parseColumns(modelType ref.Type) []Column {
+func parseColumns(modelType ref.Type) []ModelColumn {
 	isIdField := true
 
-	var cols []Column
+	var cols []ModelColumn
 
 	for i := 0; i < modelType.NumField(); i++ {
 		f := modelType.Field(i)
@@ -50,8 +50,8 @@ func parseColumns(modelType ref.Type) []Column {
 	return cols
 }
 
-func parseColumn(f ref.StructField, i int, isIdField bool) Column {
-	var col Column
+func parseColumn(f ref.StructField, i int, isIdField bool) ModelColumn {
+	var col ModelColumn
 	var defaultValue any
 
 	if f.Type == ref.TypeOf("") {

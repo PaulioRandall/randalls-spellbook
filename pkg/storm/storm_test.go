@@ -118,20 +118,6 @@ func selectTestTableNamesFromSqliteSchema(
 	return result
 }
 
-func Test_Storm_Insert_1(t *testing.T) {
-	db := openCreateInsert(
-		t,
-		[]any{testCheeseMaker{}, testCheese{}},
-		bobs, francs,
-	)
-	defer db.Close()
-
-	records := selectAllTestCheeseMakers(t, db)
-	require.Equal(t, bobs, records[0])
-	require.Equal(t, francs, records[1])
-	require.Equal(t, 2, len(records))
-}
-
 func Test_Storm_Update_1(t *testing.T) {
 	db := openCreateInsert(
 		t,

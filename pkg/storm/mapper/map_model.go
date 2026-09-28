@@ -18,8 +18,8 @@ var (
 	)
 )
 
-func MapModel(db *sql.DB, model any) (Table, bool, error) {
-	var zero Table
+func MapModel(db *sql.DB, model any) (ModelTable, bool, error) {
+	var zero ModelTable
 
 	pTable := ParseModel(model)
 	qCols, found, e := queryModel(db, pTable.SqlName)
@@ -31,7 +31,7 @@ func MapModel(db *sql.DB, model any) (Table, bool, error) {
 	}
 
 	if !found {
-		// Table doesn't exist yet so pass the Table derived
+		// ModelTable doesn't exist yet so pass the ModelTable derived
 		// from the model without filtered columns.
 		return pTable, false, nil
 	}
@@ -47,10 +47,10 @@ func MapModel(db *sql.DB, model any) (Table, bool, error) {
 }
 
 func filterAndCheckColumns(
-	pCols []Column,
+	pCols []ModelColumn,
 	qCols []sqlQueryCol,
-) ([]Column, error) {
-	var filteredCols []Column
+) ([]ModelColumn, error) {
+	var filteredCols []ModelColumn
 
 	for _, pCol := range pCols {
 		qCol, ok := findQueryColumn(qCols, pCol)
@@ -81,7 +81,7 @@ func filterAndCheckColumns(
 
 func findQueryColumn(
 	qCols []sqlQueryCol,
-	pCol Column,
+	pCol ModelColumn,
 ) (sqlQueryCol, bool) {
 	for _, qCol := range qCols {
 		if pCol.SqlName == qCol.SqlName {

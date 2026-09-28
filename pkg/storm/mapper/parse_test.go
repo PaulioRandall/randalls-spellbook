@@ -22,14 +22,14 @@ func Test_ParseModel_1(t *testing.T) {
 
 func Test_ParseModel_2(t *testing.T) {
 	// GIVEN empty model
-	// THEN  Table fields match expected values
-	// AND   Table.Columns is empty
+	// THEN  ModelTable fields match expected values
+	// AND   ModelTable.Columns is empty
 
 	type TestModel struct{}
 
 	table := ParseModel(TestModel{})
 
-	exp := Table{
+	exp := ModelTable{
 		GoType:  typeOf(TestModel{}),
 		GoName:  "TestModel",
 		SqlName: "TestModel",
@@ -41,7 +41,7 @@ func Test_ParseModel_2(t *testing.T) {
 
 func Test_ParseModel_3(t *testing.T) {
 	// GIVEN model being pointed to
-	// THEN  derefences and returns expect Table
+	// THEN  derefences and returns expect ModelTable
 
 	type TestModel struct{}
 
@@ -49,7 +49,7 @@ func Test_ParseModel_3(t *testing.T) {
 	ptrPtr := &ptr
 	table := ParseModel(ptrPtr)
 
-	exp := Table{
+	exp := ModelTable{
 		GoType:  typeOf(TestModel{}),
 		GoName:  "TestModel",
 		SqlName: "TestModel",
@@ -61,7 +61,7 @@ func Test_ParseModel_3(t *testing.T) {
 
 func Test_ParseModel_4(t *testing.T) {
 	// GIVEN model with single unexported field
-	// THEN  Table.Columns is empty
+	// THEN  ModelTable.Columns is empty
 
 	type TestModel struct {
 		id int
@@ -86,7 +86,7 @@ func Test_ParseModel_5(t *testing.T) {
 
 func Test_ParseModel_6(t *testing.T) {
 	// GIVEN model with single exported field
-	// THEN  Table.Columns contains ID field
+	// THEN  ModelTable.Columns contains ID field
 
 	type TestModel struct {
 		ignored bool
@@ -95,8 +95,8 @@ func Test_ParseModel_6(t *testing.T) {
 
 	table := ParseModel(TestModel{})
 
-	exp := []Column{
-		Column{
+	exp := []ModelColumn{
+		ModelColumn{
 			GoType:     typeOf(int(0)),
 			GoIndex:    1,
 			GoName:     "Id",
@@ -112,7 +112,7 @@ func Test_ParseModel_6(t *testing.T) {
 
 func Test_ParseModel_7(t *testing.T) {
 	// GIVEN model with multiple exported fields
-	// THEN  Table.Columns contains all exported fields
+	// THEN  ModelTable.Columns contains all exported fields
 
 	type TestModel struct {
 		ignored1 bool
@@ -125,8 +125,8 @@ func Test_ParseModel_7(t *testing.T) {
 
 	table := ParseModel(TestModel{})
 
-	exp := []Column{
-		Column{
+	exp := []ModelColumn{
+		ModelColumn{
 			GoType:     typeOf(int(0)),
 			GoIndex:    1,
 			GoName:     "Id",
@@ -135,7 +135,7 @@ func Test_ParseModel_7(t *testing.T) {
 			SqlDefault: int(0),
 			PrimaryKey: true,
 		},
-		Column{
+		ModelColumn{
 			GoType:     typeOf(""),
 			GoIndex:    3,
 			GoName:     "Name",
@@ -144,7 +144,7 @@ func Test_ParseModel_7(t *testing.T) {
 			SqlDefault: "''",
 			PrimaryKey: false,
 		},
-		Column{
+		ModelColumn{
 			GoType:     typeOf(float64(0)),
 			GoIndex:    5,
 			GoName:     "Value",
@@ -174,7 +174,7 @@ func Test_Table_PrimaryKeyColumn_1(t *testing.T) {
 	table := ParseModel(TestModel{})
 	pkCol := table.PrimaryKeyColumn()
 
-	exp := Column{
+	exp := ModelColumn{
 		GoType:     typeOf(int(0)),
 		GoIndex:    1,
 		GoName:     "Id",
