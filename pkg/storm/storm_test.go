@@ -195,19 +195,3 @@ func Test_Storm_DeleteById_1(t *testing.T) {
 	require.Equal(t, francs, records[0])
 	require.Equal(t, 1, len(records))
 }
-
-func Test_Storm_Drop_1(t *testing.T) {
-	db := openCreateInsert(
-		t,
-		[]any{testCheeseMaker{}, testCheese{}},
-	)
-	defer db.Close()
-
-	e := db.Drop(testCheeseMaker{})
-	require.NoError(t, e)
-
-	tableNames := selectTestTableNamesFromSqliteSchema(t, db)
-
-	require.Equal(t, "testCheese", tableNames[0])
-	require.Equal(t, 1, len(tableNames))
-}

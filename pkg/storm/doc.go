@@ -19,63 +19,41 @@
 //
 // Models are objects passed for their type information.
 // Their actual data is ignored. Calls to [Storm.Create]
-// and [Storm.Drop] us the type information to determine
-// what to create or drop. The object and table are
-// completely decoupled, that is, any object with the
-// same name can be used as a model or partial model for
-// inserting and selecting after the table is created.
+// and [Storm.Drop] only use the type information of the
+// object. Structs and tables are completely decoupled,
+// that is, any struct with the same name may be used as a
+// model or partial model for inserting and selecting from
+// a table.
 //
-// # Partial models
-//
-// Partial models have the same name as a table but done
-// have all the same exported fields with compatible field
+// Partial models may have the same name as a table but not
+// all the same exported fields with compatible field
 // types. For some operations such as inserting, updating,
 // and selecting they can be used to provide or access a
 // subset of columns from the table. It's a similar concept
 // to Go's interfaces, as long as the model's name matches
 // it counts as a model for that table.
 //
-// # Objects
-//
-// Objects are passed for their type and data. Inserting
-// and updating only use the type information of the value
-// passed them to determine what tables and columns to
-// insert or update.
-//
 // # Creating tables
 //
 // Tables are explicitly created using the [Storm.Create]
-// function and may be implicitly created when using the
-// any insert functions. The name of the model (struct
-// type) is the name of the table, and the exported field
-// names and types determine the column names and types
-// repectively. The first field is designated the PRIMARY
-// KEY regardless of name and type. All columns are
-// NOT NULL and the DEFAULT value will be the zero value of
-// field's type. However, only primitive types may be used
-// as field types:
+// function and may be implicitly created when using
+// insert functions. See [Storm.Create] for more details.
 //
-//	INTEGER:
-//		int, int8, int16, int32, int64,
-//		uint, uint8, uint16, uint32, uint64
-//	REAL:
-//		float32, float64
-//	TEXT:
-//		string
+// # Dropping tables
 //
-// Dropping tables
-//
-//	TODO
+// Tables can be explicitly dropped using [Storm.Drop].
+// All data is deleted in the process and there's no way to
+// restore it. To protect data, create regular backups of
+// the database file.
 //
 // # Inserting data
 //
 // Insert data by passing the objects you want stored to
 // [Storm.Insert]. If the table doesn't exist then the
 // object's type (model) information will be used to create
-// before inseting the data. You can also pass objects of
-// partial models to insert a subset of data when the
-// database already exists; the other columns will default
-// to their zero values.
+// it. You can also pass objects of partial models to
+// insert a subset of data if the database already exists;
+// the other columns will default to their zero values.
 //
 // # Updating data
 //

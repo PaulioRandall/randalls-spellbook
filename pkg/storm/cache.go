@@ -8,7 +8,6 @@ import (
 
 type modTab = mapper.ModelTable
 type modelCache map[modelCacheKey]modTab
-
 type modelCacheKey struct {
 	goType    ref.Type
 	tableName string
@@ -16,14 +15,7 @@ type modelCacheKey struct {
 
 func (mc modelCache) get(model any) (modTab, bool) {
 	typ := ref.TypeOf(model)
-
-	key := modelCacheKey{
-		goType:    typ,
-		tableName: typ.Name(),
-	}
-
-	table, found := mc[key]
-	return table, found
+	return mc.getForName(model, typ.Name())
 }
 
 func (mc modelCache) getForName(
@@ -49,4 +41,32 @@ func (mc modelCache) set(
 	}
 
 	mc[key] = table
+}
+
+func (mc modelCache) clear() {
+	clear(mc)
+}
+
+func (mc modelCache) clearTable(tableName string) {
+	for key := range mc {
+		if key.tableName == tableName {
+			delete(mc, key)
+		}
+	}
+}
+
+func (mc modelCache) clearModel(model any) {
+	typ := ref.TypeOf(model)
+
+	for key := range mc {
+		if key.goType == typ {
+			delete(mc, key)
+		}
+	}
+}
+
+func (mc modelCache) setTestEntry(model any, tableName string) {
+	mc.set(model, modTab{
+		SqlName: tableName,
+	})
 }

@@ -151,6 +151,16 @@ func (st *Storm) Close() error {
 		Fmt(st.path)
 }
 
+// Table returns the full table details the passed model
+// represents. All columns in the table are included, not
+// just those that map to the passed model type.
+func (st *Storm) Table(model any) (schema.SqlTable, error) {
+	return schema.QueryTable(
+		st.db,
+		reflect.TypeOf(model).Name(),
+	)
+}
+
 // Create creates tables, represented by the passed models,
 // within the database. If a table already exists then
 // the model is ignored.
@@ -173,7 +183,7 @@ func (st *Storm) Close() error {
 //   - The first field in the model is designated the
 //     PRIMARY KEY.
 //
-// # Type mapping
+// # Type mappings
 //
 //	INTEGER:
 //		int, int8, int16, int32, int64,
@@ -188,27 +198,42 @@ func (st *Storm) Create(models ...any) error {
 	}
 
 	for _, m := range models {
-		table, exists, e := mapper.MapModel(st.db, m)
+		e := st.createTableFromModel(m)
 		if e != nil {
-			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
-		}
-
-		if exists {
-			continue
-		}
-
-		e = st.createTable(table)
-		if e != nil {
-			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
-		}
-
-		// TEMP
-		if _, e = st.registerTable(m); e != nil {
-			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
+			return e
 		}
 	}
 
 	return nil
+}
+
+func (st *Storm) createTableFromModel(model any) (e error) {
+	table, exists, e := mapper.MapModel(st.db, model)
+	if e != nil {
+		goto EnhanceError
+	}
+
+	if exists {
+		return nil
+	}
+
+	st.cache.set(model, table)
+
+	e = st.createTable(table)
+	if e != nil {
+		goto EnhanceError
+	}
+
+	// TEMP
+	_, e = st.registerTable(model)
+	if e != nil {
+		goto EnhanceError
+	}
+
+	return nil
+
+EnhanceError:
+	return ErrTableRequest.Fmt(typeName(model)).Wrap(e)
 }
 
 func (st *Storm) createTable(table mapper.ModelTable) error {
@@ -247,14 +272,50 @@ func (st *Storm) registerTable(model any) (Table, error) {
 	return table, nil
 }
 
-// Table returns the full table details the passed model
-// represents. All columns in the table are included, not
-// just those that map to the passed model type.
-func (st *Storm) Table(model any) (any, error) {
-	return schema.QueryTable(
-		st.db,
-		reflect.TypeOf(model).Name(),
-	)
+// Drop removes a table from the database. If the target
+// table doesn't exist then nothing happens and no error is
+// returned. Related model cache entries are also removed.
+//
+// All data is deleted in the process and there's no way to
+// restore it. To protect data, create backups of the
+// database file.
+func (st *Storm) Drop(models ...any) error {
+	if !st.IsOpen() {
+		return ErrNotOpen
+	}
+
+	for _, m := range models {
+		e := st.dropTable(m)
+		if e != nil {
+			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
+		}
+	}
+
+	return nil
+}
+
+func (st *Storm) dropTable(model any) (e error) {
+	table, found := st.cache.get(model)
+	if found {
+		goto DoDrop
+	}
+
+	table, found, e = mapper.MapModel(st.db, model)
+	if e != nil || !found {
+		return e
+	}
+
+DoDrop:
+	st.cache.clearTable(table.SqlName)
+
+	query := nidoking.Given(`
+		DROP TABLE IF EXISTS {{table.SqlName}}
+	`).
+		InlineMap("table", table).
+		String()
+
+	_, e = st.db.Exec(query)
+	return e
 }
 
 // Insert inserts all passed objects into the database. If
@@ -588,71 +649,6 @@ func (st *Storm) deleteById(table Table, id any) error {
 	return e
 }
 
-// Drop removes a table from the database, deleting all
-// records in the process. Passing a model for a table that
-// doesn't exists does nothing.
-//
-//	type Player struct {
-//		Id int64
-//		Name string
-//	}
-//
-//	type Role struct {
-//		Id int64
-//		Name string
-//	}
-//
-//	err := db.Create(Person{}, Role{})
-//	// YUDO: Handle error.
-//
-//	err := db.Drop(Person{}, Role{})
-func (st *Storm) Drop(models ...any) error {
-	if !st.IsOpen() {
-		return ErrNotOpen
-	}
-
-	for _, m := range models {
-		e := st.dropTable(m)
-		if e != nil {
-			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
-		}
-	}
-
-	return nil
-}
-
-func (st *Storm) dropTable(model any) error {
-	table, e := st.findTableForModel(model)
-	if errors.Is(e, ErrNoSuchTable) {
-		return nil
-	}
-
-	if e != nil {
-		return e
-	}
-
-	query := nidoking.Given(`
-		DROP TABLE IF EXISTS {{table.GoName}}
-	`).
-		InlineMap("table", table).
-		String()
-
-	_, e = st.db.Exec(query)
-	return e
-}
-
-// TODO: Could results be cached temp for the current API
-//
-//	call, e.g. Insert, with defered cache wipe once
-//	call is finished? Then we can greatly reduce the
-//	DB reads needed for bulk inserts, which often
-//	contain all the same struct type.
-//
-// TODO: How about a session cache which caches struct
-//
-//	types against their TableModel? This would require
-//	the cache to be cleaned after dropping or altering
-//	any table.
 func (st *Storm) getOrCreateTable(model any) (mapper.ModelTable, error) {
 	var zero mapper.ModelTable
 

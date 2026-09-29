@@ -1,7 +1,6 @@
 package storm
 
 import (
-	//"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -70,7 +69,7 @@ func Test_Storm_Open_Close_1(t *testing.T) {
 
 func Test_Storm_Create_1(t *testing.T) {
 	// GIVEN a valid table.
-	// THEN  it should be created.
+	// THEN  table should be added to cache.
 
 	type Player struct {
 		Id      int
@@ -89,6 +88,30 @@ func Test_Storm_Create_1(t *testing.T) {
 	require.NoError(t, e)
 	require.Equal(t, "Player", tableSchema.Name)
 	require.Equal(t, "Player", tableSchema.TableName)
+}
+
+func Test_Storm_Create_2(t *testing.T) {
+	// GIVEN a valid table.
+	// THEN  ModelTable should be created.
+
+	type Player struct {
+		Id      int
+		Name    string
+		Rating  float64
+		ignored *int
+	}
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	_, found := st.cache.get(Player{})
+	require.Equal(t, false, found)
+
+	e := st.Create(Player{})
+	require.NoError(t, e)
+
+	_, found = st.cache.get(Player{})
+	require.Equal(t, true, found)
 }
 
 func Test_Storm_Insert_1(t *testing.T) {
@@ -188,4 +211,90 @@ func Test_Storm_Insert_2(t *testing.T) {
 	}
 
 	require.Equal(t, []Player{data}, act)
+}
+
+func Test_Storm_Drop_1(t *testing.T) {
+	// GIVEN table does not exist.
+	// THEN  nothing should happen.
+
+	type Player struct {
+		Id      int
+		Name    string
+		Rating  float64
+		ignored *int
+	}
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	e := st.Drop(Player{})
+	require.NoError(t, e)
+}
+
+func Test_Storm_Drop_2(t *testing.T) {
+	// GIVEN table exists.
+	// THEN  the table is dropped
+
+	type Player struct {
+		Id      int
+		Name    string
+		Rating  float64
+		ignored *int
+	}
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	e := st.Create(Player{})
+	require.NoError(t, e)
+
+	e = st.Drop(Player{})
+	require.NoError(t, e)
+
+	_, e = schema.QuerySqliteSchema(st.db, "Player")
+	require.ErrorIs(t, e, schema.ErrEntityNotFound)
+}
+
+func Test_Storm_Drop_3(t *testing.T) {
+	// GIVEN table exists
+	// AND   ModelTable in cache
+	// THEN  then cache is cleared of all for that table
+
+	type Player struct {
+		Id      int
+		Name    string
+		Rating  float64
+		ignored *int
+	}
+
+	type Meh struct {
+		Id int
+	}
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	e := st.Create(Player{})
+	require.NoError(t, e)
+
+	// Need to test the cache is updated correctly so
+	// creating extra cache entries.
+	st.cache.setTestEntry(Meh{}, "Player")
+	st.cache.setTestEntry(Player{}, "Meh")
+	st.cache.setTestEntry(Meh{}, "Meh")
+
+	e = st.Drop(Player{})
+	require.NoError(t, e)
+
+	// Should remove associated cache entries for table.
+	_, found := st.cache.get(Player{})
+	require.Equal(t, false, found)
+	_, found = st.cache.getForName(Meh{}, "Player")
+	require.Equal(t, false, found)
+
+	// Other cache entries should remain.
+	_, found = st.cache.getForName(Player{}, "Meh")
+	require.Equal(t, true, found)
+	_, found = st.cache.getForName(Meh{}, "Meh")
+	require.Equal(t, true, found)
 }

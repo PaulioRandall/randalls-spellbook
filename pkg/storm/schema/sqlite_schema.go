@@ -88,7 +88,6 @@ func QuerySqliteSchema(
 	`
 
 	var zero SqliteSchema
-	var ss SqliteSchema
 
 	rows, e := db.Query(query, entityName)
 	if e != nil {
@@ -97,9 +96,10 @@ func QuerySqliteSchema(
 	defer rows.Close()
 
 	if !rows.Next() {
-		return ss, ErrEntityNotFound.Fmt(entityName)
+		return zero, ErrEntityNotFound.Fmt(entityName)
 	}
 
+	var ss SqliteSchema
 	e = rows.Scan(
 		&ss.Type,
 		&ss.Name,
