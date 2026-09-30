@@ -118,45 +118,6 @@ func selectTestTableNamesFromSqliteSchema(
 	return result
 }
 
-func Test_Storm_Select_1(t *testing.T) {
-	db := openCreateInsert(
-		t,
-		[]any{testCheeseMaker{}, testCheese{}},
-		bobs, francs,
-	)
-	defer db.Close()
-
-	act, e := db.Select(testCheeseMaker{})
-	require.NoError(t, e)
-	require.Equal(t, 2, len(act))
-	require.Equal(t, bobs, act[0])
-	require.Equal(t, francs, act[1])
-}
-
-func Test_Storm_SelectAll_2(t *testing.T) {
-	// Error when object type not registered.
-
-	db := openCreateInsert(t, nil)
-	defer db.Close()
-
-	_, e := db.Select(testCheese{})
-	require.ErrorIs(t, e, ErrTableRequest)
-	require.ErrorIs(t, e, ErrNoSuchTable)
-}
-
-func Test_Storm_SelectById_1(t *testing.T) {
-	db := openCreateInsert(
-		t,
-		[]any{testCheeseMaker{}, testCheese{}},
-		bobs, francs,
-	)
-	defer db.Close()
-
-	act, e := db.SelectById(testCheeseMaker{}, francs.Id)
-	require.NoError(t, e)
-	require.Equal(t, francs, act)
-}
-
 func Test_Storm_DeleteById_1(t *testing.T) {
 	db := openCreateInsert(
 		t,

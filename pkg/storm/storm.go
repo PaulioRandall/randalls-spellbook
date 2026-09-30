@@ -20,6 +20,10 @@ import (
 //       the select statement is the order they are
 //       scanned to avoid the wrong info appearing in the
 //       wrong struct fields.
+// TODO: API call cache, create a ModelTable cache that
+//       lives and dies in a single API call so bulk
+//       inserts of the same kind don't fetch metadata we
+//       already know will be the same.
 
 var (
 	// ErrNotOpen occurs when trying to perform an operation
@@ -417,47 +421,52 @@ func (st *Storm) updateObject(object any) error {
 }
 
 // Select returns all records for the table associated
-// with the passed model. The model's type must match a
-// registered type or an error is returned.
-//
-//	slice, err := Select(Model{})
-func (st *Storm) Select[T any](model T) ([]T, error) {
+// with the passed model.
+func (st *Storm) Select[T any](model T) (result []T, e error) {
+	var query string
+	var rows *sql.Rows
+
 	if !st.IsOpen() {
 		return nil, ErrNotOpen
 	}
 
-	err := ErrTableRequest.Fmt(typeName(model))
-
-	table, e := st.findTableForModel(model)
+	table, found, e := st.getTable(model)
 	if e != nil {
-		return nil, err.Wrap(e)
+		return nil, e
 	}
 
-	query := nidoking.Given(`
+	if !found {
+		return nil, nil
+	}
+
+	query = nidoking.Given(`
 		SELECT
-			{{col.GoName}}
+			{{col.SqlName}}
 		FROM
-			{{table.GoName}}
+			{{table.SqlName}}
 	`).
 		InlineMap("table", table).
 		ListMap("col", ",", table.Columns...).
 		String()
 
-	rows, e := st.db.Query(query)
+	rows, e = st.db.Query(query)
 	if e != nil {
-		return nil, err.Wrap(e)
+		goto Err
 	}
 
-	result, e := st.scanSelectedRows[T](table, rows)
+	result, e = st.scanSelectedRows[T](table, rows)
 	if e != nil {
-		return nil, err.Wrap(e)
+		goto Err
 	}
 
 	return result, nil
+
+Err:
+	return nil, ErrTableRequest.Fmt(typeName(model)).Wrap(e)
 }
 
 func (st *Storm) scanSelectedRows[T any](
-	table Table,
+	table mapper.ModelTable,
 	rows *sql.Rows,
 ) ([]T, error) {
 	values, valuePtrs := createValueContainers(table)
@@ -481,13 +490,13 @@ func (st *Storm) scanSelectedRows[T any](
 	return result, nil
 }
 
-func createValueContainers(table Table) ([]any, []any) {
-	colCount := table.ColumnCount()
+func createValueContainers(table mapper.ModelTable) ([]any, []any) {
+	colCount := len(table.Columns)
 	values := make([]any, colCount)
 	valuePtrs := make([]any, colCount)
 
 	for i, col := range table.Columns {
-		values[i] = col.Zero()
+		values[i] = col.New[any]()
 		valuePtrs[i] = &values[i]
 	}
 
@@ -512,6 +521,14 @@ func constructObject[T any](values []any) T {
 
 		v := reflect.ValueOf(values[valueIdx])
 		fieldVal := objVal.Field(valueIdx)
+
+		if v.CanConvert(fieldVal.Type()) {
+			v = v.Convert(fieldVal.Type())
+		} else {
+			// TODO: Rethink and tidy
+			panic("Can't convert from " + v.Type().Name() + " to " + fieldVal.Type().Name())
+		}
+
 		fieldVal.Set(v)
 
 		valueIdx++
@@ -530,53 +547,63 @@ func constructObject[T any](values []any) T {
 func (st *Storm) SelectById[T, ID any](
 	model T,
 	id ID,
-) (T, error) {
+) (result T, e error) {
 	var empty T
+	var query string
+	var rows *sql.Rows
+	var resultSet []T
+	var ok bool
 
 	if !st.IsOpen() {
 		return empty, ErrNotOpen
 	}
 
-	err := ErrTableRequest.Fmt(typeName(model), id)
-	table, e := st.findTableForModel(model)
+	table, found, e := st.getTable(model)
 	if e != nil {
-		return empty, err.Wrap(e)
+		goto Err
 	}
 
-	e = validateIdType(table, id)
-	if e != nil {
-		return empty, err.Wrap(e)
+	if !found {
+		e = ErrObjectNotFound.Fmt(table.GoName, id)
+		goto Err
 	}
 
-	query := nidoking.Given(`
+	query = nidoking.Given(`
 		SELECT
-			{{col.GoName}}
+			{{col.SqlName}}
 		FROM
-			{{table.GoName}}
+			{{table.SqlName}}
 		WHERE
-			{{id_col.GoName}} = ?
+			{{pk_col.SqlName}} = ?
 	`).
 		ListMap("col", ",", table.Columns...).
 		InlineMap("table", table).
-		InlineMap("id_col", table.IdColumn()).
+		InlineMap("pk_col", table.PrimaryKeyColumn()).
 		String()
 
-	rows, e := st.db.Query(query, id)
+	rows, e = st.db.Query(query, id)
 	if e != nil {
-		return empty, err.Wrap(e)
+		goto Err
 	}
 
-	result, e := st.scanSelectedRows[T](table, rows)
+	resultSet, e = st.scanSelectedRows[T](table, rows)
 	if e != nil {
-		return empty, err.Wrap(e)
+		goto Err
 	}
 
-	object, ok := getFirstItemIfArray[T](result)
+	result, ok = getFirstItemIfArray[T](resultSet)
 	if !ok {
-		return empty, ErrObjectNotFound.Fmt(table.GoName, id)
+		e = ErrObjectNotFound.Fmt(table.GoName, id)
+		goto Err
 	}
 
-	return object, nil
+	return result, nil
+
+Err:
+	return empty, sin.Fmt("For object with ID '%v'", id).
+		Wrap(e).
+		WrapIn(ErrTableRequest).
+		Fmt(typeName(model))
 }
 
 func getFirstItemIfArray[T any](v any) (T, bool) {

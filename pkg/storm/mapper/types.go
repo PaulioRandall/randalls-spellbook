@@ -86,3 +86,9 @@ func (t ModelTable) NonPrimaryKeyColumns() []ModelColumn {
 
 	return result
 }
+
+// New creates a zero-valued instance of the columns
+// GoType.
+func (c ModelColumn) New[T any]() T {
+	return ref.New(c.GoType).Interface().(T)
+}
