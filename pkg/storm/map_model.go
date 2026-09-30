@@ -1,4 +1,4 @@
-package mapper
+package storm
 
 import (
 	"database/sql"
@@ -17,6 +17,12 @@ var (
 		"Model's field type '%s' is not compatible with existing column type '%s'",
 	)
 )
+
+type sqlQueryCol struct {
+	SqlType    string
+	SqlName    string
+	PrimaryKey bool
+}
 
 func MapModel(db *sql.DB, model any) (ModelTable, bool, error) {
 	var zero ModelTable
@@ -89,12 +95,6 @@ func findQueryColumn(
 		}
 	}
 	return sqlQueryCol{}, false
-}
-
-type sqlQueryCol struct {
-	SqlType    string
-	SqlName    string
-	PrimaryKey bool
 }
 
 func queryModel(

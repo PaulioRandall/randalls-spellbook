@@ -1,15 +1,10 @@
-package mapper
+package storm
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
-
-func typeOf(model any) reflect.Type {
-	return reflect.TypeOf(model)
-}
 
 func Test_ParseModel_1(t *testing.T) {
 	// GIVEN non-struct model

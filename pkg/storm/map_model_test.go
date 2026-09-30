@@ -1,8 +1,7 @@
-package mapper
+package storm
 
 import (
 	"database/sql"
-	ref "reflect"
 	"testing"
 
 	_ "github.com/glebarez/go-sqlite"
@@ -28,7 +27,7 @@ func createAndPopulateTestDb(t *testing.T) *sql.DB {
 
 var (
 	TestIdCol = ModelColumn{
-		GoType:     ref.TypeOf(int(0)),
+		GoType:     typeOf(int(0)),
 		GoIndex:    0,
 		GoName:     "Id",
 		SqlType:    "INTEGER",
@@ -38,7 +37,7 @@ var (
 	}
 
 	TestNameCol = ModelColumn{
-		GoType:     ref.TypeOf(""),
+		GoType:     typeOf(""),
 		GoIndex:    1,
 		GoName:     "Name",
 		SqlType:    "TEXT",
@@ -48,7 +47,7 @@ var (
 	}
 
 	TestRatingCol = ModelColumn{
-		GoType:     ref.TypeOf(float64(0)),
+		GoType:     typeOf(float64(0)),
 		GoIndex:    2,
 		GoName:     "Rating",
 		SqlType:    "REAL",
@@ -73,7 +72,7 @@ func Test_MapModel_1(t *testing.T) {
 
 	act, exists, e := MapModel(db, NotPlayer{})
 	exp := ModelTable{
-		GoType:  ref.TypeOf(NotPlayer{}),
+		GoType:  typeOf(NotPlayer{}),
 		GoName:  "NotPlayer",
 		SqlName: "NotPlayer",
 		Columns: []ModelColumn{
@@ -103,7 +102,7 @@ func Test_MapModel_2(t *testing.T) {
 
 	act, exists, e := MapModel(db, Player{})
 	exp := ModelTable{
-		GoType:  ref.TypeOf(Player{}),
+		GoType:  typeOf(Player{}),
 		GoName:  "Player",
 		SqlName: "Player",
 		Columns: []ModelColumn{
@@ -133,7 +132,7 @@ func Test_MapModel_3(t *testing.T) {
 
 	act, _, e := MapModel(db, Player{})
 	exp := ModelTable{
-		GoType:  ref.TypeOf(Player{}),
+		GoType:  typeOf(Player{}),
 		GoName:  "Player",
 		SqlName: "Player",
 		Columns: []ModelColumn{
@@ -165,7 +164,7 @@ func Test_MapModel_4(t *testing.T) {
 	act, _, e := MapModel(db, Player{})
 
 	exp := ModelTable{
-		GoType:  ref.TypeOf(Player{}),
+		GoType:  typeOf(Player{}),
 		GoName:  "Player",
 		SqlName: "Player",
 		Columns: []ModelColumn{

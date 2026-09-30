@@ -2,11 +2,9 @@ package storm
 
 import (
 	ref "reflect"
-
-	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/mapper"
 )
 
-type modTab = mapper.ModelTable
+type modTab = ModelTable
 type modelCache map[modelCacheKey]modTab
 type modelCacheKey struct {
 	goType    ref.Type
@@ -14,7 +12,7 @@ type modelCacheKey struct {
 }
 
 func (mc modelCache) get(model any) (modTab, bool) {
-	typ := ref.TypeOf(model)
+	typ := typeOf(model)
 	return mc.getForName(model, typ.Name())
 }
 
@@ -23,7 +21,7 @@ func (mc modelCache) getForName(
 	tableName string,
 ) (modTab, bool) {
 	key := modelCacheKey{
-		goType:    ref.TypeOf(model),
+		goType:    typeOf(model),
 		tableName: tableName,
 	}
 
@@ -36,7 +34,7 @@ func (mc modelCache) set(
 	table modTab,
 ) {
 	key := modelCacheKey{
-		goType:    ref.TypeOf(model),
+		goType:    typeOf(model),
 		tableName: table.SqlName,
 	}
 
@@ -56,7 +54,7 @@ func (mc modelCache) clearTable(tableName string) {
 }
 
 func (mc modelCache) clearModel(model any) {
-	typ := ref.TypeOf(model)
+	typ := typeOf(model)
 
 	for key := range mc {
 		if key.goType == typ {
