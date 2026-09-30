@@ -2,13 +2,13 @@ package storm
 
 import (
 	"database/sql"
-	"errors"
 	"reflect"
 
 	_ "github.com/glebarez/go-sqlite"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sprints"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/mapper"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/schema"
 )
@@ -77,9 +77,8 @@ var (
 // Storm is the core type and the interface to the SQLite
 // database.
 type Storm struct {
-	path   string
-	tables []Table
-	db     *sql.DB
+	path string
+	db   *sql.DB
 }
 
 // New returns a new [Storm] for the database represented
@@ -93,10 +92,6 @@ func New(path string) *Storm {
 // Open opens the database. If not an 'in-memory' path then
 // the missing directories in the directory path are
 // created.
-//
-//	err := db.Open()
-//	// YUDO: Handle error.
-//	defer db.Close()
 func (st *Storm) Open() error {
 	if st.IsOpen() {
 		return nil
@@ -120,19 +115,11 @@ func (st *Storm) Open() error {
 }
 
 // IsOpen returns true if the database is open.
-//
-//	if db.IsOpen() {
-//		// YUDO.
-//	}
 func (st *Storm) IsOpen() bool {
 	return st.db != nil
 }
 
 // Close closes the database. Use with defer as usual.
-//
-//	err := db.Open()
-//	// YUDO: Handle error.
-//	defer db.Close()
 func (st *Storm) Close() error {
 	if !st.IsOpen() {
 		return nil
@@ -212,7 +199,7 @@ func (st *Storm) Create(models ...any) error {
 func (st *Storm) createTableFromModel(model any) (e error) {
 	table, exists, e := st.getTable(model)
 	if e != nil {
-		goto EnhanceError
+		goto Err
 	}
 
 	if exists {
@@ -221,18 +208,12 @@ func (st *Storm) createTableFromModel(model any) (e error) {
 
 	e = st.createTable(table)
 	if e != nil {
-		goto EnhanceError
-	}
-
-	// TEMP
-	_, e = st.registerTable(model)
-	if e != nil {
-		goto EnhanceError
+		goto Err
 	}
 
 	return nil
 
-EnhanceError:
+Err:
 	return ErrTableRequest.Fmt(typeName(model)).Wrap(e)
 }
 
@@ -250,26 +231,6 @@ func (st *Storm) createTable(table mapper.ModelTable) error {
 
 	_, e := st.db.Exec(query)
 	return e
-}
-
-// TODO: Remove
-func (st *Storm) registerTable(model any) (Table, error) {
-	table, e := st.findTableForModel(model)
-	if e == nil {
-		return table, nil
-	}
-
-	if !errors.Is(e, ErrNoSuchTable) {
-		return Table{}, e
-	}
-
-	table, e = Parse(model)
-	if e != nil {
-		return Table{}, e
-	}
-
-	st.tables = append(st.tables, table)
-	return table, nil
 }
 
 // Drop removes a table from the database. If the target
@@ -351,7 +312,7 @@ func (st *Storm) insertObject(object any) error {
 		ListRepeat("q_marks", ",", "?", len(table.Columns)).
 		String()
 
-	values := extractColumnValues2(table.Columns, object)
+	values := extractColumnValues(table.Columns, object)
 	_, e = st.db.Exec(query, values...)
 	return e
 }
@@ -415,7 +376,7 @@ func (st *Storm) updateObject(object any) error {
 
 	// Because PK is the last SQL parameter.
 	cols := append(nonPkCols, pkCol)
-	values := extractColumnValues2(cols, object)
+	values := extractColumnValues(cols, object)
 	_, e = st.db.Exec(query, values...)
 	return e
 }
@@ -433,6 +394,11 @@ func (st *Storm) Select[T any](model T) (result []T, e error) {
 	table, found, e := st.getTable(model)
 	if e != nil {
 		return nil, e
+	}
+
+	sprints.Println(table)
+	for _, col := range table.Columns {
+		sprints.Println(col)
 	}
 
 	if !found {
@@ -478,7 +444,7 @@ func (st *Storm) scanSelectedRows[T any](
 			return nil, ErrScanningRow.Fmt(i).Wrap(e)
 		}
 
-		object := constructObject[T](values)
+		object := constructObject[T](table, values)
 		result = append(result, object)
 	}
 
@@ -503,24 +469,17 @@ func createValueContainers(table mapper.ModelTable) ([]any, []any) {
 	return values, valuePtrs
 }
 
-func constructObject[T any](values []any) T {
+func constructObject[T any](
+	table mapper.ModelTable,
+	values []any,
+) T {
 	var result T
 
-	objTyp := reflect.TypeOf(result)
 	objVal := reflect.ValueOf(&result).Elem()
 
-	valueIdx := 0
-	fieldIdx := 0
-
-	for ; fieldIdx < objVal.NumField(); fieldIdx++ {
-		fieldTyp := objTyp.Field(fieldIdx)
-
-		if !fieldTyp.IsExported() {
-			continue
-		}
-
+	for valueIdx, col := range table.Columns {
 		v := reflect.ValueOf(values[valueIdx])
-		fieldVal := objVal.Field(valueIdx)
+		fieldVal := objVal.Field(col.GoIndex)
 
 		if v.CanConvert(fieldVal.Type()) {
 			v = v.Convert(fieldVal.Type())
@@ -530,8 +489,6 @@ func constructObject[T any](values []any) T {
 		}
 
 		fieldVal.Set(v)
-
-		valueIdx++
 	}
 
 	return result
@@ -629,23 +586,16 @@ func getFirstItemIfArray[T any](v any) (T, bool) {
 // record is found then nothing happens. The model's
 // type must match a registered type or an error is
 // returned.
-//
-//	e := DeleteById(Model{}, 123)
 func (st *Storm) DeleteById[T, ID any](
 	model T,
 	ids ...ID,
-) error {
+) (e error) {
 	if !st.IsOpen() {
 		return ErrNotOpen
 	}
 
-	table, e := st.findTableForModel(model)
-	if e != nil {
-		return ErrTableRequest.Fmt(typeName(model)).Wrap(e)
-	}
-
 	for _, id := range ids {
-		e = st.deleteById(table, id)
+		e = st.deleteById(model, id)
 		if e != nil {
 			return ErrTableRequest.Fmt(typeName(model)).Wrap(e)
 		}
@@ -654,20 +604,24 @@ func (st *Storm) DeleteById[T, ID any](
 	return nil
 }
 
-func (st *Storm) deleteById(table Table, id any) error {
-	e := validateIdType(table, id)
+func (st *Storm) deleteById(model any, id any) error {
+	table, found, e := st.getTable(model)
 	if e != nil {
 		return e
 	}
 
+	if !found {
+		return nil
+	}
+
 	query := nidoking.Given(`
 		DELETE FROM
-			{{table.GoName}}
+			{{table.SqlName}}
 		WHERE
-			{{id_col.GoName}} = ?
+			{{pk_col.SqlName}} = ?
 	`).
 		InlineMap("table", table).
-		InlineMap("id_col", table.IdColumn()).
+		InlineMap("pk_col", table.PrimaryKeyColumn()).
 		String()
 
 	_, e = st.db.Exec(query, id)
@@ -698,37 +652,7 @@ func (st *Storm) getOrCreateTable(model any) (mapper.ModelTable, error) {
 	return table, nil
 }
 
-func (st *Storm) findTableForModel(
-	object any,
-) (Table, error) {
-	typ := reflect.TypeOf(object)
-
-	for _, table := range st.tables {
-		if table.GoType == typ {
-			return table, nil
-		}
-	}
-
-	return Table{}, ErrNoSuchTable.Fmt(typ.Name())
-}
-
 func extractColumnValues(
-	columns []Column,
-	object any,
-) []any {
-	value := reflect.ValueOf(object)
-	result := make([]any, len(columns))
-
-	for i := 0; i < len(columns); i++ {
-		col := columns[i]
-		field := value.FieldByName(col.GoName)
-		result[i] = field.Interface()
-	}
-
-	return result
-}
-
-func extractColumnValues2(
 	columns []mapper.ModelColumn,
 	object any,
 ) []any {
@@ -742,16 +666,4 @@ func extractColumnValues2(
 	}
 
 	return result
-}
-
-func validateIdType[ID any](table Table, id ID) error {
-	want := table.IdColumn().GoType
-	have := reflect.TypeOf(id)
-
-	if want != have {
-		return ErrBadIdType.
-			Fmt(table.GoName, want.Name(), have.Name())
-	}
-
-	return nil
 }
