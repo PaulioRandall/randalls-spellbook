@@ -76,15 +76,13 @@ type Storm struct {
 	path   string
 	tables []Table
 	db     *sql.DB
-	cache  modelCache
 }
 
 // New returns a new [Storm] for the database represented
 // by path.
 func New(path string) *Storm {
 	return &Storm{
-		path:  path,
-		cache: modelCache{},
+		path: path,
 	}
 }
 
@@ -208,7 +206,7 @@ func (st *Storm) Create(models ...any) error {
 }
 
 func (st *Storm) createTableFromModel(model any) (e error) {
-	table, exists, e := mapper.MapModel(st.db, model)
+	table, exists, e := st.getTable(model)
 	if e != nil {
 		goto EnhanceError
 	}
@@ -216,8 +214,6 @@ func (st *Storm) createTableFromModel(model any) (e error) {
 	if exists {
 		return nil
 	}
-
-	st.cache.set(model, table)
 
 	e = st.createTable(table)
 	if e != nil {
@@ -294,19 +290,15 @@ func (st *Storm) Drop(models ...any) error {
 	return nil
 }
 
-func (st *Storm) dropTable(model any) (e error) {
-	table, found := st.cache.get(model)
-	if found {
-		goto DoDrop
-	}
-
-	table, found, e = mapper.MapModel(st.db, model)
+func (st *Storm) dropTable(model any) error {
+	table, found, e := st.getTable(model)
 	if e != nil || !found {
 		return e
 	}
 
-DoDrop:
-	st.cache.clearTable(table.SqlName)
+	if !found {
+		return nil
+	}
 
 	query := nidoking.Given(`
 		DROP TABLE IF EXISTS {{table.SqlName}}
@@ -392,28 +384,34 @@ func (st *Storm) Update[T any](objects ...T) error {
 }
 
 func (st *Storm) updateObject(object any) error {
-	table, e := st.findTableForModel(object)
+	table, found, e := st.getTable(object)
 	if e != nil {
 		return e
 	}
 
+	if !found {
+		return ErrNoSuchTable.Fmt(typeName(object))
+	}
+
+	pkCol := table.PrimaryKeyColumn()
+	nonPkCols := table.NonPrimaryKeyColumns()
+
 	query := nidoking.Given(`
 			UPDATE
-				{{table.GoName}}
+				{{table.SqlName}}
 			SET
-				{{col.GoName}} = ?
+				{{non_pk_col.SqlName}} = ?
 			WHERE
-				{{id_col.GoName}} = ?
+				{{pk_col.SqlName}} = ?
 		`).
 		InlineMap("table", table).
-		InlineMap("id_col", table.IdColumn()).
-		ListMap("col", ",", table.Columns[1:]...).
+		ListMap("non_pk_col", ",", nonPkCols...).
+		InlineMap("pk_col", pkCol).
 		String()
 
-	values := extractColumnValues(table.Columns, object)
-	// Move ID value to end (for the WHERE clause)
-	values = append(values[1:], values[0])
-
+	// Because PK is the last SQL parameter.
+	cols := append(nonPkCols, pkCol)
+	values := extractColumnValues2(cols, object)
 	_, e = st.db.Exec(query, values...)
 	return e
 }
@@ -649,19 +647,17 @@ func (st *Storm) deleteById(table Table, id any) error {
 	return e
 }
 
+func (st *Storm) getTable(model any) (mapper.ModelTable, bool, error) {
+	return mapper.MapModel(st.db, model)
+}
+
 func (st *Storm) getOrCreateTable(model any) (mapper.ModelTable, error) {
 	var zero mapper.ModelTable
-
-	cachedTable, found := st.cache.get(model)
-	if found {
-		return cachedTable, nil
-	}
 
 	table, exists, e := mapper.MapModel(st.db, model)
 	if e != nil {
 		return zero, e
 	}
-	st.cache.set(model, table)
 
 	if exists {
 		return table, nil

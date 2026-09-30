@@ -72,3 +72,17 @@ func (t ModelTable) PrimaryKeyColumn() ModelColumn {
 	}
 	return ModelColumn{}
 }
+
+// NonPrimaryKeyColumns returns all columns except the
+// primary key one.
+func (t ModelTable) NonPrimaryKeyColumns() []ModelColumn {
+	result := make([]ModelColumn, 0, len(t.Columns))
+
+	for _, col := range t.Columns {
+		if !col.PrimaryKey {
+			result = append(result, col)
+		}
+	}
+
+	return result
+}

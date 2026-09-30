@@ -42,6 +42,20 @@ func (t SqlTable) PrimaryKeyColumn() SqlColumn {
 	return SqlColumn{}
 }
 
+// NonPrimaryKeyColumns returns all columns except the
+// primary key one.
+func (t SqlTable) NonPrimaryKeyColumns() []SqlColumn {
+	result := make([]SqlColumn, 0, len(t.Columns))
+
+	for _, col := range t.Columns {
+		if !col.PrimaryKey {
+			result = append(result, col)
+		}
+	}
+
+	return result
+}
+
 // QueryTable queries for and returns a database
 // representation of the SQL table called tableName. If
 // it doesn't exist a zero value is returned.

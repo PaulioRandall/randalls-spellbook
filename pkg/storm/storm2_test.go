@@ -8,6 +8,13 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/schema"
 )
 
+type Dummy struct {
+	Id      int
+	Name    string
+	Rating  float64
+	ignored *int
+}
+
 func openStormDatabase(t *testing.T) *Storm {
 	st := New(":memory:")
 
@@ -15,6 +22,41 @@ func openStormDatabase(t *testing.T) *Storm {
 	require.NoError(t, e)
 
 	return st
+}
+
+func requireDummyTableExists(t *testing.T, st *Storm) {
+	tableSchema, e := schema.QuerySqliteSchema(st.db, "Dummy")
+	require.NoError(t, e)
+	require.Equal(t, "Dummy", tableSchema.Name)
+	require.Equal(t, "Dummy", tableSchema.TableName)
+}
+
+func requireDummyTableRows(t *testing.T, st *Storm, data ...Dummy) {
+	act := queryDummyTable(t, st)
+	require.Equal(t, data, act)
+}
+
+func queryDummyTable(t *testing.T, st *Storm) []Dummy {
+	rows, e := st.db.Query(`
+		SELECT
+			Id,
+			Name,
+			Rating
+		FROM
+			Dummy
+	`)
+	require.NoError(t, e)
+
+	var result []Dummy
+
+	for rows.Next() {
+		var p Dummy
+		e := rows.Scan(&p.Id, &p.Name, &p.Rating)
+		require.NoError(t, e)
+		result = append(result, p)
+	}
+
+	return result
 }
 
 func queryDatabase(
@@ -68,67 +110,26 @@ func Test_Storm_Open_Close_1(t *testing.T) {
 }
 
 func Test_Storm_Create_1(t *testing.T) {
-	// GIVEN a valid table.
-	// THEN  table should be added to cache.
-
-	type Player struct {
-		Id      int
-		Name    string
-		Rating  float64
-		ignored *int
-	}
+	// Creates table in database GIVEN valid model AND no
+	// table in database yet.
 
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	e := st.Create(Player{})
+	e := st.Create(Dummy{})
 	require.NoError(t, e)
 
-	tableSchema, e := schema.QuerySqliteSchema(st.db, "Player")
-	require.NoError(t, e)
-	require.Equal(t, "Player", tableSchema.Name)
-	require.Equal(t, "Player", tableSchema.TableName)
-}
-
-func Test_Storm_Create_2(t *testing.T) {
-	// GIVEN a valid table.
-	// THEN  ModelTable should be created.
-
-	type Player struct {
-		Id      int
-		Name    string
-		Rating  float64
-		ignored *int
-	}
-
-	st := openStormDatabase(t)
-	defer st.Close()
-
-	_, found := st.cache.get(Player{})
-	require.Equal(t, false, found)
-
-	e := st.Create(Player{})
-	require.NoError(t, e)
-
-	_, found = st.cache.get(Player{})
-	require.Equal(t, true, found)
+	requireDummyTableExists(t, st)
 }
 
 func Test_Storm_Insert_1(t *testing.T) {
-	// GIVEN table hasn't been created yet.
-	// THEN  table should be created and data inserted.
-
-	type Player struct {
-		Id      int
-		Name    string
-		Rating  float64
-		ignored *int
-	}
+	// Creates table in database and inserts data GIVEN
+	// valid model AND table not yet in database.
 
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	data := Player{
+	data := Dummy{
 		Id:     123,
 		Name:   "Abc",
 		Rating: 123.456,
@@ -137,52 +138,21 @@ func Test_Storm_Insert_1(t *testing.T) {
 	e := st.Insert(data)
 	require.NoError(t, e)
 
-	// Check table was created.
-	tableSchema, e := schema.QuerySqliteSchema(st.db, "Player")
-	require.NoError(t, e)
-	require.Equal(t, "Player", tableSchema.Name)
-	require.Equal(t, "Player", tableSchema.TableName)
-
-	// Check data was entered.
-	rows, e := st.db.Query(`
-		SELECT
-			Id,
-			Name,
-			Rating
-		FROM
-			Player
-	`)
-	require.NoError(t, e)
-
-	var act []Player
-	for rows.Next() {
-		var p Player
-		e := rows.Scan(&p.Id, &p.Name, &p.Rating)
-		require.NoError(t, e)
-		act = append(act, p)
-	}
-
-	require.Equal(t, []Player{data}, act)
+	requireDummyTableExists(t, st)
+	requireDummyTableRows(t, st, data)
 }
 
 func Test_Storm_Insert_2(t *testing.T) {
-	// GIVEN table was already created.
-	// THEN  data should be inserted.
-
-	type Player struct {
-		Id      int
-		Name    string
-		Rating  float64
-		ignored *int
-	}
+	// Inserts data into database GIVEN table already in
+	// database.
 
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	e := st.Create(Player{})
+	e := st.Create(Dummy{})
 	require.NoError(t, e)
 
-	data := Player{
+	data := Dummy{
 		Id:     123,
 		Name:   "Abc",
 		Rating: 123.456,
@@ -191,110 +161,62 @@ func Test_Storm_Insert_2(t *testing.T) {
 	e = st.Insert(data)
 	require.NoError(t, e)
 
-	// Check data was entered.
-	rows, e := st.db.Query(`
-		SELECT
-			Id,
-			Name,
-			Rating
-		FROM
-			Player
-	`)
-	require.NoError(t, e)
-
-	var act []Player
-	for rows.Next() {
-		var p Player
-		e := rows.Scan(&p.Id, &p.Name, &p.Rating)
-		require.NoError(t, e)
-		act = append(act, p)
-	}
-
-	require.Equal(t, []Player{data}, act)
+	requireDummyTableRows(t, st, data)
 }
 
 func Test_Storm_Drop_1(t *testing.T) {
-	// GIVEN table does not exist.
-	// THEN  nothing should happen.
-
-	type Player struct {
-		Id      int
-		Name    string
-		Rating  float64
-		ignored *int
-	}
+	// Does nothing GIVEN model table not in database.
 
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	e := st.Drop(Player{})
+	e := st.Drop(Dummy{})
 	require.NoError(t, e)
 }
 
 func Test_Storm_Drop_2(t *testing.T) {
-	// GIVEN table exists.
-	// THEN  the table is dropped
-
-	type Player struct {
-		Id      int
-		Name    string
-		Rating  float64
-		ignored *int
-	}
+	// Drops table GIVEN model table in database.
 
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	e := st.Create(Player{})
+	e := st.Create(Dummy{})
 	require.NoError(t, e)
 
-	e = st.Drop(Player{})
+	e = st.Drop(Dummy{})
 	require.NoError(t, e)
 
-	_, e = schema.QuerySqliteSchema(st.db, "Player")
+	_, e = schema.QuerySqliteSchema(st.db, "Dummy")
 	require.ErrorIs(t, e, schema.ErrEntityNotFound)
 }
 
-func Test_Storm_Drop_3(t *testing.T) {
-	// GIVEN table exists
-	// AND   ModelTable in cache
-	// THEN  then cache is cleared of all for that table
-
-	type Player struct {
-		Id      int
-		Name    string
-		Rating  float64
-		ignored *int
-	}
-
-	type Meh struct {
-		Id int
-	}
+func Test_Storm_Update_1(t *testing.T) {
+	// Updates data in database GIVEN table exists AND
+	// item exists in table.
 
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	e := st.Create(Player{})
+	e := st.Create(Dummy{})
 	require.NoError(t, e)
 
-	// Need to test the cache is updated correctly so
-	// creating extra cache entries.
-	st.cache.setTestEntry(Meh{}, "Player")
-	st.cache.setTestEntry(Player{}, "Meh")
-	st.cache.setTestEntry(Meh{}, "Meh")
+	original := Dummy{
+		Id:     123,
+		Name:   "Abc",
+		Rating: 123.456,
+	}
 
-	e = st.Drop(Player{})
+	e = st.Insert(original)
 	require.NoError(t, e)
 
-	// Should remove associated cache entries for table.
-	_, found := st.cache.get(Player{})
-	require.Equal(t, false, found)
-	_, found = st.cache.getForName(Meh{}, "Player")
-	require.Equal(t, false, found)
+	updated := Dummy{
+		Id:     123,
+		Name:   "Xyz",
+		Rating: 987.654,
+	}
 
-	// Other cache entries should remain.
-	_, found = st.cache.getForName(Player{}, "Meh")
-	require.Equal(t, true, found)
-	_, found = st.cache.getForName(Meh{}, "Meh")
-	require.Equal(t, true, found)
+	e = st.Update(updated)
+	require.NoError(t, e)
+
+	requireDummyTableRows(t, st, updated)
 }

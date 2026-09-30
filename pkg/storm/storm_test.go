@@ -118,29 +118,6 @@ func selectTestTableNamesFromSqliteSchema(
 	return result
 }
 
-func Test_Storm_Update_1(t *testing.T) {
-	db := openCreateInsert(
-		t,
-		[]any{testCheeseMaker{}, testCheese{}},
-		bobs, francs,
-	)
-	defer db.Close()
-
-	bobsUpdated := testCheeseMaker{
-		Id:      bobs.Id,
-		Name:    bobs.Name,
-		Country: "United Kingdom",
-	}
-
-	e := db.Update(bobsUpdated)
-	require.NoError(t, e)
-
-	records := selectAllTestCheeseMakers(t, db)
-	require.Equal(t, bobsUpdated, records[0])
-	require.Equal(t, francs, records[1])
-	require.Equal(t, 2, len(records))
-}
-
 func Test_Storm_Select_1(t *testing.T) {
 	db := openCreateInsert(
 		t,
