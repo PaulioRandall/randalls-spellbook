@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_Storm_Insert_1(t *testing.T) {
+func Test_Storm_Put_1(t *testing.T) {
 	// Creates table in database and inserts data GIVEN
 	// valid model AND table not yet in database.
 
@@ -19,14 +19,14 @@ func Test_Storm_Insert_1(t *testing.T) {
 		Rating: 123.456,
 	}
 
-	e := st.Insert(data)
+	e := st.Put(data)
 	require.NoError(t, e)
 
 	requireDummyTableExists(t, st)
 	requireDummyTableRows(t, st, data)
 }
 
-func Test_Storm_Insert_2(t *testing.T) {
+func Test_Storm_Put_2(t *testing.T) {
 	// Inserts data into database GIVEN table already in
 	// database.
 
@@ -42,7 +42,7 @@ func Test_Storm_Insert_2(t *testing.T) {
 		Rating: 123.456,
 	}
 
-	e = st.Insert(data)
+	e = st.Put(data)
 	require.NoError(t, e)
 
 	requireDummyTableRows(t, st, data)
@@ -61,7 +61,7 @@ func Test_Storm_Update_1(t *testing.T) {
 		Rating: 123.456,
 	}
 
-	e := st.Insert(original)
+	e := st.Put(original)
 	require.NoError(t, e)
 
 	updated := TestTable{

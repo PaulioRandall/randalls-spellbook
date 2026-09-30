@@ -6,17 +6,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_Storm_DeleteById_1(t *testing.T) {
+func Test_Storm_Delete_1(t *testing.T) {
 	// Does nothing and no error GIVEN table doesn't exist.
 
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	e := st.DeleteById(TestTable{}, 1)
+	e := st.Delete(TestTable{}, 1)
 	require.NoError(t, e)
 }
 
-func Test_Storm_DeleteById_2(t *testing.T) {
+func Test_Storm_Delete_2(t *testing.T) {
 	// Does nothing and no error GIVEN row not in database.
 
 	st := openStormDatabase(t)
@@ -25,11 +25,11 @@ func Test_Storm_DeleteById_2(t *testing.T) {
 	e := st.Create(TestTable{})
 	require.NoError(t, e)
 
-	e = st.DeleteById(TestTable{}, 1)
+	e = st.Delete(TestTable{}, 1)
 	require.NoError(t, e)
 }
 
-func Test_Storm_DeleteById_3(t *testing.T) {
+func Test_Storm_Delete_3(t *testing.T) {
 	// Deletes the  GIVEN row not in database.
 
 	st := openStormDatabase(t)
@@ -50,15 +50,15 @@ func Test_Storm_DeleteById_3(t *testing.T) {
 		Rating: 2.2,
 	}
 
-	e = st.Insert(a)
+	e = st.Put(a)
 	require.NoError(t, e)
 
-	e = st.Insert(b)
+	e = st.Put(b)
 	require.NoError(t, e)
 
 	requireDummyTableRows(t, st, a, b)
 
-	e = st.DeleteById(TestTable{}, 1)
+	e = st.Delete(TestTable{}, 1)
 	require.NoError(t, e)
 
 	requireDummyTableRows(t, st, b)

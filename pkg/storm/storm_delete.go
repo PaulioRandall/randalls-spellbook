@@ -4,12 +4,12 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 )
 
-// DeleteById removes the records with the given ids from
+// Delete removes the records with the given IDs from
 // the table associated with the passed model. If no
 // record is found then nothing happens. The model's
 // type must match a registered type or an error is
 // returned.
-func (st *Storm) DeleteById[T, ID any](
+func (st *Storm) Delete[T, ID any](
 	model T,
 	ids ...ID,
 ) (e error) {
@@ -18,7 +18,7 @@ func (st *Storm) DeleteById[T, ID any](
 	}
 
 	for _, id := range ids {
-		e = st.deleteById(model, id)
+		e = st.deleteForId(model, id)
 		if e != nil {
 			return ErrTableRequest.Fmt(typeName(model)).Wrap(e)
 		}
@@ -27,7 +27,7 @@ func (st *Storm) DeleteById[T, ID any](
 	return nil
 }
 
-func (st *Storm) deleteById(model any, id any) error {
+func (st *Storm) deleteForId(model any, id any) error {
 	table, found, e := st.getTable(model)
 	if e != nil {
 		return e

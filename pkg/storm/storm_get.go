@@ -8,9 +8,9 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
 
-// Select returns all records for the table associated
+// List returns all records for the table associated
 // with the passed model.
-func (st *Storm) Select[T any](model T) (result []T, e error) {
+func (st *Storm) List[T any](model T) (result []T, e error) {
 	var query string
 	var rows *sql.Rows
 
@@ -53,14 +53,12 @@ Err:
 	return nil, ErrTableRequest.Fmt(typeName(model)).Wrap(e)
 }
 
-// SelectById returns the record with the given id from
+// Get returns the record with the given id from
 // the table associated with the passed model. If no
 // record is found then an error is returned. The model's
 // type must match a registered type or an error is
 // returned.
-//
-//	object, err := SelectById(Model{}, 123)
-func (st *Storm) SelectById[T, ID any](
+func (st *Storm) Get[T, ID any](
 	model T,
 	id ID,
 ) (result T, e error) {

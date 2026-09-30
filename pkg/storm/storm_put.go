@@ -6,10 +6,10 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 )
 
-// Insert inserts all passed objects into the database. If
-// a table doesn't exist for an object, it will be created
-// as if passed to [Storm.Create].
-func (st *Storm) Insert[T any](objects ...T) error {
+// Put inserts or updates all passed objects into the
+// database. If a table doesn't exist for an object, it
+// will be created as if passed to [Storm.Create].
+func (st *Storm) Put[T any](objects ...T) error {
 	if !st.IsOpen() {
 		return ErrNotOpen
 	}
