@@ -73,7 +73,7 @@ func (st *Storm) createTableFromModel(model any) (e error) {
 	return nil
 
 Err:
-	return ErrTableRequest.Fmt(typeName(model)).Wrap(e)
+	return st.errForModel(model, e)
 }
 
 func (st *Storm) createTable(table ModelTable) error {

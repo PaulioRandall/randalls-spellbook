@@ -13,13 +13,13 @@ import (
 // database file.
 func (st *Storm) Drop(models ...any) error {
 	if !st.IsOpen() {
-		return ErrNotOpen
+		return st.errNotOpen()
 	}
 
 	for _, m := range models {
 		e := st.dropTable(m)
 		if e != nil {
-			return ErrTableRequest.Fmt(typeName(m)).Wrap(e)
+			return st.errForModel(m, e)
 		}
 	}
 

@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_Storm_Put_1(t *testing.T) {
+func Test_Storm_Upsert_1(t *testing.T) {
 	// Creates table in database and inserts data GIVEN
-	// valid model AND table not yet in database.
+	// table not yet in database.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -26,15 +26,11 @@ func Test_Storm_Put_1(t *testing.T) {
 	requireDummyTableRows(t, st, data)
 }
 
-func Test_Storm_Put_2(t *testing.T) {
-	// Inserts data into database GIVEN table already in
-	// database.
+func Test_Storm_Upsert_2(t *testing.T) {
+	// Inserts data GIVEN table is already created.
 
 	st := openStormDatabase(t)
 	defer st.Close()
-
-	e := st.Create(TestTable{})
-	require.NoError(t, e)
 
 	data := TestTable{
 		Id:     123,
@@ -42,15 +38,18 @@ func Test_Storm_Put_2(t *testing.T) {
 		Rating: 123.456,
 	}
 
+	e := st.Create(TestTable{})
+	require.NoError(t, e)
+
 	e = st.Put(data)
 	require.NoError(t, e)
 
+	requireDummyTableExists(t, st)
 	requireDummyTableRows(t, st, data)
 }
 
-func Test_Storm_Update_1(t *testing.T) {
-	// Updates data in database GIVEN table exists AND
-	// item exists in table.
+func Test_Storm_Upsert_3(t *testing.T) {
+	// Updates data GIVEN object is already within table.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -66,12 +65,13 @@ func Test_Storm_Update_1(t *testing.T) {
 
 	updated := TestTable{
 		Id:     123,
-		Name:   "Xyz",
+		Name:   "xyZ",
 		Rating: 987.654,
 	}
 
-	e = st.Update(updated)
+	e = st.Put(updated)
 	require.NoError(t, e)
 
+	requireDummyTableExists(t, st)
 	requireDummyTableRows(t, st, updated)
 }

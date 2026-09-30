@@ -25,51 +25,41 @@ import (
 //       already know will be the same.
 
 var (
+	// ErrForDatabase is returned for almost all errors and
+	// prints the database path.
+	ErrForDatabase = sin.Template(
+		"Stormy database error '%s'",
+	)
+
+	// ErrForTable occurs in the chain of every error
+	// produced from an operation on a known table.
+	ErrForTable = sin.Template(
+		"For table '%s'",
+	)
+
+	// ErrForObject occurs in the chain of every error
+	// produced from an operation on an object with a known
+	// ID.
+	ErrForObject = sin.Template(
+		"For object with ID '%v'",
+	)
+
 	// ErrNotOpen occurs when trying to perform an operation
 	// before opening the database.
-	ErrNotOpen = sin.Template(
+	ErrNotOpen = sin.Err(
 		"Database not open",
 	)
 
-	// ErrTableRequest occurs within an error chain when any
-	// error occurs involving a specific table/struct, except
-	// for 'not found' errors.
-	ErrTableRequest = sin.Template(
-		"Request failed for table '%s'",
-	)
-
-	// ErrScanningRow is returned when an error occurs
+	// ErrRowScan is returned when an error occurs
 	// scanning database results.
-	ErrScanningRow = sin.Template(
-		"Scanning row '%d'",
+	ErrRowScan = sin.Template(
+		"When scanning row '%d'",
 	)
 
 	// ErrObjectNotFound is returned when a search for a
 	// specific object/row failed.
-	ErrObjectNotFound = sin.Template(
-		"Object '%s' not found with ID '%v'",
-	)
-
-	// ErrDatabaseFile is returned when an error occurs with
-	// or while opening or closing the database.
-	ErrDatabaseFile = sin.Template(
-		"Database IO error '%s'",
-	)
-
-	// ErrNoSuchTable is returned when an object is passed
-	// to a function which does not have a registered table
-	// for its type.
-	ErrNoSuchTable = sin.Template(
-		"No matching table for object type '%s'",
-	)
-
-	// ErrBadIdType is returned when an ID passed to a
-	// function, e.g. SelectById, is not of the same type as
-	// the ID field of the associated model type. This may
-	// be returned even for compatible types like int when
-	// int64 is expected.
-	ErrBadIdType = sin.Template(
-		"ID type mismatch for '%s', got %s, want %s",
+	ErrObjectNotFound = sin.Err(
+		"Object not found",
 	)
 )
 
@@ -105,7 +95,7 @@ func (st *Storm) Open() error {
 	if e != nil {
 		return sin.Err("Unable to open SQLite database").
 			Wrap(e).
-			WrapIn(ErrDatabaseFile).
+			WrapIn(ErrForDatabase).
 			Fmt(st.path)
 	}
 
@@ -135,7 +125,7 @@ func (st *Storm) Close() error {
 
 	return sin.Err("Unable to close SQLite database").
 		Wrap(e).
-		WrapIn(ErrDatabaseFile).
+		WrapIn(ErrForDatabase).
 		Fmt(st.path)
 }
 
@@ -188,6 +178,45 @@ func (st *Storm) getOrCreateTable(model any) (ModelTable, error) {
 	}
 
 	return table, nil
+}
+
+func (st *Storm) errNotOpen() error {
+	return ErrNotOpen.
+		WrapIn(ErrForDatabase).
+		Fmt(st.path)
+}
+
+func (st *Storm) errForModel(
+	model any,
+	cause error,
+) error {
+	if _, ok := model.(string); !ok {
+		model = typeName(model)
+	}
+
+	return ErrForTable.
+		Fmt(model).
+		Wrap(cause).
+		WrapIn(ErrForDatabase).
+		Fmt(st.path)
+}
+
+func (st *Storm) errForObject(
+	model any,
+	cause error,
+	objectId any,
+) error {
+	if _, ok := model.(string); !ok {
+		model = typeName(model)
+	}
+
+	return ErrForObject.
+		Fmt(objectId).
+		Wrap(cause).
+		WrapIn(ErrForTable).
+		Fmt(model).
+		WrapIn(ErrForDatabase).
+		Fmt(st.path)
 }
 
 func typeName(model any) string {

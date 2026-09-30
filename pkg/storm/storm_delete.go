@@ -14,13 +14,13 @@ func (st *Storm) Delete[T, ID any](
 	ids ...ID,
 ) (e error) {
 	if !st.IsOpen() {
-		return ErrNotOpen
+		return st.errNotOpen()
 	}
 
 	for _, id := range ids {
 		e = st.deleteForId(model, id)
 		if e != nil {
-			return ErrTableRequest.Fmt(typeName(model)).Wrap(e)
+			return st.errForObject(model, e, id)
 		}
 	}
 

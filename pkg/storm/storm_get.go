@@ -2,11 +2,12 @@ package storm
 
 import (
 	"database/sql"
-	"reflect"
+	ref "reflect"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
-	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
+
+// TODO: REfactor & tidy
 
 // List returns all records for the table associated
 // with the passed model.
@@ -15,12 +16,12 @@ func (st *Storm) List[T any](model T) (result []T, e error) {
 	var rows *sql.Rows
 
 	if !st.IsOpen() {
-		return nil, ErrNotOpen
+		return nil, st.errNotOpen()
 	}
 
 	table, found, e := st.getTable(model)
 	if e != nil {
-		return nil, e
+		goto Err
 	}
 
 	if !found {
@@ -50,7 +51,7 @@ func (st *Storm) List[T any](model T) (result []T, e error) {
 	return result, nil
 
 Err:
-	return nil, ErrTableRequest.Fmt(typeName(model)).Wrap(e)
+	return nil, st.errForModel(model, e)
 }
 
 // Get returns the record with the given id from
@@ -69,7 +70,7 @@ func (st *Storm) Get[T, ID any](
 	var ok bool
 
 	if !st.IsOpen() {
-		return empty, ErrNotOpen
+		return empty, st.errNotOpen()
 	}
 
 	table, found, e := st.getTable(model)
@@ -78,7 +79,7 @@ func (st *Storm) Get[T, ID any](
 	}
 
 	if !found {
-		e = ErrObjectNotFound.Fmt(table.GoName, id)
+		e = ErrObjectNotFound
 		goto Err
 	}
 
@@ -107,17 +108,14 @@ func (st *Storm) Get[T, ID any](
 
 	result, ok = getFirstItemIfArray[T](resultSet)
 	if !ok {
-		e = ErrObjectNotFound.Fmt(table.GoName, id)
+		e = ErrObjectNotFound
 		goto Err
 	}
 
 	return result, nil
 
 Err:
-	return empty, sin.Fmt("For object with ID '%v'", id).
-		Wrap(e).
-		WrapIn(ErrTableRequest).
-		Fmt(typeName(model))
+	return empty, st.errForObject(model, e, id)
 }
 
 func (st *Storm) scanSelectedRows[T any](
@@ -130,7 +128,7 @@ func (st *Storm) scanSelectedRows[T any](
 	for i := 0; rows.Next(); i++ {
 		e := rows.Scan(valuePtrs...)
 		if e != nil {
-			return nil, ErrScanningRow.Fmt(i).Wrap(e)
+			return nil, ErrRowScan.Fmt(i).Wrap(e)
 		}
 
 		object := constructObject[T](table, values)
@@ -164,10 +162,10 @@ func constructObject[T any](
 ) T {
 	var result T
 
-	objVal := reflect.ValueOf(&result).Elem()
+	objVal := ref.ValueOf(&result).Elem()
 
 	for valueIdx, col := range table.Columns {
-		v := reflect.ValueOf(values[valueIdx])
+		v := ref.ValueOf(values[valueIdx])
 		fieldVal := objVal.Field(col.GoIndex)
 
 		if v.CanConvert(fieldVal.Type()) {
@@ -185,10 +183,10 @@ func constructObject[T any](
 
 func getFirstItemIfArray[T any](v any) (T, bool) {
 	var empty T
-	rv := reflect.ValueOf(v)
+	rv := ref.ValueOf(v)
 
-	isArray := rv.Kind() == reflect.Array
-	isSlice := rv.Kind() == reflect.Slice
+	isArray := rv.Kind() == ref.Array
+	isSlice := rv.Kind() == ref.Slice
 
 	if !isArray && !isSlice {
 		return empty, false

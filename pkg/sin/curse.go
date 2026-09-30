@@ -7,6 +7,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// TODO: Curse.Error() should return the raw stack
+//       representation as most optimal.
+
 // Curse is an error with a Message and optional Cause. If
 // created via [TemplateCurse.Fmt] then [Curse.Is] will
 // return true if called with itself or any curse created
@@ -123,6 +126,11 @@ func (cu Curse) AsStack(reversed bool) string {
 // [AsRawStack].
 func (cu Curse) AsRawStack(reversed bool) string {
 	return AsRawStack(cu, reversed)
+}
+
+// AsStackError wraps the error in a StackError.
+func (cu Curse) AsStackError(raw, reversed bool) error {
+	return Stack(cu, raw, reversed)
 }
 
 // TemplateCurse creates [Curse]s with formattable message.
