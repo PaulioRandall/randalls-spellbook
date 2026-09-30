@@ -2,9 +2,11 @@ package storm
 
 import (
 	"database/sql"
+	"net/url"
 	"os"
 	"path/filepath"
 	ref "reflect"
+	"strings"
 
 	_ "github.com/glebarez/go-sqlite"
 
@@ -14,11 +16,6 @@ import (
 
 // TODO: Make Storm thread safe. Lock on function entry
 //       and defer the unlock.
-// TODO: Check the ordering of fields when scanning
-//       database rows. Ensure the order the rows appear in
-//       the select statement is the order they are
-//       scanned to avoid the wrong info appearing in the
-//       wrong struct fields.
 // TODO: API call cache, create a ModelTable cache that
 //       lives and dies in a single API call so bulk
 //       inserts of the same kind don't fetch metadata we
@@ -140,8 +137,8 @@ func (st *Storm) Table(model any) (scumble.SqlTable, error) {
 }
 
 func makeParentDirs(path string) error {
-	if path == ":memory" {
-		// SQlite in-memory database. There is no path!
+	if isInMemoryDatabase(path) {
+		// There is no path!
 		return nil
 	}
 
@@ -154,6 +151,52 @@ func makeParentDirs(path string) error {
 	return sin.Err(
 		"Unable to verify or create path to SQLite database",
 	).Wrap(e)
+}
+
+// isInMemoryDatabase determines if the path will open an
+// in-memory database. There are probably a few very
+// uncommon and highly niche edge cases that are not
+// covered. Tough! I CBA to deal with them and don't
+// currently trust Claudes output on the matter of
+// detecting in-memory database paths.
+//
+// The path is being used like: sql.Open("sqlite", path).
+func isInMemoryDatabase(path string) bool {
+	name, _, _ := strings.Cut(path, "?")
+	if name == ":memory:" || name == "file::memory:" {
+		return true
+	}
+
+	if !strings.HasPrefix(path, "file:") {
+		// Can't be in-memory if it doesn't use the file scheme
+		// or is not the special filename ":memory:".
+		return false
+	}
+
+	u, e := url.Parse(path)
+	if e != nil {
+		// Fails to parse then assume it's not in-memory.
+		return false
+	}
+
+	if u.Query().Get("mode") == "memory" {
+		// Named in-memory database.
+		return true
+	}
+
+	if u.Query().Get("vfs") == "memdb" {
+		// Alternative way to specify in-memory.
+		return true
+	}
+
+	// Finally, handle encoded path.
+	name = u.Opaque
+	if name == "" {
+		name = u.Path
+	}
+
+	name, _ = url.PathUnescape(name)
+	return name == ":memory:"
 }
 
 func (st *Storm) getTable(model any) (ModelTable, bool, error) {
