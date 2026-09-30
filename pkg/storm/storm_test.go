@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/schema"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
 )
 
 type TestTable struct {
@@ -25,7 +25,7 @@ func openStormDatabase(t *testing.T) *Storm {
 }
 
 func requireDummyTableExists(t *testing.T, st *Storm) {
-	tableSchema, e := schema.QuerySqliteSchema(st.db, "TestTable")
+	tableSchema, e := scumble.QuerySqliteSchema(st.db, "TestTable")
 	require.NoError(t, e)
 	require.Equal(t, "TestTable", tableSchema.Name)
 	require.Equal(t, "TestTable", tableSchema.TableName)
@@ -147,8 +147,8 @@ func Test_Storm_Drop_2(t *testing.T) {
 	e = st.Drop(TestTable{})
 	require.NoError(t, e)
 
-	_, e = schema.QuerySqliteSchema(st.db, "TestTable")
-	require.ErrorIs(t, e, schema.ErrEntityNotFound)
+	_, e = scumble.QuerySqliteSchema(st.db, "TestTable")
+	require.ErrorIs(t, e, scumble.ErrEntityNotFound)
 }
 
 func Test_Storm_Update_1(t *testing.T) {

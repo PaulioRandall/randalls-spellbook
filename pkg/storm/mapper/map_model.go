@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
-	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/schema"
 )
 
 var (
@@ -102,8 +102,8 @@ func queryModel(
 ) ([]sqlQueryCol, bool, error) {
 
 	// Check if table exists at all.
-	_, e := schema.QuerySqliteSchema(db, tableName)
-	if errors.Is(e, schema.ErrEntityNotFound) {
+	_, e := scumble.QuerySqliteSchema(db, tableName)
+	if errors.Is(e, scumble.ErrEntityNotFound) {
 		return nil, false, nil
 	}
 
@@ -111,7 +111,7 @@ func queryModel(
 		return nil, false, e
 	}
 
-	colInfo, e := schema.QueryTableInfo(db, tableName)
+	colInfo, e := scumble.QueryTableInfo(db, tableName)
 	if e != nil {
 		return nil, false, e
 	}

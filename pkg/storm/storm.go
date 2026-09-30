@@ -7,10 +7,10 @@ import (
 	_ "github.com/glebarez/go-sqlite"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sprints"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/mapper"
-	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/schema"
 )
 
 // TODO: Make Storm thread safe. Lock on function entry
@@ -143,8 +143,8 @@ func (st *Storm) Close() error {
 // Table returns the full table details the passed model
 // represents. All columns in the table are included, not
 // just those that map to the passed model type.
-func (st *Storm) Table(model any) (schema.SqlTable, error) {
-	return schema.QueryTable(
+func (st *Storm) Table(model any) (scumble.SqlTable, error) {
+	return scumble.QueryTable(
 		st.db,
 		reflect.TypeOf(model).Name(),
 	)

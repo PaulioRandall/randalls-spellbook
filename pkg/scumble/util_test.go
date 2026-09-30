@@ -1,4 +1,4 @@
-package schema
+package scumble
 
 import (
 	"database/sql"
