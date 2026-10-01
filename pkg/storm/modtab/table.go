@@ -68,32 +68,46 @@ type ModelColumn struct {
 // passed model's type. One should not assume the result
 // will map directly to a same named table within a
 // database; use [Map] to create a representation that is
-// usable with a specific database.
-func Parse(model any) (ModelTable, error) {
+// usable with a specific database. Type mappings:
+//
+//	INTEGER:
+//		int, int8, int16, int32, int64,
+//		uint, uint8, uint16, uint32, uint64
+//	REAL:
+//		float32, float64
+//	TEXT:
+//		string
+//
+// You are responsible for choosing appropriate data types
+// for your structures. If you choose to use an unsigned
+// integer type (unit etc) or shorter integer type
+// (int8 etc) then you are responsible for ensuring or
+// managing number polarity and overflow. I recommend
+// sticking to int, int64, float64, and string as these are
+// the least likely to face issues.
+func Parse(model any) (table ModelTable, e error) {
 	modelType := derefModelType(model)
 
 	if modelType.Kind() != ref.Struct {
-		return ModelTable{}, ErrNotStruct.
-			Fmt(modelType.Kind().String()).
-			WrapIn(ErrForModel).
-			Fmt(modelType.Name())
+		e = ErrNotStruct.Fmt(modelType.Kind().String())
+		goto Err
 	}
-
-	var table ModelTable
 
 	table.GoType = modelType
 	table.GoName = modelType.Name()
 	table.SqlName = modelType.Name()
 
-	var e error
 	table.Columns, e = parseColumns(modelType)
 	if e != nil {
-		return ModelTable{}, ErrForModel.
-			Fmt(modelType.Name()).
-			Wrap(e)
+		goto Err
 	}
 
 	return table, nil
+
+Err:
+	return ModelTable{}, ErrForModel.
+		Fmt(modelType.Name()).
+		Wrap(e)
 }
 
 func derefModelType(model any) ref.Type {
@@ -247,12 +261,18 @@ func (t ModelTable) Drop(db *sql.DB) error {
 // database is open and the table exists.
 //
 // Inserting via an object that only represents part of a
-// table will cause the unfilled columns to default to
-// their zero value. When updating, the primary key (ID)
+// table will cause the unset columns to default to
+// their zero value. When updating, the ID (primary key)
 // field is used to target the row but is not updated.
 func (t ModelTable) Upsert(db *sql.DB, object any) error {
 	pkCol := t.PkCol()
 	nonPkCols := t.NonPkCols()
+
+	if pkCol == (ModelColumn{}) {
+		return ErrForModel.
+			Fmt(t.GoName).
+			Wrap(ErrMissingIdField)
+	}
 
 	query := nidoking.Given(`
 		INSERT INTO {{table.SqlName}} (
@@ -312,9 +332,9 @@ func (t ModelTable) Select[T any](db *sql.DB) ([]T, error) {
 
 // SelectById returns the table row with the passed ID
 // (primary key) from the passed database. It assumes the
-// database is open and the table exists. If the row
-// exists, the second return value will be true and the
-// first return value will contain the row data.
+// database is open and the table exists. The first return
+// value will contain the row data and second will be true
+// if the row exists, else zero value and false.
 func (t ModelTable) SelectById[T any](db *sql.DB, id any) (T, bool, error) {
 	query := nidoking.Given(`
 		SELECT
@@ -339,7 +359,7 @@ func (t ModelTable) SelectById[T any](db *sql.DB, id any) (T, bool, error) {
 }
 
 // DeleteById removes the table row with the given ID
-// (Primary Key) from the passed database. It assumes the
+// (primary key) from the passed database. It assumes the
 // database is open and the table exists. If no matching
 // row is found then nothing happens and no error is
 // returned.

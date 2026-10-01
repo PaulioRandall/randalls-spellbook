@@ -8,8 +8,7 @@ import (
 )
 
 func Test_Parse_1(t *testing.T) {
-	// GIVEN non-struct model
-	// THEN panic ensues
+	// Panic ensues GIVEN non-struct model.
 
 	_, e := Parse(123)
 	require.ErrorIs(t, e, ErrForModel)
@@ -17,9 +16,7 @@ func Test_Parse_1(t *testing.T) {
 }
 
 func Test_Parse_2(t *testing.T) {
-	// GIVEN empty model
-	// THEN  ModelTable fields match expected values
-	// AND   ModelTable.Columns is empty
+	// No columns should exist GIVEN a model with no fields.
 
 	type TestModel struct{}
 
@@ -37,8 +34,8 @@ func Test_Parse_2(t *testing.T) {
 }
 
 func Test_Parse_3(t *testing.T) {
-	// GIVEN model being pointed to
-	// THEN  derefences and returns expect ModelTable
+	// Derefencing occurs and the concrete model is parsed
+	// GIVEN pointer to a model rather than passing by value.
 
 	type TestModel struct{}
 
@@ -58,11 +55,11 @@ func Test_Parse_3(t *testing.T) {
 }
 
 func Test_Parse_4(t *testing.T) {
-	// GIVEN model with single unexported field
-	// THEN  ModelTable.Columns is empty
+	// No columns should exist GIVEN model with no exported
+	// fields.
 
 	type TestModel struct {
-		id int
+		unexported int
 	}
 
 	table, e := Parse(TestModel{})
@@ -72,8 +69,8 @@ func Test_Parse_4(t *testing.T) {
 }
 
 func Test_Parse_5(t *testing.T) {
-	// GIVEN model with exported field of unsupported type
-	// THEN  panic ensues
+	// Panic ensues GIVEN model with exported field of
+	// unsupported Go type kind.
 
 	type TestModel struct {
 		Id *int
@@ -81,12 +78,13 @@ func Test_Parse_5(t *testing.T) {
 
 	_, e := Parse(TestModel{})
 	require.ErrorIs(t, e, ErrForModel)
+	require.ErrorIs(t, e, ErrForField)
 	require.ErrorIs(t, e, ErrUnsupportedType)
 }
 
 func Test_Parse_6(t *testing.T) {
-	// GIVEN model with single exported field
-	// THEN  ModelTable.Columns contains ID field
+	// Primary key column exists GIVEN model with at least
+	// one exported field.
 
 	type TestModel struct {
 		ignored bool
@@ -112,8 +110,8 @@ func Test_Parse_6(t *testing.T) {
 }
 
 func Test_Parse_7(t *testing.T) {
-	// GIVEN model with multiple exported fields
-	// THEN  ModelTable.Columns contains all exported fields
+	// All exported fields are parsed to columns GIVEN model
+	// with multiple exported fields.
 
 	type TestModel struct {
 		ignored1 bool
@@ -161,8 +159,8 @@ func Test_Parse_7(t *testing.T) {
 }
 
 func Test_Table_PkCol_1(t *testing.T) {
-	// GIVEN model with multiple exported fields
-	// THEN  returns expected primary key column
+	// Primry key column returned GIVEN model with multiple
+	// exported fields.
 
 	type TestModel struct {
 		ignored1 bool

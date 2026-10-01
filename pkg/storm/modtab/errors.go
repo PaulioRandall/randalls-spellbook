@@ -37,6 +37,13 @@ var (
 		"Model's field type '%s' is not compatible with existing column type '%s'",
 	)
 
+	// ErrMissingIdField occurs when attempting to insert,
+	// update, or upsert a row but the model used does not
+	// contain the required ID field.
+	ErrMissingIdField = sin.Err(
+		"Model missing ID field",
+	)
+
 	// ErrRowScan is returned when an error occurs scanning
 	// database rows.
 	ErrRowScan = sin.Template(

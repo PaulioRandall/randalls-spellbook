@@ -7,16 +7,10 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
 )
 
-type sqlQueryCol struct {
-	SqlType    string
-	SqlName    string
-	PrimaryKey bool
-}
-
 // Map parses the model and modifies it to align with its
-// associated table within the database, if it exists. If
-// the table doesn't currently exist then the returned
-// result will be the same as that returned by [Parse].
+// associated table within the database. If the table
+// doesn't currently exist then the returned result will be
+// the same as that returned by [Parse].
 func Map(db *sql.DB, model any) (ModelTable, bool, error) {
 	var zero ModelTable
 

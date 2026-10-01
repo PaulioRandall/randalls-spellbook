@@ -7,19 +7,42 @@ import (
 	"path/filepath"
 	ref "reflect"
 	"strings"
+	"sync"
 
 	_ "github.com/glebarez/go-sqlite"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/modtab"
 )
 
-// TODO: Make Storm thread safe. Lock on function entry
-//       and defer the unlock.
-// TODO: API call cache, create a ModelTable cache that
-//       lives and dies in a single API call so bulk
-//       inserts of the same kind don't fetch metadata we
-//       already know will be the same.
+// TODO: AS operations, e.g. CreateAs("Users", Model{})
+//       Allow table name to be specified rather than using
+//       the struct's name.
+// TODO: Function to perform custom operations. Must lock
+//       and allow access to cachedMapper and db.
+// TEST: Caching modes
+
+// CacheMode represents an approach to caching parsed
+// models.
+type CacheMode int
+
+const (
+	// CacheModeNone means caching is disabled.
+	CacheModeNone CacheMode = iota
+
+	// CacheModeRequest means the cache is reset for each
+	// request. This is useful if the structure or existence
+	// of tables is changed through custom operations.
+	CacheModeRequest
+
+	// CacheModeSession means entries persist across the
+	// session, but dropping a table will remove all entries
+	// for that table. Cache will be cleared on database
+	// close.
+	CacheModeSession
+)
 
 var (
 	// ErrForDatabase is returned for almost all errors and
@@ -60,19 +83,70 @@ var (
 	)
 )
 
-// Storm is the core type and the interface to the SQLite
+// Storm is the core type for interfacing with the
 // database.
 type Storm struct {
-	path string
-	db   *sql.DB
+	path         string
+	db           *sql.DB
+	mutex        sync.Mutex
+	cacheMode    CacheMode
+	cachedMapper modtab.CachedMapper
 }
 
 // New returns a new [Storm] for the database represented
 // by path.
 func New(path string) *Storm {
 	return &Storm{
-		path: path,
+		path:         path,
+		cacheMode:    CacheModeNone,
+		cachedMapper: modtab.CachedMapper{},
 	}
+}
+
+// CacheMode returns the current caching mode.
+func (st *Storm) CacheMode() CacheMode {
+	return st.cacheMode
+}
+
+// SetCacheMode sets the caching mode. If the mode is
+// already set then nothing happens, else the cache
+// contents is cleared before unlock.
+func (st *Storm) SetCacheMode(mode CacheMode) {
+	if st.cacheMode == mode {
+		return
+	}
+
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+
+	st.cacheMode = mode
+	clear(st.cachedMapper)
+}
+
+// CacheClear clears the cache regardless of mode.
+func (st *Storm) CacheClear() {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+
+	clear(st.cachedMapper)
+}
+
+// CacheClearModel removes a specific model from the cache
+// regardless of mode.
+func (st *Storm) CacheClearModel(model any) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+
+	st.cachedMapper.DeleteModel(model)
+}
+
+// CacheClearTable removes a specific table from the cache
+// regardless of mode.
+func (st *Storm) CacheClearTable(name string) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+
+	st.cachedMapper.DeleteTable(name)
 }
 
 // Open opens the database. If not an 'in-memory' path then
@@ -82,6 +156,9 @@ func (st *Storm) Open() error {
 	if st.IsOpen() {
 		return nil
 	}
+
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
 
 	e := makeParentDirs(st.path)
 	if e != nil {
@@ -106,10 +183,16 @@ func (st *Storm) IsOpen() bool {
 }
 
 // Close closes the database. Use with defer as usual.
+// The cache content is cleared regardless of current mode.
 func (st *Storm) Close() error {
 	if !st.IsOpen() {
 		return nil
 	}
+
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+
+	clear(st.cachedMapper)
 
 	defer func() {
 		st.db = nil
@@ -130,6 +213,9 @@ func (st *Storm) Close() error {
 // represents. All columns in the table are included, not
 // just those that map to the passed model type.
 func (st *Storm) Table(model any) (scumble.SqlTable, error) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+
 	return scumble.QueryTable(
 		st.db,
 		typeName(model),
@@ -197,6 +283,21 @@ func isInMemoryDatabase(path string) bool {
 
 	name, _ = url.PathUnescape(name)
 	return name == ":memory:"
+}
+
+func (st *Storm) prepareMapper() {
+	if st.cacheMode == CacheModeRequest {
+		clear(st.cachedMapper)
+	}
+}
+
+func (st *Storm) mapModel(
+	model any,
+) (modtab.ModelTable, bool, error) {
+	if st.cacheMode == CacheModeNone {
+		return modtab.Map(st.db, model)
+	}
+	return st.cachedMapper.Map(st.db, model)
 }
 
 func (st *Storm) errNotOpen() error {
