@@ -1,16 +1,15 @@
-package storm
+package modtab
 
 import (
 	"database/sql"
 	"errors"
-	ref "reflect"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
 
 var (
-	ErrMapModel = sin.Template(
+	ErrMap = sin.Template(
 		"Regarding model '%s' (table '%s')",
 	)
 
@@ -19,72 +18,20 @@ var (
 	)
 )
 
-type modelMapperCacheEntry struct {
-	exists bool
-	table  ModelTable
-}
-
-type modelMapper struct {
-	st    *Storm
-	cache map[ref.Type]modelMapperCacheEntry
-}
-
-func newModelMapper(st *Storm) *modelMapper {
-	return &modelMapper{
-		st:    st,
-		cache: map[ref.Type]modelMapperCacheEntry{},
-	}
-}
-
-func (tm *modelMapper) get(m any) (ModelTable, bool, error) {
-	t := typeOf(m)
-
-	entry, ok := tm.cache[t]
-	if ok {
-		return entry.table, entry.exists, nil
-	}
-
-	table, exists, e := MapModel(tm.st.db, m)
-	if e != nil {
-		return ModelTable{}, false, e
-	}
-
-	tm.cache[t] = modelMapperCacheEntry{
-		exists: exists,
-		table:  table,
-	}
-
-	return table, exists, nil
-}
-
-func (tm *modelMapper) getOrCreate(m any) (ModelTable, error) {
-	table, exists, e := tm.get(m)
-	if e != nil || exists {
-		return table, e
-	}
-
-	e = tm.st.createTable(table)
-	if e != nil {
-		return ModelTable{}, e
-	}
-
-	return table, nil
-}
-
 type sqlQueryCol struct {
 	SqlType    string
 	SqlName    string
 	PrimaryKey bool
 }
 
-func MapModel(db *sql.DB, model any) (ModelTable, bool, error) {
+func Map(db *sql.DB, model any) (ModelTable, bool, error) {
 	var zero ModelTable
 
-	pTable := ParseModel(model)
+	pTable := Parse(model)
 	qCols, found, e := queryModel(db, pTable.SqlName)
 
 	if e != nil {
-		return zero, false, ErrMapModel.
+		return zero, false, ErrMap.
 			Fmt(pTable.GoName, pTable.SqlName).
 			Wrap(e)
 	}
@@ -97,7 +44,7 @@ func MapModel(db *sql.DB, model any) (ModelTable, bool, error) {
 
 	pTable.Columns, e = filterAndCheckColumns(pTable.Columns, qCols)
 	if e != nil {
-		return zero, false, ErrMapModel.
+		return zero, false, ErrMap.
 			Fmt(pTable.GoName, pTable.SqlName).
 			Wrap(e)
 	}

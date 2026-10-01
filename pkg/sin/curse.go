@@ -113,7 +113,7 @@ func (cu Curse) Is(target error) bool {
 // Error returns the error message, satisfying Go's error
 // interface.
 func (cu Curse) Error() string {
-	return cu.Message
+	return cu.AsRawStack(false)
 }
 
 // AsStack returns the result of passing the Curse to

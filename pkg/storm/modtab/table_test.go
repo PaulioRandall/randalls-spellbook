@@ -1,31 +1,32 @@
-package storm
+package modtab
 
 import (
+	ref "reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func Test_ParseModel_1(t *testing.T) {
+func Test_Parse_1(t *testing.T) {
 	// GIVEN non-struct model
 	// THEN panic ensues
 
 	require.Panics(t, func() {
-		ParseModel(123)
+		Parse(123)
 	})
 }
 
-func Test_ParseModel_2(t *testing.T) {
+func Test_Parse_2(t *testing.T) {
 	// GIVEN empty model
 	// THEN  ModelTable fields match expected values
 	// AND   ModelTable.Columns is empty
 
 	type TestModel struct{}
 
-	table := ParseModel(TestModel{})
+	table := Parse(TestModel{})
 
 	exp := ModelTable{
-		GoType:  typeOf(TestModel{}),
+		GoType:  ref.TypeOf(TestModel{}),
 		GoName:  "TestModel",
 		SqlName: "TestModel",
 		Columns: nil,
@@ -34,7 +35,7 @@ func Test_ParseModel_2(t *testing.T) {
 	require.Equal(t, exp, table)
 }
 
-func Test_ParseModel_3(t *testing.T) {
+func Test_Parse_3(t *testing.T) {
 	// GIVEN model being pointed to
 	// THEN  derefences and returns expect ModelTable
 
@@ -42,10 +43,10 @@ func Test_ParseModel_3(t *testing.T) {
 
 	ptr := &TestModel{}
 	ptrPtr := &ptr
-	table := ParseModel(ptrPtr)
+	table := Parse(ptrPtr)
 
 	exp := ModelTable{
-		GoType:  typeOf(TestModel{}),
+		GoType:  ref.TypeOf(TestModel{}),
 		GoName:  "TestModel",
 		SqlName: "TestModel",
 		Columns: nil,
@@ -54,7 +55,7 @@ func Test_ParseModel_3(t *testing.T) {
 	require.Equal(t, exp, table)
 }
 
-func Test_ParseModel_4(t *testing.T) {
+func Test_Parse_4(t *testing.T) {
 	// GIVEN model with single unexported field
 	// THEN  ModelTable.Columns is empty
 
@@ -62,11 +63,11 @@ func Test_ParseModel_4(t *testing.T) {
 		id int
 	}
 
-	table := ParseModel(TestModel{})
+	table := Parse(TestModel{})
 	require.Equal(t, 0, len(table.Columns))
 }
 
-func Test_ParseModel_5(t *testing.T) {
+func Test_Parse_5(t *testing.T) {
 	// GIVEN model with exported field of unsupported type
 	// THEN  panic ensues
 
@@ -75,11 +76,11 @@ func Test_ParseModel_5(t *testing.T) {
 	}
 
 	require.Panics(t, func() {
-		ParseModel(TestModel{})
+		Parse(TestModel{})
 	})
 }
 
-func Test_ParseModel_6(t *testing.T) {
+func Test_Parse_6(t *testing.T) {
 	// GIVEN model with single exported field
 	// THEN  ModelTable.Columns contains ID field
 
@@ -88,11 +89,11 @@ func Test_ParseModel_6(t *testing.T) {
 		Id      int
 	}
 
-	table := ParseModel(TestModel{})
+	table := Parse(TestModel{})
 
 	exp := []ModelColumn{
 		ModelColumn{
-			GoType:     typeOf(int(0)),
+			GoType:     ref.TypeOf(int(0)),
 			GoIndex:    1,
 			GoName:     "Id",
 			SqlType:    "INTEGER",
@@ -105,7 +106,7 @@ func Test_ParseModel_6(t *testing.T) {
 	require.Equal(t, exp, table.Columns)
 }
 
-func Test_ParseModel_7(t *testing.T) {
+func Test_Parse_7(t *testing.T) {
 	// GIVEN model with multiple exported fields
 	// THEN  ModelTable.Columns contains all exported fields
 
@@ -118,11 +119,11 @@ func Test_ParseModel_7(t *testing.T) {
 		Value    float64
 	}
 
-	table := ParseModel(TestModel{})
+	table := Parse(TestModel{})
 
 	exp := []ModelColumn{
 		ModelColumn{
-			GoType:     typeOf(int(0)),
+			GoType:     ref.TypeOf(int(0)),
 			GoIndex:    1,
 			GoName:     "Id",
 			SqlType:    "INTEGER",
@@ -131,7 +132,7 @@ func Test_ParseModel_7(t *testing.T) {
 			PrimaryKey: true,
 		},
 		ModelColumn{
-			GoType:     typeOf(""),
+			GoType:     ref.TypeOf(""),
 			GoIndex:    3,
 			GoName:     "Name",
 			SqlType:    "TEXT",
@@ -140,7 +141,7 @@ func Test_ParseModel_7(t *testing.T) {
 			PrimaryKey: false,
 		},
 		ModelColumn{
-			GoType:     typeOf(float64(0)),
+			GoType:     ref.TypeOf(float64(0)),
 			GoIndex:    5,
 			GoName:     "Value",
 			SqlType:    "REAL",
@@ -166,11 +167,11 @@ func Test_Table_PkCol_1(t *testing.T) {
 		Value    float64
 	}
 
-	table := ParseModel(TestModel{})
+	table := Parse(TestModel{})
 	pkCol := table.PkCol()
 
 	exp := ModelColumn{
-		GoType:     typeOf(int(0)),
+		GoType:     ref.TypeOf(int(0)),
 		GoIndex:    1,
 		GoName:     "Id",
 		SqlType:    "INTEGER",

@@ -1,7 +1,8 @@
-package storm
+package modtab
 
 import (
 	"database/sql"
+	ref "reflect"
 	"testing"
 
 	_ "github.com/glebarez/go-sqlite"
@@ -27,7 +28,7 @@ func createAndPopulateTestDb(t *testing.T) *sql.DB {
 
 var (
 	TestIdCol = ModelColumn{
-		GoType:     typeOf(int(0)),
+		GoType:     ref.TypeOf(int(0)),
 		GoIndex:    0,
 		GoName:     "Id",
 		SqlType:    "INTEGER",
@@ -37,7 +38,7 @@ var (
 	}
 
 	TestNameCol = ModelColumn{
-		GoType:     typeOf(""),
+		GoType:     ref.TypeOf(""),
 		GoIndex:    1,
 		GoName:     "Name",
 		SqlType:    "TEXT",
@@ -47,7 +48,7 @@ var (
 	}
 
 	TestRatingCol = ModelColumn{
-		GoType:     typeOf(float64(0)),
+		GoType:     ref.TypeOf(float64(0)),
 		GoIndex:    2,
 		GoName:     "Rating",
 		SqlType:    "REAL",
@@ -57,7 +58,7 @@ var (
 	}
 )
 
-func Test_MapModel_1(t *testing.T) {
+func Test_Map_1(t *testing.T) {
 	// GIVEN model not in database
 	// THEN  mapped ModelTable is representing the full model
 
@@ -70,9 +71,9 @@ func Test_MapModel_1(t *testing.T) {
 	db := createAndPopulateTestDb(t)
 	defer db.Close()
 
-	act, exists, e := MapModel(db, NotPlayer{})
+	act, exists, e := Map(db, NotPlayer{})
 	exp := ModelTable{
-		GoType:  typeOf(NotPlayer{}),
+		GoType:  ref.TypeOf(NotPlayer{}),
 		GoName:  "NotPlayer",
 		SqlName: "NotPlayer",
 		Columns: []ModelColumn{
@@ -87,7 +88,7 @@ func Test_MapModel_1(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_MapModel_2(t *testing.T) {
+func Test_Map_2(t *testing.T) {
 	// GIVEN model in database with same fields/columns
 	// THEN  mapped ModelTable is representing the full model
 
@@ -100,9 +101,9 @@ func Test_MapModel_2(t *testing.T) {
 	db := createAndPopulateTestDb(t)
 	defer db.Close()
 
-	act, exists, e := MapModel(db, Player{})
+	act, exists, e := Map(db, Player{})
 	exp := ModelTable{
-		GoType:  typeOf(Player{}),
+		GoType:  ref.TypeOf(Player{}),
 		GoName:  "Player",
 		SqlName: "Player",
 		Columns: []ModelColumn{
@@ -117,7 +118,7 @@ func Test_MapModel_2(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_MapModel_3(t *testing.T) {
+func Test_Map_3(t *testing.T) {
 	// GIVEN model with exported field not in database
 	// THEN  field is not omitted from ModelTable
 
@@ -130,9 +131,9 @@ func Test_MapModel_3(t *testing.T) {
 	db := createAndPopulateTestDb(t)
 	defer db.Close()
 
-	act, _, e := MapModel(db, Player{})
+	act, _, e := Map(db, Player{})
 	exp := ModelTable{
-		GoType:  typeOf(Player{}),
+		GoType:  ref.TypeOf(Player{}),
 		GoName:  "Player",
 		SqlName: "Player",
 		Columns: []ModelColumn{
@@ -145,7 +146,7 @@ func Test_MapModel_3(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_MapModel_4(t *testing.T) {
+func Test_Map_4(t *testing.T) {
 	// GIVEN ID field is not first field in model
 	// THEN  ModelTable is returned with corrected ID field
 	// AND   GoIndex matches model struct
@@ -161,10 +162,10 @@ func Test_MapModel_4(t *testing.T) {
 	db := createAndPopulateTestDb(t)
 	defer db.Close()
 
-	act, _, e := MapModel(db, Player{})
+	act, _, e := Map(db, Player{})
 
 	exp := ModelTable{
-		GoType:  typeOf(Player{}),
+		GoType:  ref.TypeOf(Player{}),
 		GoName:  "Player",
 		SqlName: "Player",
 		Columns: []ModelColumn{
@@ -183,7 +184,7 @@ func Test_MapModel_4(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_MapModel_5(t *testing.T) {
+func Test_Map_5(t *testing.T) {
 	// GIVEN field with type that is not compatible with
 	//       type in database table
 	// THEN  panic ensues
@@ -195,7 +196,7 @@ func Test_MapModel_5(t *testing.T) {
 	db := createAndPopulateTestDb(t)
 	defer db.Close()
 
-	_, _, e := MapModel(db, Player{})
-	require.ErrorIs(t, e, ErrMapModel)
+	_, _, e := Map(db, Player{})
+	require.ErrorIs(t, e, ErrMap)
 	require.ErrorIs(t, e, ErrFieldTypeMismatch)
 }

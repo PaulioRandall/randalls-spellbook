@@ -22,9 +22,15 @@ func AsStack(e error, reverse bool) string {
 	var st []string
 
 	for e != nil {
-		msg := e.Error()
-		causeIdx := strings.Index(msg, ":")
+		var msg string
 
+		if cu, ok := e.(Curse); ok {
+			msg = cu.Message
+		} else {
+			msg = e.Error()
+		}
+
+		causeIdx := strings.Index(msg, ":")
 		if causeIdx > -1 {
 			msg = msg[:causeIdx]
 		}
@@ -47,7 +53,15 @@ func AsRawStack(e error, reverse bool) string {
 	var st []string
 
 	for e != nil {
-		st = append(st, e.Error())
+		var msg string
+
+		if cu, ok := e.(Curse); ok {
+			msg = cu.Message
+		} else {
+			msg = e.Error()
+		}
+
+		st = append(st, msg)
 		e = errors.Unwrap(e)
 	}
 

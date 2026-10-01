@@ -1,7 +1,7 @@
 package storm
 
 import (
-	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/modtab"
 )
 
 // Create creates tables, represented by the passed models,
@@ -45,31 +45,23 @@ func (st *Storm) Create(models ...any) error {
 		return st.errNotOpen()
 	}
 
-	mapper := newModelMapper(st)
+	mapper := modtab.CachedMapper{}
 
 	for _, m := range models {
-		// mapper.getOrCreate calls createTable internally.
-		_, e := mapper.getOrCreate(m)
+		table, exists, e := mapper.Map(st.db, m)
+		if e != nil {
+			return st.errForModel(m, e)
+		}
+
+		if exists {
+			continue
+		}
+
+		e = table.Create(st.db)
 		if e != nil {
 			return st.errForModel(m, e)
 		}
 	}
 
 	return nil
-}
-
-func (st *Storm) createTable(table ModelTable) error {
-	query := nidoking.Given(`
-		CREATE TABLE IF NOT EXISTS {{table.SqlName}} (
-			{{col.SqlName}} {{col.SqlType}} NOT NULL DEFAULT {{col.SqlDefault}},
-		  PRIMARY KEY ({{pk_col.SqlName}})
-		)
-	`).
-		InlineMap("table", table).
-		ListMap("col", "", table.Columns...).
-		InlineMap("pk_col", table.PkCol()).
-		String()
-
-	_, e := st.db.Exec(query)
-	return e
 }

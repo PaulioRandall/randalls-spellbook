@@ -1,7 +1,7 @@
 package storm
 
 import (
-	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/modtab"
 )
 
 // Drop removes a table from the database. If the target
@@ -16,10 +16,10 @@ func (st *Storm) Drop(models ...any) error {
 		return st.errNotOpen()
 	}
 
-	mapper := newModelMapper(st)
+	mapper := modtab.CachedMapper{}
 
 	for _, m := range models {
-		table, found, e := mapper.get(m)
+		table, found, e := mapper.Map(st.db, m)
 		if e != nil {
 			return st.errForModel(m, e)
 		}
@@ -28,22 +28,11 @@ func (st *Storm) Drop(models ...any) error {
 			continue
 		}
 
-		e = st.dropTable(table)
+		e = table.Drop(st.db)
 		if e != nil {
 			return st.errForModel(m, e)
 		}
 	}
 
 	return nil
-}
-
-func (st *Storm) dropTable(table ModelTable) error {
-	query := nidoking.Given(`
-		DROP TABLE IF EXISTS {{table.SqlName}}
-	`).
-		InlineMap("table", table).
-		String()
-
-	_, e := st.db.Exec(query)
-	return e
 }
