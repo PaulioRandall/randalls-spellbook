@@ -5,15 +5,6 @@ import (
 	ref "reflect"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
-	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
-)
-
-var (
-	// ErrRowScan is returned when an error occurs
-	// scanning database results.
-	ErrRowScan = sin.Template(
-		"When scanning row '%d'",
-	)
 )
 
 // ModelTable maps a Go struct, or part of it, to a
@@ -35,6 +26,153 @@ type ModelTable struct {
 	// Columns is an ordered list of exported field to column
 	// mappings.
 	Columns []ModelColumn
+}
+
+// ModelColumn maps a Go struct's field to a specific
+// database table column.
+type ModelColumn struct {
+	// GoType is the field type as returned by reflect.TypeOf.
+	GoType ref.Type
+
+	// GoIndex is the field index, i.e. it's 0-based position
+	// within the struct definition
+	GoIndex int
+
+	// GoName is the field's name, i.e. GoType.Name().
+	GoName string
+
+	// SqlType is the SQLite type that maps to the GoType.
+	// Note that several Go types may map to a single SQLite
+	// typee.
+	SqlType string
+
+	// SqlName is the name of the column the field represents
+	// within a database. Currently, this is always the same
+	// as GoName.
+	SqlName string
+
+	// SqlDefault is the default value given to the column if
+	// a value is not provided during row insertion.
+	// Currently, this is always the zero value of the
+	// GoType.
+	SqlDefault any
+
+	// PrimaryKey is true if the column represents the
+	// primary key. By default this is the first column,
+	// however, this may differ if adjusting a ModelColumn to
+	// align with an existing table column.
+	PrimaryKey bool
+}
+
+// Parse creates a full [ModelTable] representation of the
+// passed model's type. One should not assume the result
+// will map directly to a same named table within a
+// database; use [Map] to create a representation that is
+// usable with a specific database.
+func Parse(model any) (ModelTable, error) {
+	modelType := derefModelType(model)
+
+	if modelType.Kind() != ref.Struct {
+		return ModelTable{}, ErrNotStruct.
+			Fmt(modelType.Kind().String()).
+			WrapIn(ErrForModel).
+			Fmt(modelType.Name())
+	}
+
+	var table ModelTable
+
+	table.GoType = modelType
+	table.GoName = modelType.Name()
+	table.SqlName = modelType.Name()
+
+	var e error
+	table.Columns, e = parseColumns(modelType)
+	if e != nil {
+		return ModelTable{}, ErrForModel.
+			Fmt(modelType.Name()).
+			Wrap(e)
+	}
+
+	return table, nil
+}
+
+func derefModelType(model any) ref.Type {
+	modelType := ref.TypeOf(model)
+
+	for modelType.Kind() == ref.Ptr {
+		modelType = modelType.Elem()
+	}
+
+	return modelType
+}
+
+func parseColumns(modelType ref.Type) ([]ModelColumn, error) {
+	isIdField := true
+
+	var cols []ModelColumn
+
+	for i := 0; i < modelType.NumField(); i++ {
+		f := modelType.Field(i)
+
+		if !f.IsExported() {
+			continue
+		}
+
+		col, e := parseColumn(f, i, isIdField)
+		if e != nil {
+			return nil, ErrForField.Fmt(f.Name).Wrap(e)
+		}
+
+		cols = append(cols, col)
+		isIdField = false
+	}
+
+	return cols, nil
+}
+
+func parseColumn(
+	f ref.StructField,
+	i int,
+	isIdField bool,
+) (ModelColumn, error) {
+	var col ModelColumn
+	var defaultValue any
+
+	if f.Type == ref.TypeOf("") {
+		defaultValue = "''"
+	} else {
+		defaultValue = ref.Zero(f.Type).Interface()
+	}
+
+	sqlType, e := mapGoToSqlType(f.Type.Kind())
+	if e != nil {
+		return ModelColumn{}, e
+	}
+
+	col.GoType = f.Type
+	col.GoIndex = i
+	col.GoName = f.Name
+	col.SqlType = sqlType
+	col.SqlName = f.Name
+	col.SqlDefault = defaultValue
+	col.PrimaryKey = isIdField
+
+	return col, nil
+}
+
+func mapGoToSqlType(fieldKind ref.Kind) (string, error) {
+	switch fieldKind {
+	case ref.Int, ref.Int8, ref.Int16, ref.Int32, ref.Int64:
+		fallthrough
+	case ref.Uint, ref.Uint8, ref.Uint16, ref.Uint32, ref.Uint64:
+		return "INTEGER", nil
+	case ref.Float32, ref.Float64:
+		return "REAL", nil
+	case ref.String:
+		return "TEXT", nil
+	default:
+		return "", ErrUnsupportedType.Fmt(fieldKind.String())
+	}
 }
 
 // PkCol returns the column representing the table's
@@ -79,7 +217,11 @@ func (t ModelTable) Create(db *sql.DB) error {
 		String()
 
 	_, e := db.Exec(query)
-	return e
+	if e != nil {
+		return ErrForModel.Fmt(t.GoName).Wrap(e)
+	}
+
+	return nil
 }
 
 // Drop removes the table from the passed database. It
@@ -93,7 +235,11 @@ func (t ModelTable) Drop(db *sql.DB) error {
 		String()
 
 	_, e := db.Exec(query)
-	return e
+	if e != nil {
+		return ErrForModel.Fmt(t.GoName).Wrap(e)
+	}
+
+	return nil
 }
 
 // Upsert inserts the object if it doesn't exist within the
@@ -135,7 +281,11 @@ func (t ModelTable) Upsert(db *sql.DB, object any) error {
 	values := extractColumnValues(cols, object)
 
 	_, e := db.Exec(query, values...)
-	return e
+	if e != nil {
+		return ErrForModel.Fmt(t.GoName).Wrap(e)
+	}
+
+	return nil
 }
 
 // Select returns all table rows within the passed
@@ -154,7 +304,7 @@ func (t ModelTable) Select[T any](db *sql.DB) ([]T, error) {
 
 	rows, e := db.Query(query)
 	if e != nil {
-		return nil, e
+		return nil, ErrForModel.Fmt(t.GoName).Wrap(e)
 	}
 
 	return t.scanRows[T](rows)
@@ -182,7 +332,7 @@ func (t ModelTable) SelectById[T any](db *sql.DB, id any) (T, bool, error) {
 	rows, e := db.Query(query, id)
 	if e != nil {
 		var zero T
-		return zero, false, e
+		return zero, false, ErrForModel.Fmt(t.GoName).Wrap(e)
 	}
 
 	return t.scanFirstRow[T](rows)
@@ -205,7 +355,11 @@ func (t ModelTable) DeleteById(db *sql.DB, id any) error {
 		String()
 
 	_, e := db.Exec(query, id)
-	return e
+	if e != nil {
+		return ErrForModel.Fmt(t.GoName).Wrap(e)
+	}
+
+	return nil
 }
 
 func extractColumnValues(
@@ -303,131 +457,8 @@ func (t ModelTable) populate[T any](item *T, values []any) {
 	}
 }
 
-// ModelColumn maps a Go struct's field to a specific
-// database table column.
-type ModelColumn struct {
-	// GoType is the field type as returned by reflect.TypeOf.
-	GoType ref.Type
-
-	// GoIndex is the field index, i.e. it's 0-based position
-	// within the struct definition
-	GoIndex int
-
-	// GoName is the field's name, i.e. GoType.Name().
-	GoName string
-
-	// SqlType is the SQLite type that maps to the GoType.
-	// Note that several Go types may map to a single SQLite
-	// typee.
-	SqlType string
-
-	// SqlName is the name of the column the field represents
-	// within a database. Currently, this is always the same
-	// as GoName.
-	SqlName string
-
-	// SqlDefault is the default value given to the column if
-	// a value is not provided during row insertion.
-	// Currently, this is always the zero value of the
-	// GoType.
-	SqlDefault any
-
-	// PrimaryKey is true if the column represents the
-	// primary key. By default this is the first column,
-	// however, this may differ if adjusting a ModelColumn to
-	// align with an existing table column.
-	PrimaryKey bool
-}
-
 // New creates a instance of the columns GoType. It will
 // contain the type's zero value.
 func (c ModelColumn) New[T any]() T {
 	return ref.New(c.GoType).Interface().(T)
-}
-
-// Parse creates a full [ModelTable] representation of the
-// passed model's type. One should not assume the result
-// will map directly to a same named table within a
-// database; use [Map] to create a representation that is
-// usable with a specific database.
-func Parse(model any) ModelTable {
-	modelType := derefModelType(model)
-
-	if modelType.Kind() != ref.Struct {
-		panic("Model must be a struct, got " + modelType.Kind().String())
-	}
-
-	var table ModelTable
-
-	table.GoType = modelType
-	table.GoName = modelType.Name()
-	table.SqlName = modelType.Name()
-	table.Columns = parseColumns(modelType)
-
-	return table
-}
-
-func derefModelType(model any) ref.Type {
-	modelType := ref.TypeOf(model)
-
-	for modelType.Kind() == ref.Ptr {
-		modelType = modelType.Elem()
-	}
-
-	return modelType
-}
-
-func parseColumns(modelType ref.Type) []ModelColumn {
-	isIdField := true
-
-	var cols []ModelColumn
-
-	for i := 0; i < modelType.NumField(); i++ {
-		f := modelType.Field(i)
-
-		if !f.IsExported() {
-			continue
-		}
-
-		cols = append(cols, parseColumn(f, i, isIdField))
-		isIdField = false
-	}
-
-	return cols
-}
-
-func parseColumn(f ref.StructField, i int, isIdField bool) ModelColumn {
-	var col ModelColumn
-	var defaultValue any
-
-	if f.Type == ref.TypeOf("") {
-		defaultValue = "''"
-	} else {
-		defaultValue = ref.Zero(f.Type).Interface()
-	}
-
-	col.GoType = f.Type
-	col.GoIndex = i
-	col.GoName = f.Name
-	col.SqlType = mapGoToSqlType(f.Type.Kind())
-	col.SqlName = f.Name
-	col.SqlDefault = defaultValue
-	col.PrimaryKey = isIdField
-
-	return col
-}
-
-func mapGoToSqlType(fieldKind ref.Kind) string {
-	switch fieldKind {
-	case ref.Int, ref.Int8, ref.Int16, ref.Int32, ref.Int64:
-		fallthrough
-	case ref.Uint, ref.Uint8, ref.Uint16, ref.Uint32, ref.Uint64:
-		return "INTEGER"
-	case ref.Float32, ref.Float64:
-		return "REAL"
-	case ref.String:
-		return "TEXT"
-	default:
-		panic("Unsupported Go kind used for exported field: " + fieldKind.String())
-	}
 }

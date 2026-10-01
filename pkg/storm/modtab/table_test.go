@@ -11,9 +11,9 @@ func Test_Parse_1(t *testing.T) {
 	// GIVEN non-struct model
 	// THEN panic ensues
 
-	require.Panics(t, func() {
-		Parse(123)
-	})
+	_, e := Parse(123)
+	require.ErrorIs(t, e, ErrForModel)
+	require.ErrorIs(t, e, ErrNotStruct)
 }
 
 func Test_Parse_2(t *testing.T) {
@@ -23,7 +23,8 @@ func Test_Parse_2(t *testing.T) {
 
 	type TestModel struct{}
 
-	table := Parse(TestModel{})
+	table, e := Parse(TestModel{})
+	require.NoError(t, e)
 
 	exp := ModelTable{
 		GoType:  ref.TypeOf(TestModel{}),
@@ -43,7 +44,8 @@ func Test_Parse_3(t *testing.T) {
 
 	ptr := &TestModel{}
 	ptrPtr := &ptr
-	table := Parse(ptrPtr)
+	table, e := Parse(ptrPtr)
+	require.NoError(t, e)
 
 	exp := ModelTable{
 		GoType:  ref.TypeOf(TestModel{}),
@@ -63,7 +65,9 @@ func Test_Parse_4(t *testing.T) {
 		id int
 	}
 
-	table := Parse(TestModel{})
+	table, e := Parse(TestModel{})
+	require.NoError(t, e)
+
 	require.Equal(t, 0, len(table.Columns))
 }
 
@@ -75,9 +79,9 @@ func Test_Parse_5(t *testing.T) {
 		Id *int
 	}
 
-	require.Panics(t, func() {
-		Parse(TestModel{})
-	})
+	_, e := Parse(TestModel{})
+	require.ErrorIs(t, e, ErrForModel)
+	require.ErrorIs(t, e, ErrUnsupportedType)
 }
 
 func Test_Parse_6(t *testing.T) {
@@ -89,7 +93,8 @@ func Test_Parse_6(t *testing.T) {
 		Id      int
 	}
 
-	table := Parse(TestModel{})
+	table, e := Parse(TestModel{})
+	require.NoError(t, e)
 
 	exp := []ModelColumn{
 		ModelColumn{
@@ -119,7 +124,8 @@ func Test_Parse_7(t *testing.T) {
 		Value    float64
 	}
 
-	table := Parse(TestModel{})
+	table, e := Parse(TestModel{})
+	require.NoError(t, e)
 
 	exp := []ModelColumn{
 		ModelColumn{
@@ -167,7 +173,9 @@ func Test_Table_PkCol_1(t *testing.T) {
 		Value    float64
 	}
 
-	table := Parse(TestModel{})
+	table, e := Parse(TestModel{})
+	require.NoError(t, e)
+
 	pkCol := table.PkCol()
 
 	exp := ModelColumn{

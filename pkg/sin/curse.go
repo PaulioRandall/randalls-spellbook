@@ -48,6 +48,27 @@ func Plunder(e error) Curse {
 	}
 }
 
+// Hijack returns a new curse using the message of the
+// passed error as the curse's message and wraps any error
+// the passed error wraps. It will panic if the passed
+// error is nil.
+func Hijack(e error) Curse {
+	type unwrapper interface {
+		Unwrap() error
+	}
+
+	cu := Curse{
+		errId:   uuid.New().String(),
+		Message: e.Error(),
+	}
+
+	if un, ok := e.(unwrapper); ok {
+		cu.Cause = un.Unwrap()
+	}
+
+	return cu
+}
+
 // WrapIn wraps the curse in the passed symptom curse or
 // template curse, replacing any existing cause, then
 // returns the symptom.

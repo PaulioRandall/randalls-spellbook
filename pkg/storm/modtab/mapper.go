@@ -5,17 +5,6 @@ import (
 	"errors"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
-	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
-)
-
-var (
-	ErrMap = sin.Template(
-		"Regarding model '%s' (table '%s')",
-	)
-
-	ErrFieldTypeMismatch = sin.Template(
-		"Model's field type '%s' is not compatible with existing column type '%s'",
-	)
 )
 
 type sqlQueryCol struct {
@@ -24,15 +13,23 @@ type sqlQueryCol struct {
 	PrimaryKey bool
 }
 
+// Map parses the model and modifies it to align with its
+// associated table within the database, if it exists. If
+// the table doesn't currently exist then the returned
+// result will be the same as that returned by [Parse].
 func Map(db *sql.DB, model any) (ModelTable, bool, error) {
 	var zero ModelTable
 
-	pTable := Parse(model)
-	qCols, found, e := queryModel(db, pTable.SqlName)
+	pTable, e := Parse(model)
+	if e != nil {
+		return zero, false, e
+	}
+
+	tableCols, found, e := queryTable(db, pTable.SqlName)
 
 	if e != nil {
-		return zero, false, ErrMap.
-			Fmt(pTable.GoName, pTable.SqlName).
+		return zero, false, ErrForModel.
+			Fmt(pTable.GoName).
 			Wrap(e)
 	}
 
@@ -42,65 +39,23 @@ func Map(db *sql.DB, model any) (ModelTable, bool, error) {
 		return pTable, false, nil
 	}
 
-	pTable.Columns, e = filterAndCheckColumns(pTable.Columns, qCols)
+	pTable.Columns, e = filterAndCheckColumns(
+		pTable.Columns,
+		tableCols,
+	)
+
 	if e != nil {
-		return zero, false, ErrMap.
-			Fmt(pTable.GoName, pTable.SqlName).
+		return zero, false, ErrForModel.
+			Fmt(pTable.GoName).
 			Wrap(e)
 	}
 
 	return pTable, true, nil
 }
 
-func filterAndCheckColumns(
-	pCols []ModelColumn,
-	qCols []sqlQueryCol,
-) ([]ModelColumn, error) {
-	var filteredCols []ModelColumn
-
-	for _, pCol := range pCols {
-		qCol, ok := findQueryColumn(qCols, pCol)
-
-		if !ok {
-			// Ignore column as not in database table.
-			continue
-		}
-
-		// Update primary key status as ParseModel assumes the
-		// first exported field is the primary key, which might
-		// not be true if the passed model is not the same type
-		// as the the one that was used to create the database
-		// table.
-		pCol.PrimaryKey = qCol.PrimaryKey
-
-		if pCol.SqlType != qCol.SqlType {
-			return nil, sin.
-				Fmt("For column '%s'", pCol.SqlName).
-				WrapIn(ErrFieldTypeMismatch).
-				Fmt(pCol.SqlType, qCol.SqlType)
-		}
-
-		filteredCols = append(filteredCols, pCol)
-	}
-
-	return filteredCols, nil
-}
-
-func findQueryColumn(
-	qCols []sqlQueryCol,
-	pCol ModelColumn,
-) (sqlQueryCol, bool) {
-	for _, qCol := range qCols {
-		if pCol.SqlName == qCol.SqlName {
-			return qCol, true
-		}
-	}
-	return sqlQueryCol{}, false
-}
-
-func queryModel(
+func queryTable(
 	db *sql.DB, tableName string,
-) ([]sqlQueryCol, bool, error) {
+) ([]scumble.TableInfo, bool, error) {
 
 	// Check if table exists at all.
 	_, e := scumble.QuerySqliteSchema(db, tableName)
@@ -112,20 +67,51 @@ func queryModel(
 		return nil, false, e
 	}
 
-	colInfo, e := scumble.QueryTableInfo(db, tableName)
+	tableCols, e := scumble.QueryTableInfo(db, tableName)
 	if e != nil {
 		return nil, false, e
 	}
 
-	cols := make([]sqlQueryCol, len(colInfo))
+	return tableCols, true, nil
+}
 
-	for i, col := range colInfo {
-		cols[i] = sqlQueryCol{
-			SqlType:    col.Type,
-			SqlName:    col.Name,
-			PrimaryKey: col.PrimaryKey > 0,
+func filterAndCheckColumns(
+	modelCols []ModelColumn,
+	tableCols []scumble.TableInfo,
+) ([]ModelColumn, error) {
+	var filteredCols []ModelColumn
+
+	for _, modelCol := range modelCols {
+		var tableCol scumble.TableInfo
+
+		// Find the table column that the model column maps to.
+		for _, c := range tableCols {
+			if modelCol.SqlName == c.Name {
+				tableCol = c
+			}
 		}
+		if tableCol == (scumble.TableInfo{}) {
+			// Ignore column if not in database table.
+			continue
+		}
+
+		// Update primary key status as Parse assumes the
+		// first exported field is the primary key, which might
+		// not be true if the passed model is not the same type
+		// as the the one that was used to create the database
+		// table.
+		modelCol.PrimaryKey = tableCol.PrimaryKey > 0
+
+		// Check types are compatible.
+		if modelCol.SqlType != tableCol.Type {
+			return nil, ErrForField.
+				Fmt(modelCol.SqlName).
+				WrapIn(ErrTypeMismatch).
+				Fmt(modelCol.SqlType, tableCol.Type)
+		}
+
+		filteredCols = append(filteredCols, modelCol)
 	}
 
-	return cols, true, nil
+	return filteredCols, nil
 }

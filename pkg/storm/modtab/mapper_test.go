@@ -197,6 +197,6 @@ func Test_Map_5(t *testing.T) {
 	defer db.Close()
 
 	_, _, e := Map(db, Player{})
-	require.ErrorIs(t, e, ErrMap)
-	require.ErrorIs(t, e, ErrFieldTypeMismatch)
+	require.ErrorIs(t, e, ErrForModel)
+	require.ErrorIs(t, e, ErrTypeMismatch)
 }
