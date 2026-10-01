@@ -42,38 +42,20 @@ import (
 //		string
 func (st *Storm) Create(models ...any) error {
 	if !st.IsOpen() {
-		return ErrNotOpen
+		return st.errNotOpen()
 	}
 
+	mapper := newModelMapper(st)
+
 	for _, m := range models {
-		e := st.createTableFromModel(m)
+		// mapper.getOrCreate calls createTable internally.
+		_, e := mapper.getOrCreate(m)
 		if e != nil {
-			return e
+			return st.errForModel(m, e)
 		}
 	}
 
 	return nil
-}
-
-func (st *Storm) createTableFromModel(model any) (e error) {
-	table, exists, e := st.getTable(model)
-	if e != nil {
-		goto Err
-	}
-
-	if exists {
-		return nil
-	}
-
-	e = st.createTable(table)
-	if e != nil {
-		goto Err
-	}
-
-	return nil
-
-Err:
-	return st.errForModel(model, e)
 }
 
 func (st *Storm) createTable(table ModelTable) error {
@@ -85,7 +67,7 @@ func (st *Storm) createTable(table ModelTable) error {
 	`).
 		InlineMap("table", table).
 		ListMap("col", "", table.Columns...).
-		InlineMap("pk_col", table.PrimaryKeyColumn()).
+		InlineMap("pk_col", table.PkCol()).
 		String()
 
 	_, e := st.db.Exec(query)

@@ -153,7 +153,7 @@ func Test_ParseModel_7(t *testing.T) {
 	require.Equal(t, exp, table.Columns)
 }
 
-func Test_Table_PrimaryKeyColumn_1(t *testing.T) {
+func Test_Table_PkCol_1(t *testing.T) {
 	// GIVEN model with multiple exported fields
 	// THEN  returns expected primary key column
 
@@ -167,7 +167,7 @@ func Test_Table_PrimaryKeyColumn_1(t *testing.T) {
 	}
 
 	table := ParseModel(TestModel{})
-	pkCol := table.PrimaryKeyColumn()
+	pkCol := table.PkCol()
 
 	exp := ModelColumn{
 		GoType:     typeOf(int(0)),

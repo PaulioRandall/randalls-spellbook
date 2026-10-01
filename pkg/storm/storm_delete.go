@@ -17,8 +17,19 @@ func (st *Storm) Delete[T, ID any](
 		return st.errNotOpen()
 	}
 
+	mapper := newModelMapper(st)
+
 	for _, id := range ids {
-		e = st.deleteForId(model, id)
+		table, found, e := mapper.get(model)
+		if e != nil {
+			return st.errForObject(model, e, id)
+		}
+
+		if !found {
+			continue
+		}
+
+		e = st.deleteForId(table, id)
 		if e != nil {
 			return st.errForObject(model, e, id)
 		}
@@ -27,16 +38,7 @@ func (st *Storm) Delete[T, ID any](
 	return nil
 }
 
-func (st *Storm) deleteForId(model any, id any) error {
-	table, found, e := st.getTable(model)
-	if e != nil {
-		return e
-	}
-
-	if !found {
-		return nil
-	}
-
+func (st *Storm) deleteForId(table ModelTable, id any) error {
 	query := nidoking.Given(`
 		DELETE FROM
 			{{table.SqlName}}
@@ -44,9 +46,9 @@ func (st *Storm) deleteForId(model any, id any) error {
 			{{pk_col.SqlName}} = ?
 	`).
 		InlineMap("table", table).
-		InlineMap("pk_col", table.PrimaryKeyColumn()).
+		InlineMap("pk_col", table.PkCol()).
 		String()
 
-	_, e = st.db.Exec(query, id)
+	_, e := st.db.Exec(query, id)
 	return e
 }

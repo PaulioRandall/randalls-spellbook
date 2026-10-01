@@ -6,19 +6,28 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 )
 
+// TODO: Returns error when model doesn't contain primary
+//       key.
+
 // Put inserts or updates (upserts) every object in the
 // passed list. Inserting via an object that only
 // represents part of a table will cause the unfilled
 // columns to default to their zero value. When updating,
 // the primary key (ID) field is used to identify the row
-// but the column value is not updated.
+// but the primary key column is not updated.
 func (st *Storm) Put[T any](objects ...T) error {
 	if !st.IsOpen() {
 		return st.errNotOpen()
 	}
 
+	mapper := newModelMapper(st)
+
 	for _, o := range objects {
-		e := st.upsert(o)
+		table, e := mapper.getOrCreate(o)
+		if e == nil {
+			e = st.upsert(o, table)
+		}
+
 		if e != nil {
 			return st.errForModel(o, e)
 		}
@@ -27,14 +36,9 @@ func (st *Storm) Put[T any](objects ...T) error {
 	return nil
 }
 
-func (st *Storm) upsert(object any) error {
-	table, e := st.getOrCreateTable(object)
-	if e != nil {
-		return e
-	}
-
-	pkCol := table.PrimaryKeyColumn()
-	nonPkCols := table.NonPrimaryKeyColumns()
+func (st *Storm) upsert(object any, table ModelTable) error {
+	pkCol := table.PkCol()
+	nonPkCols := table.NonPkCols()
 
 	query := nidoking.Given(`
 		INSERT INTO {{table.SqlName}} (
@@ -62,11 +66,12 @@ func (st *Storm) upsert(object any) error {
 	cols := append(table.Columns, pkCol)
 	values := extractColumnValues(cols, object)
 
-	_, e = st.db.Exec(query, values...)
+	_, e := st.db.Exec(query, values...)
 	if e == nil {
 		return nil
 	}
 
+	// We know primary key value is at the end.
 	id := cols[len(cols)-1]
 	return ErrForObject.Fmt(id).Wrap(e)
 }

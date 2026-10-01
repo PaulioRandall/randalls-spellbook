@@ -199,30 +199,6 @@ func isInMemoryDatabase(path string) bool {
 	return name == ":memory:"
 }
 
-func (st *Storm) getTable(model any) (ModelTable, bool, error) {
-	return MapModel(st.db, model)
-}
-
-func (st *Storm) getOrCreateTable(model any) (ModelTable, error) {
-	var zero ModelTable
-
-	table, exists, e := MapModel(st.db, model)
-	if e != nil {
-		return zero, e
-	}
-
-	if exists {
-		return table, nil
-	}
-
-	e = st.createTable(table)
-	if e != nil {
-		return zero, e
-	}
-
-	return table, nil
-}
-
 func (st *Storm) errNotOpen() error {
 	return ErrNotOpen.
 		WrapIn(ErrForDatabase).

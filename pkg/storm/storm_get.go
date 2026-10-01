@@ -19,7 +19,7 @@ func (st *Storm) List[T any](model T) (result []T, e error) {
 		return nil, st.errNotOpen()
 	}
 
-	table, found, e := st.getTable(model)
+	table, found, e := MapModel(st.db, model)
 	if e != nil {
 		goto Err
 	}
@@ -43,7 +43,7 @@ func (st *Storm) List[T any](model T) (result []T, e error) {
 		goto Err
 	}
 
-	result, e = st.scanSelectedRows[T](table, rows)
+	result, e = scanSelectedRows[T](table, rows)
 	if e != nil {
 		goto Err
 	}
@@ -73,7 +73,7 @@ func (st *Storm) Get[T, ID any](
 		return empty, st.errNotOpen()
 	}
 
-	table, found, e := st.getTable(model)
+	table, found, e := MapModel(st.db, model)
 	if e != nil {
 		goto Err
 	}
@@ -93,7 +93,7 @@ func (st *Storm) Get[T, ID any](
 	`).
 		ListMap("col", ",", table.Columns...).
 		InlineMap("table", table).
-		InlineMap("pk_col", table.PrimaryKeyColumn()).
+		InlineMap("pk_col", table.PkCol()).
 		String()
 
 	rows, e = st.db.Query(query, id)
@@ -101,7 +101,7 @@ func (st *Storm) Get[T, ID any](
 		goto Err
 	}
 
-	resultSet, e = st.scanSelectedRows[T](table, rows)
+	resultSet, e = scanSelectedRows[T](table, rows)
 	if e != nil {
 		goto Err
 	}
@@ -118,7 +118,7 @@ Err:
 	return empty, st.errForObject(model, e, id)
 }
 
-func (st *Storm) scanSelectedRows[T any](
+func scanSelectedRows[T any](
 	table ModelTable,
 	rows *sql.Rows,
 ) ([]T, error) {

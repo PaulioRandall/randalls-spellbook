@@ -16,8 +16,19 @@ func (st *Storm) Drop(models ...any) error {
 		return st.errNotOpen()
 	}
 
+	mapper := newModelMapper(st)
+
 	for _, m := range models {
-		e := st.dropTable(m)
+		table, found, e := mapper.get(m)
+		if e != nil {
+			return st.errForModel(m, e)
+		}
+
+		if !found {
+			continue
+		}
+
+		e = st.dropTable(table)
 		if e != nil {
 			return st.errForModel(m, e)
 		}
@@ -26,22 +37,13 @@ func (st *Storm) Drop(models ...any) error {
 	return nil
 }
 
-func (st *Storm) dropTable(model any) error {
-	table, found, e := st.getTable(model)
-	if e != nil || !found {
-		return e
-	}
-
-	if !found {
-		return nil
-	}
-
+func (st *Storm) dropTable(table ModelTable) error {
 	query := nidoking.Given(`
 		DROP TABLE IF EXISTS {{table.SqlName}}
 	`).
 		InlineMap("table", table).
 		String()
 
-	_, e = st.db.Exec(query)
+	_, e := st.db.Exec(query)
 	return e
 }

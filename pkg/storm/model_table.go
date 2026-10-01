@@ -61,10 +61,9 @@ type ModelColumn struct {
 	PrimaryKey bool
 }
 
-// PrimaryKeyColumn returns the column representing the
-// table's primary key. Zero value is returned if not
-// found.
-func (t ModelTable) PrimaryKeyColumn() ModelColumn {
+// PkCol returns the column representing the table's
+// primary key. Zero value is returned if not found.
+func (t ModelTable) PkCol() ModelColumn {
 	for _, col := range t.Columns {
 		if col.PrimaryKey {
 			return col
@@ -73,9 +72,9 @@ func (t ModelTable) PrimaryKeyColumn() ModelColumn {
 	return ModelColumn{}
 }
 
-// NonPrimaryKeyColumns returns all columns except the
-// primary key one.
-func (t ModelTable) NonPrimaryKeyColumns() []ModelColumn {
+// NonPkCols returns all columns except the primary key
+// column.
+func (t ModelTable) NonPkCols() []ModelColumn {
 	result := make([]ModelColumn, 0, len(t.Columns))
 
 	for _, col := range t.Columns {
@@ -87,8 +86,8 @@ func (t ModelTable) NonPrimaryKeyColumns() []ModelColumn {
 	return result
 }
 
-// New creates a zero-valued instance of the columns
-// GoType.
+// New creates a instance of the columns GoType. It will
+// contain the type's zero value.
 func (c ModelColumn) New[T any]() T {
 	return ref.New(c.GoType).Interface().(T)
 }
