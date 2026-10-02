@@ -14,37 +14,39 @@ import (
 func Map(db *sql.DB, model any) (ModelTable, bool, error) {
 	var zero ModelTable
 
-	pTable, e := Parse(model)
+	modelTable, e := Parse(model)
 	if e != nil {
+		// Issue parsing model.
 		return zero, false, e
 	}
 
-	tableCols, found, e := queryTable(db, pTable.SqlName)
-
+	tableCols, found, e := queryTable(db, modelTable.SqlName)
 	if e != nil {
+		// Issue querying table data.
 		return zero, false, ErrForModel.
-			Fmt(pTable.GoName).
+			Fmt(modelTable.GoName).
 			Wrap(e)
 	}
 
 	if !found {
-		// ModelTable doesn't exist yet so pass back without
+		// Table doesn't exist yet so pass back without
 		// filtering.
-		return pTable, false, nil
+		return modelTable, false, nil
 	}
 
-	pTable.Columns, e = filterAndCheckColumns(
-		pTable.Columns,
+	modelTable.Columns, e = filterAndCheckColumns(
+		modelTable.Columns,
 		tableCols,
 	)
 
 	if e != nil {
+		// Issue filtering table data.
 		return zero, false, ErrForModel.
-			Fmt(pTable.GoName).
+			Fmt(modelTable.GoName).
 			Wrap(e)
 	}
 
-	return pTable, true, nil
+	return modelTable, true, nil
 }
 
 func queryTable(

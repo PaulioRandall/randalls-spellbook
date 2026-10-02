@@ -8,7 +8,9 @@ import (
 )
 
 func Test_Parse_1(t *testing.T) {
-	// Panic ensues GIVEN non-struct model.
+	// When the parsing an object into a model
+	// if the model is not a Go struct kind (reflect.Struct)
+	// then a named error is returned
 
 	_, e := Parse(123)
 	require.ErrorIs(t, e, ErrForModel)
@@ -16,7 +18,9 @@ func Test_Parse_1(t *testing.T) {
 }
 
 func Test_Parse_2(t *testing.T) {
-	// No columns should exist GIVEN a model with no fields.
+	// When the parsing an object into a model
+	// if the model has no fields
+	// then the model with have no fields
 
 	type TestModel struct{}
 
@@ -34,8 +38,11 @@ func Test_Parse_2(t *testing.T) {
 }
 
 func Test_Parse_3(t *testing.T) {
-	// Derefencing occurs and the concrete model is parsed
-	// GIVEN pointer to a model rather than passing by value.
+	// When the parsing an object into a model
+	// if object is actually a pointer or pointer to a
+	// pointer to the object
+	// then the object is dereferenced into the concrete
+	// type and that is parsed as the model instead
 
 	type TestModel struct{}
 
@@ -55,8 +62,9 @@ func Test_Parse_3(t *testing.T) {
 }
 
 func Test_Parse_4(t *testing.T) {
-	// No columns should exist GIVEN model with no exported
-	// fields.
+	// When the parsing an object into a model
+	// if the model only contains unexported fields
+	// then the model with have no fields
 
 	type TestModel struct {
 		unexported int
@@ -69,8 +77,9 @@ func Test_Parse_4(t *testing.T) {
 }
 
 func Test_Parse_5(t *testing.T) {
-	// Panic ensues GIVEN model with exported field of
-	// unsupported Go type kind.
+	// When the parsing an object into a model
+	// if an exported field has an unsupported Go kind
+	// then a named error is returned
 
 	type TestModel struct {
 		Id *int
@@ -83,8 +92,9 @@ func Test_Parse_5(t *testing.T) {
 }
 
 func Test_Parse_6(t *testing.T) {
-	// Primary key column exists GIVEN model with at least
-	// one exported field.
+	// When the parsing an object into a model
+	// the first exported field will be flagged as the
+	// primary key
 
 	type TestModel struct {
 		ignored bool
@@ -110,8 +120,10 @@ func Test_Parse_6(t *testing.T) {
 }
 
 func Test_Parse_7(t *testing.T) {
-	// All exported fields are parsed to columns GIVEN model
-	// with multiple exported fields.
+	// When the parsing an object into a model
+	// if the object has multiple exported fields
+	// then all those fields are parsed into columns
+	// within the model
 
 	type TestModel struct {
 		ignored1 bool
@@ -159,8 +171,9 @@ func Test_Parse_7(t *testing.T) {
 }
 
 func Test_Table_PkCol_1(t *testing.T) {
-	// Primry key column returned GIVEN model with multiple
-	// exported fields.
+	// When getting the primary key column
+	// if the model has multiple fields
+	// the primary key column is found and returned
 
 	type TestModel struct {
 		ignored1 bool

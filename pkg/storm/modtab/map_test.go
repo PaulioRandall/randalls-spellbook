@@ -59,10 +59,11 @@ var (
 )
 
 func Test_Map_1(t *testing.T) {
-	// GIVEN model not in database
-	// THEN  mapped ModelTable is representing the full model
+	// When mapping a struct to a database table
+	// if the table doesn't exist within the database
+	// then the full unmodified model is returned
 
-	type NotPlayer struct {
+	type UnusedModel struct {
 		Id     int
 		Name   string
 		Rating float64
@@ -71,11 +72,11 @@ func Test_Map_1(t *testing.T) {
 	db := createAndPopulateTestDb(t)
 	defer db.Close()
 
-	act, exists, e := Map(db, NotPlayer{})
+	act, exists, e := Map(db, UnusedModel{})
 	exp := ModelTable{
-		GoType:  ref.TypeOf(NotPlayer{}),
-		GoName:  "NotPlayer",
-		SqlName: "NotPlayer",
+		GoType:  ref.TypeOf(UnusedModel{}),
+		GoName:  "UnusedModel",
+		SqlName: "UnusedModel",
 		Columns: []ModelColumn{
 			TestIdCol,
 			TestNameCol,
@@ -89,8 +90,10 @@ func Test_Map_1(t *testing.T) {
 }
 
 func Test_Map_2(t *testing.T) {
-	// GIVEN model in database with same fields/columns
-	// THEN  mapped ModelTable is representing the full model
+	// When mapping a struct to a database table
+	// if the table exists in the database
+	// and the model matches the table field-to-column
+	// then the full model is returned
 
 	type Player struct {
 		Id     int
@@ -119,8 +122,11 @@ func Test_Map_2(t *testing.T) {
 }
 
 func Test_Map_3(t *testing.T) {
-	// GIVEN model with exported field not in database
-	// THEN  field is not omitted from ModelTable
+	// When mapping a struct to a database table
+	// if the table exists in the database
+	// but some fields in the struct don't exist within
+	// the table structure
+	// then those fields are omitted from the model
 
 	type Player struct {
 		Id         int
@@ -147,16 +153,20 @@ func Test_Map_3(t *testing.T) {
 }
 
 func Test_Map_4(t *testing.T) {
-	// GIVEN ID field is not first field in model
-	// THEN  ModelTable is returned with corrected ID field
-	// AND   GoIndex matches model struct
+	// When mapping a struct to a database table
+	// if the table exists in the database
+	// but the primary key column maps to a field that isn't
+	// the first field within the struct (since the first
+	// defaults to being the primary key) then the
+	// parsed model is modified so that primary key field
+	// that maps to the primary key column is set as the
+	// primary key and all other fields are set as
+	// not being primary keys
 
 	type Player struct {
-		// Defaults to being ID column unless updated to match
-		// database.
-		Name   string
+		Name   string // Default primary key
 		Rating float64
-		Id     int
+		Id     int // Real primary key
 	}
 
 	db := createAndPopulateTestDb(t)
@@ -175,19 +185,25 @@ func Test_Map_4(t *testing.T) {
 		},
 	}
 
-	// Because we reordered the fields within Players{}
-	exp.Columns[0].GoIndex = 0
-	exp.Columns[1].GoIndex = 1
-	exp.Columns[2].GoIndex = 2
+	// The pre-created package level test columns won't
+	// have the correct GoIndex because we messed up the
+	// field ordering to test that ordering is accounted for
+	// in the output, thus we need to correct the GoIndex so
+	// the test assertion passes
+	for i := range exp.Columns {
+		exp.Columns[i].GoIndex = i
+	}
 
 	require.NoError(t, e)
 	require.Equal(t, exp, act)
 }
 
 func Test_Map_5(t *testing.T) {
-	// GIVEN field with type that is not compatible with
-	//       type in database table
-	// THEN  panic ensues
+	// When mapping a struct to a database table
+	// if the table exists in the database
+	// but a field that maps to a column doesn't have a type
+	// that is compatible with the SQL column's type
+	// then a named error is returned
 
 	type Player struct {
 		Name int
