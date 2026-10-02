@@ -7,50 +7,51 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
 )
 
-// Map parses the model and modifies it to align with its
-// associated table within the database. If the table
-// doesn't currently exist then the returned result will be
-// the same as that returned by [Parse].
-func Map(db *sql.DB, model any) (ModelTable, bool, error) {
-	var zero ModelTable
+// Map parses the object and modifies the resultant model
+// to align with its associated table within the database.
+// If the table doesn't currently exist then the model will
+// be the same as that returned by [Parse].
+func Map(db *sql.DB, object any) (Model, bool, error) {
+	var zero Model
 
-	modelTable, e := Parse(model)
+	model, e := Parse(object)
 	if e != nil {
-		// Issue parsing model.
+		// Issue parsing object.
 		return zero, false, e
 	}
 
-	tableCols, found, e := queryTable(db, modelTable.SqlName)
+	cols, found, e := queryTable(db, model.SqlName)
 	if e != nil {
 		// Issue querying table data.
 		return zero, false, ErrForModel.
-			Fmt(modelTable.GoName).
+			Fmt(model.GoName).
 			Wrap(e)
 	}
 
 	if !found {
 		// Table doesn't exist yet so pass back without
 		// filtering.
-		return modelTable, false, nil
+		return model, false, nil
 	}
 
-	modelTable.Columns, e = filterAndCheckColumns(
-		modelTable.Columns,
-		tableCols,
+	model.Props, e = filterAndCheckColumns(
+		model.Props,
+		cols,
 	)
 
 	if e != nil {
 		// Issue filtering table data.
 		return zero, false, ErrForModel.
-			Fmt(modelTable.GoName).
+			Fmt(model.GoName).
 			Wrap(e)
 	}
 
-	return modelTable, true, nil
+	return model, true, nil
 }
 
 func queryTable(
-	db *sql.DB, tableName string,
+	db *sql.DB,
+	tableName string,
 ) ([]scumble.TableInfo, bool, error) {
 
 	// Check if table exists at all.
@@ -63,51 +64,51 @@ func queryTable(
 		return nil, false, e
 	}
 
-	tableCols, e := scumble.QueryTableInfo(db, tableName)
+	cols, e := scumble.QueryTableInfo(db, tableName)
 	if e != nil {
 		return nil, false, e
 	}
 
-	return tableCols, true, nil
+	return cols, true, nil
 }
 
 func filterAndCheckColumns(
-	modelCols []ModelColumn,
-	tableCols []scumble.TableInfo,
-) ([]ModelColumn, error) {
-	var filteredCols []ModelColumn
+	props []Property,
+	cols []scumble.TableInfo,
+) ([]Property, error) {
+	var filteredProps []Property
 
-	for _, modelCol := range modelCols {
-		var tableCol scumble.TableInfo
+	for _, prop := range props {
+		var col scumble.TableInfo
 
-		// Find the table column that the model column maps to.
-		for _, c := range tableCols {
-			if modelCol.SqlName == c.Name {
-				tableCol = c
+		// Find the table column that the property maps to.
+		for _, c := range cols {
+			if prop.SqlName == c.Name {
+				col = c
 			}
 		}
-		if tableCol == (scumble.TableInfo{}) {
-			// Ignore column if not in database table.
+
+		if col == (scumble.TableInfo{}) {
+			// Ignore the property if not in database table.
 			continue
 		}
 
-		// Update primary key status as Parse assumes the
-		// first exported field is the primary key, which might
-		// not be true if the passed model is not the same type
-		// as the the one that was used to create the database
-		// table.
-		modelCol.PrimaryKey = tableCol.PrimaryKey > 0
+		// Update key status as the Parse function assumes the
+		// first exported field is the key, which might not be
+		// true if the model is not the same as the one used to
+		// create the database table.
+		prop.IsKey = col.PrimaryKey > 0
 
 		// Check types are compatible.
-		if modelCol.SqlType != tableCol.Type {
+		if prop.SqlType != col.Type {
 			return nil, ErrForField.
-				Fmt(modelCol.SqlName).
+				Fmt(prop.SqlName).
 				WrapIn(ErrTypeMismatch).
-				Fmt(modelCol.SqlType, tableCol.Type)
+				Fmt(prop.SqlType, col.Type)
 		}
 
-		filteredCols = append(filteredCols, modelCol)
+		filteredProps = append(filteredProps, prop)
 	}
 
-	return filteredCols, nil
+	return filteredProps, nil
 }

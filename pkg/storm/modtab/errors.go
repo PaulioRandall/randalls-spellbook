@@ -6,32 +6,46 @@ import (
 
 var (
 	// ErrForModel occurs when an operation on a known model
-	// or table fails.
+	// fails.
 	ErrForModel = sin.Template(
 		"Regarding model '%s'",
 	)
 
-	// ErrForField occurs when an operation on a known field
-	// within a model fails.
+	// ErrForField occurs when an operation on a known
+	// property within a model fails.
 	ErrForField = sin.Template(
-		"Regarding field '%s'",
+		"Regarding property '%s'",
 	)
 
-	// ErrNotStruct occurs when a non-struct type is used as
-	// a model.
+	// ErrNotStruct occurs when attempting the parse a
+	// non-struct type as a model.
 	ErrNotStruct = sin.Template(
-		"Model must be a struct kind, got kind '%s'",
+		"Model must be a struct, got '%s'",
 	)
 
-	// ErrUnsupportedType occurs when the Go kind for model
-	// field's type is not supported.
+	// ErrUnsupportedType occurs when attempting to parse
+	// a struct into a model but one of the struct's fields
+	// has an unsupported type.
 	ErrUnsupportedType = sin.Template(
-		"Unsupported Go kind used for exported field '%s'",
+		"Unsupported Go type used for exported field '%s'",
+	)
+
+	// ErrWrongObjectType occurs when passing an object with
+	// a type that is not the model's GoType.
+	ErrWrongObjectType = sin.Template(
+		"This model does not handle the passed object type",
+	)
+
+	// ErrWrongParameterType occurs when using a type that is
+	// not the model's GoType with one of the model's generic
+	// methods.
+	ErrWrongParameterType = sin.Template(
+		"This model does not handle the parameter type used (generics)",
 	)
 
 	// ErrTypeMismatch occurs when mapping a struct type to
-	// an existing table but one of the field's has a type
-	// not compatible with its corrisponding table column
+	// an existing table but a field has a type not
+	// compatible with its corresponding table column
 	// type.
 	ErrTypeMismatch = sin.Template(
 		"Model's field type '%s' is not compatible with existing column type '%s'",

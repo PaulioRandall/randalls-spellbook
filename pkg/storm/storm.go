@@ -22,7 +22,6 @@ import (
 //       the struct's name.
 // TODO: Function to perform custom operations. Must lock
 //       and allow access to cachedMapper and db.
-// TEST: Caching modes
 
 // CacheMode represents an approach to caching parsed
 // models.
@@ -34,13 +33,17 @@ const (
 
 	// CacheModeRequest means the cache is reset for each
 	// request. This is useful if the structure or existence
-	// of tables is changed through custom operations.
+	// of tables is changed through custom operations but
+	// you are sure it will not change during calls to
+	// [Storm] methods.
 	CacheModeRequest
 
 	// CacheModeSession means entries persist across the
 	// session, but dropping a table will remove all entries
 	// for that table. Cache will be cleared on database
-	// close.
+	// close. Use this mode if the database is only written
+	// to using a single [Storm] instance (which is the
+	// most common scenario, thus this is the default mode).
 	CacheModeSession
 )
 
@@ -98,7 +101,7 @@ type Storm struct {
 func New(path string) *Storm {
 	return &Storm{
 		path:         path,
-		cacheMode:    CacheModeNone,
+		cacheMode:    CacheModeSession,
 		cachedMapper: modtab.CachedMapper{},
 	}
 }
@@ -293,7 +296,7 @@ func (st *Storm) prepareMapper() {
 
 func (st *Storm) mapModel(
 	model any,
-) (modtab.ModelTable, bool, error) {
+) (modtab.Model, bool, error) {
 	if st.cacheMode == CacheModeNone {
 		return modtab.Map(st.db, model)
 	}

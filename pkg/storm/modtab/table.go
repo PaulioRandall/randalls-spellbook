@@ -7,10 +7,13 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 )
 
-// ModelTable maps a Go struct, or part of it, to a
-// database table structure, or part of it. A ModelTable is
-// always derived from a Go type of kind 'relfect.Struct'.
-type ModelTable struct {
+// Model maps a Go struct, or part of it, to a database
+// table structure, or part of it. A Model is always
+// derived from a Go type of kind 'reflect.Struct',
+// so there's a one-to-one relationship between a Go type
+// and a model but one-to-many relationship between tables
+// and models and Go types.
+type Model struct {
 	// GoType is the struct type as returned by
 	// reflect.TypeOf.
 	GoType ref.Type
@@ -19,19 +22,19 @@ type ModelTable struct {
 	GoName string
 
 	// SqlName is the name of the table the struct represents
-	// within a database. Currently, this is always the same
-	// as GoName.
+	// within a database.
 	SqlName string
 
-	// Columns is an ordered list of exported field to column
+	// Props is an ordered list of exported field-to-column
 	// mappings.
-	Columns []ModelColumn
+	Props []Property
 }
 
-// ModelColumn maps a Go struct's field to a specific
+// Property maps a Go struct's field to a specific
 // database table column.
-type ModelColumn struct {
-	// GoType is the field type as returned by reflect.TypeOf.
+type Property struct {
+	// GoType is the field type as returned by
+	// reflect.TypeOf.
 	GoType ref.Type
 
 	// GoIndex is the field index, i.e. it's 0-based position
@@ -43,32 +46,30 @@ type ModelColumn struct {
 
 	// SqlType is the SQLite type that maps to the GoType.
 	// Note that several Go types may map to a single SQLite
-	// typee.
+	// type.
 	SqlType string
 
-	// SqlName is the name of the column the field represents
-	// within a database. Currently, this is always the same
-	// as GoName.
+	// SqlName is the name of the column within a database.
 	SqlName string
 
 	// SqlDefault is the default value given to the column if
 	// a value is not provided during row insertion.
-	// Currently, this is always the zero value of the
-	// GoType.
+	// This is always the zero value of the GoType.
 	SqlDefault any
 
-	// PrimaryKey is true if the column represents the
-	// primary key. By default this is the first column,
-	// however, this may differ if adjusting a ModelColumn to
-	// align with an existing table column.
-	PrimaryKey bool
+	// IsKey is true if the property represents an ID or
+	// primary key for the model. By default this is the
+	// first property in the model, however, this may differ
+	// if adjusting a property to align with an existing
+	// table column as with the [Map] function.
+	IsKey bool
 }
 
-// Parse creates a full [ModelTable] representation of the
-// passed model's type. One should not assume the result
-// will map directly to a same named table within a
-// database; use [Map] to create a representation that is
-// usable with a specific database. Type mappings:
+// Parse creates a complete [Model] of the passed object's
+// type. One should not assume the result will map directly
+// to a table within a database; use [Map] to create a
+// model that is usable with a specific database. Type
+// mappings:
 //
 //	INTEGER:
 //		int, int8, int16, int32, int64,
@@ -79,77 +80,77 @@ type ModelColumn struct {
 //		string
 //
 // You are responsible for choosing appropriate data types
-// for your structures. If you choose to use an unsigned
+// for your structs. If you choose to use an unsigned
 // integer type (unit etc) or shorter integer type
 // (int8 etc) then you are responsible for ensuring or
 // managing number polarity and overflow. I recommend
 // sticking to int, int64, float64, and string as these are
-// the least likely to face issues.
-func Parse(model any) (table ModelTable, e error) {
-	modelType := derefModelType(model)
+// the least likely to cause problems.
+func Parse(object any) (model Model, e error) {
+	objectType := derefObjectType(object)
 
-	if modelType.Kind() != ref.Struct {
-		e = ErrNotStruct.Fmt(modelType.Kind().String())
+	if objectType.Kind() != ref.Struct {
+		e = ErrNotStruct.Fmt(objectType.Kind().String())
 		goto Err
 	}
 
-	table.GoType = modelType
-	table.GoName = modelType.Name()
-	table.SqlName = modelType.Name()
+	model.GoType = objectType
+	model.GoName = objectType.Name()
+	model.SqlName = objectType.Name()
 
-	table.Columns, e = parseColumns(modelType)
+	model.Props, e = parseProps(objectType)
 	if e != nil {
 		goto Err
 	}
 
-	return table, nil
+	return model, nil
 
 Err:
-	return ModelTable{}, ErrForModel.
-		Fmt(modelType.Name()).
+	return Model{}, ErrForModel.
+		Fmt(objectType.Name()).
 		Wrap(e)
 }
 
-func derefModelType(model any) ref.Type {
-	modelType := ref.TypeOf(model)
+func derefObjectType(object any) ref.Type {
+	typ := ref.TypeOf(object)
 
-	for modelType.Kind() == ref.Ptr {
-		modelType = modelType.Elem()
+	for typ.Kind() == ref.Ptr {
+		typ = typ.Elem()
 	}
 
-	return modelType
+	return typ
 }
 
-func parseColumns(modelType ref.Type) ([]ModelColumn, error) {
+func parseProps(objectType ref.Type) ([]Property, error) {
 	isIdField := true
 
-	var cols []ModelColumn
+	var props []Property
 
-	for i := 0; i < modelType.NumField(); i++ {
-		f := modelType.Field(i)
+	for i := 0; i < objectType.NumField(); i++ {
+		f := objectType.Field(i)
 
 		if !f.IsExported() {
 			continue
 		}
 
-		col, e := parseColumn(f, i, isIdField)
+		prop, e := parseProp(f, i, isIdField)
 		if e != nil {
 			return nil, ErrForField.Fmt(f.Name).Wrap(e)
 		}
 
-		cols = append(cols, col)
+		props = append(props, prop)
 		isIdField = false
 	}
 
-	return cols, nil
+	return props, nil
 }
 
-func parseColumn(
+func parseProp(
 	f ref.StructField,
 	i int,
 	isIdField bool,
-) (ModelColumn, error) {
-	var col ModelColumn
+) (Property, error) {
+	var prop Property
 	var defaultValue any
 
 	if f.Type == ref.TypeOf("") {
@@ -160,18 +161,18 @@ func parseColumn(
 
 	sqlType, e := mapGoToSqlType(f.Type.Kind())
 	if e != nil {
-		return ModelColumn{}, e
+		return Property{}, e
 	}
 
-	col.GoType = f.Type
-	col.GoIndex = i
-	col.GoName = f.Name
-	col.SqlType = sqlType
-	col.SqlName = f.Name
-	col.SqlDefault = defaultValue
-	col.PrimaryKey = isIdField
+	prop.GoType = f.Type
+	prop.GoIndex = i
+	prop.GoName = f.Name
+	prop.SqlType = sqlType
+	prop.SqlName = f.Name
+	prop.SqlDefault = defaultValue
+	prop.IsKey = isIdField
 
-	return col, nil
+	return prop, nil
 }
 
 func mapGoToSqlType(fieldKind ref.Kind) (string, error) {
@@ -189,88 +190,106 @@ func mapGoToSqlType(fieldKind ref.Kind) (string, error) {
 	}
 }
 
-// PkCol returns the column representing the table's
-// primary key. Zero value is returned if not found.
-func (t ModelTable) PkCol() ModelColumn {
-	for _, col := range t.Columns {
-		if col.PrimaryKey {
-			return col
-		}
-	}
-	return ModelColumn{}
+// Represents returns true if the model represents the
+// type of the passed object, and thus can be used with
+// model functions without type matching error.
+func (m Model) Represents(object any) bool {
+	return m.GoType == ref.TypeOf(object)
 }
 
-// NonPkCols returns all columns except the primary key
-// column.
-func (t ModelTable) NonPkCols() []ModelColumn {
-	result := make([]ModelColumn, 0, len(t.Columns))
+// KeyProp returns the property representing the model's
+// key. Zero value is returned if not found.
+func (m Model) KeyProp() Property {
+	for _, prop := range m.Props {
+		if prop.IsKey {
+			return prop
+		}
+	}
+	return Property{}
+}
 
-	for _, col := range t.Columns {
-		if !col.PrimaryKey {
-			result = append(result, col)
+// NonKeyProps returns all properties except the key
+// property.
+func (m Model) NonKeyProps() []Property {
+	result := make([]Property, 0, len(m.Props))
+
+	for _, prop := range m.Props {
+		if !prop.IsKey {
+			result = append(result, prop)
 		}
 	}
 
 	return result
 }
 
-// Create creates the table within the passed database. It
-// assumes the database is open. If a table with the same
-// name already exists then nothing happens and no error is
-// returned.
-func (t ModelTable) Create(db *sql.DB) error {
+// Create creates the table the model represents within the
+// passed database. It assumes the database is open. If a
+// table with the same name already exists then nothing
+// happens and no error is returned.
+func (m Model) Create(db *sql.DB) error {
 	query := nidoking.Given(`
 		CREATE TABLE IF NOT EXISTS {{table.SqlName}} (
-			{{col.SqlName}} {{col.SqlType}} NOT NULL DEFAULT {{col.SqlDefault}},
+			{{cols.SqlName}} {{cols.SqlType}} NOT NULL DEFAULT {{cols.SqlDefault}},
 		  PRIMARY KEY ({{pk_col.SqlName}})
 		)
 	`).
-		InlineMap("table", t).
-		ListMap("col", "", t.Columns...).
-		InlineMap("pk_col", t.PkCol()).
+		InlineMap("table", m).
+		ListMap("cols", "", m.Props...).
+		InlineMap("pk_col", m.KeyProp()).
 		String()
 
 	_, e := db.Exec(query)
 	if e != nil {
-		return ErrForModel.Fmt(t.GoName).Wrap(e)
+		return ErrForModel.Fmt(m.GoName).Wrap(e)
 	}
 
 	return nil
 }
 
-// Drop removes the table from the passed database. It
-// assumes the database is open. If the table doesn't exist
-// then nothing happens and no error is returned.
-func (t ModelTable) Drop(db *sql.DB) error {
+// Drop removes the table the model represents from the
+// passed database. It assumes the database is open. If the
+// table doesn't exist then nothing happens and no error is
+// returned.
+func (m Model) Drop(db *sql.DB) error {
 	query := nidoking.Given(`
 		DROP TABLE IF EXISTS {{table.SqlName}}
 	`).
-		InlineMap("table", t).
+		InlineMap("table", m).
 		String()
 
 	_, e := db.Exec(query)
 	if e != nil {
-		return ErrForModel.Fmt(t.GoName).Wrap(e)
+		return ErrForModel.Fmt(m.GoName).Wrap(e)
 	}
 
 	return nil
 }
 
 // Upsert inserts the object if it doesn't exist within the
-// database, else it updates the object. It assumes the
-// database is open and the table exists.
+// database, else it updates the row. It assumes the
+// database is open and the table exists. An error is
+// returned if the object's type does not match the model's
+// GoType.
 //
 // Inserting via an object that only represents part of a
 // table will cause the unset columns to default to
 // their zero value. When updating, the ID (primary key)
 // field is used to target the row but is not updated.
-func (t ModelTable) Upsert(db *sql.DB, object any) error {
-	pkCol := t.PkCol()
-	nonPkCols := t.NonPkCols()
-
-	if pkCol == (ModelColumn{}) {
+func (m Model) Upsert(db *sql.DB, object any) error {
+	// TEST: ErrWrongObjectType is returned given bad object
+	//       type.
+	if !m.Represents(object) {
 		return ErrForModel.
-			Fmt(t.GoName).
+			Fmt(m.GoName).
+			Wrap(ErrWrongObjectType)
+	}
+
+	pkCol := m.KeyProp()
+	nonPkCols := m.NonKeyProps()
+
+	if pkCol == (Property{}) {
+		return ErrForModel.
+			Fmt(m.GoName).
 			Wrap(ErrMissingIdField)
 	}
 
@@ -289,118 +308,135 @@ func (t ModelTable) Upsert(db *sql.DB, object any) error {
 		WHERE
 			{{pk_col.SqlName}} = ?
 	`).
-		InlineMap("table", t).
-		ListMap("col", ",", t.Columns...).
-		ListRepeat("q_marks", ",", "?", len(t.Columns)).
+		InlineMap("table", m).
+		ListMap("col", ",", m.Props...).
+		ListRepeat("q_marks", ",", "?", len(m.Props)).
 		InlineMap("pk_col", pkCol).
 		ListMap("non_pk_col", ",", nonPkCols...).
 		String()
 
 	// Because PK is in the WHERE clause
-	cols := append(t.Columns, pkCol)
-	values := extractColumnValues(cols, object)
+	cols := append(m.Props, pkCol)
+	values := extractFieldValues(cols, object)
 
 	_, e := db.Exec(query, values...)
 	if e != nil {
-		return ErrForModel.Fmt(t.GoName).Wrap(e)
+		return ErrForModel.Fmt(m.GoName).Wrap(e)
 	}
 
 	return nil
 }
 
-// Select returns all table rows within the passed
-// database. It assumes the database is open and the table
-// exists.
-func (t ModelTable) Select[T any](db *sql.DB) ([]T, error) {
+// Select returns all rows from the table the model
+// represents within passed database. It assumes the
+// database is open and the table exists.
+func (m Model) Select[T any](db *sql.DB) ([]T, error) {
+	// TEST: ErrWrongObjectType is returned given bad type.
+	var o T
+	if !m.Represents(o) {
+		return nil, ErrForModel.
+			Fmt(m.GoName).
+			Wrap(ErrWrongParameterType)
+	}
+
 	query := nidoking.Given(`
 		SELECT
 			{{col.SqlName}}
 		FROM
 			{{table.SqlName}}
 	`).
-		InlineMap("table", t).
-		ListMap("col", ",", t.Columns...).
+		InlineMap("table", m).
+		ListMap("col", ",", m.Props...).
 		String()
 
 	rows, e := db.Query(query)
 	if e != nil {
-		return nil, ErrForModel.Fmt(t.GoName).Wrap(e)
+		return nil, ErrForModel.Fmt(m.GoName).Wrap(e)
 	}
 
-	return t.scanRows[T](rows)
+	return m.scanRows[T](rows)
 }
 
 // SelectById returns the table row with the passed ID
-// (primary key) from the passed database. It assumes the
-// database is open and the table exists. The first return
-// value will contain the row data and second will be true
-// if the row exists, else zero value and false.
-func (t ModelTable) SelectById[T any](db *sql.DB, id any) (T, bool, error) {
+// from the table the model represents within the passed
+// database. It assumes the database is open and the table
+// exists. The first return value will contain the row data
+// and second will be true if the row exists, else zero
+// value and false.
+func (m Model) SelectById[T any](db *sql.DB, id any) (T, bool, error) {
+	var zero T
+
+	// TEST: ErrWrongObjectType is returned given bad type.
+	if !m.Represents(zero) {
+		return zero, false, ErrForModel.
+			Fmt(m.GoName).
+			Wrap(ErrWrongParameterType)
+	}
+
 	query := nidoking.Given(`
 		SELECT
-			{{col.SqlName}}
+			{{cols.SqlName}}
 		FROM
 			{{table.SqlName}}
 		WHERE
 			{{pk_col.SqlName}} = ?
 	`).
-		ListMap("col", ",", t.Columns...).
-		InlineMap("table", t).
-		InlineMap("pk_col", t.PkCol()).
+		ListMap("cols", ",", m.Props...).
+		InlineMap("table", m).
+		InlineMap("pk_col", m.KeyProp()).
 		String()
 
 	rows, e := db.Query(query, id)
 	if e != nil {
-		var zero T
-		return zero, false, ErrForModel.Fmt(t.GoName).Wrap(e)
+		return zero, false, ErrForModel.Fmt(m.GoName).Wrap(e)
 	}
 
-	return t.scanFirstRow[T](rows)
+	return m.scanFirstRow[T](rows)
 }
 
 // DeleteById removes the table row with the given ID
-// (primary key) from the passed database. It assumes the
-// database is open and the table exists. If no matching
-// row is found then nothing happens and no error is
-// returned.
-func (t ModelTable) DeleteById(db *sql.DB, id any) error {
+// from the table the model represents within the passed
+// database. It assumes the database is open and the table
+// exists. If no matching row is found then nothing happens
+// and no error is returned.
+func (m Model) DeleteById(db *sql.DB, id any) error {
 	query := nidoking.Given(`
 		DELETE FROM
 			{{table.SqlName}}
 		WHERE
 			{{pk_col.SqlName}} = ?
 	`).
-		InlineMap("table", t).
-		InlineMap("pk_col", t.PkCol()).
+		InlineMap("table", m).
+		InlineMap("pk_col", m.KeyProp()).
 		String()
 
 	_, e := db.Exec(query, id)
 	if e != nil {
-		return ErrForModel.Fmt(t.GoName).Wrap(e)
+		return ErrForModel.Fmt(m.GoName).Wrap(e)
 	}
 
 	return nil
 }
 
-func extractColumnValues(
-	columns []ModelColumn,
+func extractFieldValues(
+	props []Property,
 	object any,
 ) []any {
 	value := ref.ValueOf(object)
-	result := make([]any, len(columns))
+	result := make([]any, len(props))
 
-	for i := 0; i < len(columns); i++ {
-		field := value.FieldByName(columns[i].GoName)
+	for i := 0; i < len(props); i++ {
+		field := value.FieldByName(props[i].GoName)
 		result[i] = field.Interface()
 	}
 
 	return result
 }
 
-func (t ModelTable) scanRows[T any](rows *sql.Rows) ([]T, error) {
+func (m Model) scanRows[T any](rows *sql.Rows) ([]T, error) {
 	defer rows.Close()
 
-	values, valuePtrs := t.newValueContainers()
+	values, valuePtrs := m.newValueContainers()
 	var results []T
 
 	for i := 0; rows.Next(); i++ {
@@ -410,7 +446,7 @@ func (t ModelTable) scanRows[T any](rows *sql.Rows) ([]T, error) {
 		}
 
 		var item T
-		t.populate(&item, values)
+		m.populate(&item, values)
 		results = append(results, item)
 	}
 
@@ -422,7 +458,7 @@ func (t ModelTable) scanRows[T any](rows *sql.Rows) ([]T, error) {
 	return results, nil
 }
 
-func (t ModelTable) scanFirstRow[T any](rows *sql.Rows) (T, bool, error) {
+func (m Model) scanFirstRow[T any](rows *sql.Rows) (T, bool, error) {
 	defer rows.Close()
 	var zero T
 
@@ -430,7 +466,7 @@ func (t ModelTable) scanFirstRow[T any](rows *sql.Rows) (T, bool, error) {
 		return zero, false, nil
 	}
 
-	values, valuePtrs := t.newValueContainers()
+	values, valuePtrs := m.newValueContainers()
 	e := rows.Scan(valuePtrs...)
 	if e != nil {
 		return zero, false, ErrRowScan.Fmt(0).Wrap(e)
@@ -442,16 +478,16 @@ func (t ModelTable) scanFirstRow[T any](rows *sql.Rows) (T, bool, error) {
 	}
 
 	var item T
-	t.populate(&item, values)
+	m.populate(&item, values)
 	return item, true, nil
 }
 
-func (t ModelTable) newValueContainers() ([]any, []any) {
-	colCount := len(t.Columns)
+func (m Model) newValueContainers() ([]any, []any) {
+	colCount := len(m.Props)
 	values := make([]any, colCount)
 	valuePtrs := make([]any, colCount)
 
-	for i, col := range t.Columns {
+	for i, col := range m.Props {
 		values[i] = col.New[any]()
 		valuePtrs[i] = &values[i]
 	}
@@ -459,17 +495,17 @@ func (t ModelTable) newValueContainers() ([]any, []any) {
 	return values, valuePtrs
 }
 
-func (t ModelTable) populate[T any](item *T, values []any) {
+func (m Model) populate[T any](item *T, values []any) {
 	objVal := ref.ValueOf(item).Elem()
 
-	for valueIdx, col := range t.Columns {
+	for valueIdx, col := range m.Props {
 		v := ref.ValueOf(values[valueIdx])
 		fieldVal := objVal.Field(col.GoIndex)
 
 		if v.CanConvert(fieldVal.Type()) {
 			v = v.Convert(fieldVal.Type())
 		} else {
-			// TODO: Rethink and tidy
+			// TODO: Return as error
 			panic("Can't convert from " + v.Type().Name() + " to " + fieldVal.Type().Name())
 		}
 
@@ -479,6 +515,6 @@ func (t ModelTable) populate[T any](item *T, values []any) {
 
 // New creates a instance of the columns GoType. It will
 // contain the type's zero value.
-func (c ModelColumn) New[T any]() T {
+func (c Property) New[T any]() T {
 	return ref.New(c.GoType).Interface().(T)
 }

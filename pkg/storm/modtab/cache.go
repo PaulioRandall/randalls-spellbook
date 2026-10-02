@@ -10,9 +10,9 @@ import (
 // database calls accessing table information during bulk
 // operations such as inserts, updates, and deletes.
 //
-// Because changes to table structure can be made at any
-// time, independent of this library, it's not possible
-// to be certain about the integrity of any [ModelTable]
+// Because changes to table structure can be modified at
+// any time, independent of this library, it's not possible
+// to be certain about the integrity of any [Model]
 // and the state of the database table at anytime. As a
 // minimum, we have to assume a table's structure will not
 // change (or table deleted) for the duration of a request.
@@ -22,15 +22,15 @@ import (
 //
 // Because the cache is a map, Go's len, delete, and
 // clear functions work directly on instances of it.
-type CachedMapper map[reflect.Type]ModelTable
+type CachedMapper map[reflect.Type]Model
 
-// Map checks the cache for an existing model and the entry
-// details if found. Else a call to [Map] is made and the
-// result cached only if the table exists.
+// Map checks the cache for an existing model and returns
+// if found, else a call to [Map] is made and the result
+// cached only if the table exists.
 func (tm CachedMapper) Map(
 	db *sql.DB,
 	object any,
-) (ModelTable, bool, error) {
+) (Model, bool, error) {
 	t := reflect.TypeOf(object)
 
 	cachedModel, ok := tm[t]
@@ -40,7 +40,7 @@ func (tm CachedMapper) Map(
 
 	model, exists, e := Map(db, object)
 	if e != nil {
-		return ModelTable{}, false, e
+		return Model{}, false, e
 	}
 
 	if exists {
@@ -51,7 +51,7 @@ func (tm CachedMapper) Map(
 }
 
 // Clear removes all entries from the cache. This may also
-// be done using Go's clear function:
+// be done using Go's clear function, e.g.:
 //
 //	cache := CachedMapper{}
 //	clear(cache)

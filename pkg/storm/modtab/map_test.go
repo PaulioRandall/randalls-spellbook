@@ -22,11 +22,11 @@ func Test_Map_1(t *testing.T) {
 	defer db.Close()
 
 	act, exists, e := Map(db, UnusedModel{})
-	exp := ModelTable{
+	exp := Model{
 		GoType:  ref.TypeOf(UnusedModel{}),
 		GoName:  "UnusedModel",
 		SqlName: "UnusedModel",
-		Columns: []ModelColumn{
+		Props: []Property{
 			TestIdCol,
 			TestNameCol,
 			TestRatingCol,
@@ -54,11 +54,11 @@ func Test_Map_2(t *testing.T) {
 	defer db.Close()
 
 	act, exists, e := Map(db, Player{})
-	exp := ModelTable{
+	exp := Model{
 		GoType:  ref.TypeOf(Player{}),
 		GoName:  "Player",
 		SqlName: "Player",
-		Columns: []ModelColumn{
+		Props: []Property{
 			TestIdCol,
 			TestNameCol,
 			TestRatingCol,
@@ -87,11 +87,11 @@ func Test_Map_3(t *testing.T) {
 	defer db.Close()
 
 	act, _, e := Map(db, Player{})
-	exp := ModelTable{
+	exp := Model{
 		GoType:  ref.TypeOf(Player{}),
 		GoName:  "Player",
 		SqlName: "Player",
-		Columns: []ModelColumn{
+		Props: []Property{
 			TestIdCol,
 			TestNameCol,
 		},
@@ -123,24 +123,24 @@ func Test_Map_4(t *testing.T) {
 
 	act, _, e := Map(db, Player{})
 
-	exp := ModelTable{
+	exp := Model{
 		GoType:  ref.TypeOf(Player{}),
 		GoName:  "Player",
 		SqlName: "Player",
-		Columns: []ModelColumn{
+		Props: []Property{
 			TestNameCol,
 			TestRatingCol,
 			TestIdCol,
 		},
 	}
 
-	// The pre-created package level test columns won't
+	// The pre-created package level test props won't
 	// have the correct GoIndex because we messed up the
 	// field ordering to test that ordering is accounted for
 	// in the output, thus we need to correct the GoIndex so
 	// the test assertion passes
-	for i := range exp.Columns {
-		exp.Columns[i].GoIndex = i
+	for i := range exp.Props {
+		exp.Props[i].GoIndex = i
 	}
 
 	require.NoError(t, e)

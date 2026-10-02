@@ -71,14 +71,14 @@ func Test_CacheMapper_Map_3(t *testing.T) {
 	db := createTestDb(t)
 	defer db.Close()
 
-	// Empty ModelTable because the CachedMapper will never
+	// Empty Model because the CachedMapper will never
 	// store the an empty version.
 	mapper := CachedMapper{
-		ref.TypeOf(Player{}): ModelTable{},
+		ref.TypeOf(Player{}): Model{},
 	}
 
 	act, _, _ := mapper.Map(db, Player{})
-	require.Equal(t, ModelTable{}, act)
+	require.Equal(t, Model{}, act)
 }
 
 func Test_CacheMapper_ClearType_1(t *testing.T) {
@@ -90,9 +90,9 @@ func Test_CacheMapper_ClearType_1(t *testing.T) {
 	type Beta struct{}
 	type Charlie struct{}
 
-	a := ModelTable{SqlName: "Player"}
-	b := ModelTable{SqlName: "Player"}
-	c := ModelTable{SqlName: "NotPlayer"}
+	a := Model{SqlName: "Player"}
+	b := Model{SqlName: "Player"}
+	c := Model{SqlName: "NotPlayer"}
 
 	mapper := CachedMapper{
 		ref.TypeOf(Alpha{}):   a,
@@ -119,9 +119,9 @@ func Test_CacheMapper_ClearTable_1(t *testing.T) {
 	type Beta struct{}
 	type Charlie struct{}
 
-	a := ModelTable{SqlName: "Player"}
-	b := ModelTable{SqlName: "Player"}
-	c := ModelTable{SqlName: "NotPlayer"}
+	a := Model{SqlName: "Player"}
+	b := Model{SqlName: "Player"}
+	c := Model{SqlName: "NotPlayer"}
 
 	mapper := CachedMapper{
 		ref.TypeOf(Alpha{}):   a,

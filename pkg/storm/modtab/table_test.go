@@ -27,11 +27,11 @@ func Test_Parse_2(t *testing.T) {
 	table, e := Parse(TestModel{})
 	require.NoError(t, e)
 
-	exp := ModelTable{
+	exp := Model{
 		GoType:  ref.TypeOf(TestModel{}),
 		GoName:  "TestModel",
 		SqlName: "TestModel",
-		Columns: nil,
+		Props:   nil,
 	}
 
 	require.Equal(t, exp, table)
@@ -51,11 +51,11 @@ func Test_Parse_3(t *testing.T) {
 	table, e := Parse(ptrPtr)
 	require.NoError(t, e)
 
-	exp := ModelTable{
+	exp := Model{
 		GoType:  ref.TypeOf(TestModel{}),
 		GoName:  "TestModel",
 		SqlName: "TestModel",
-		Columns: nil,
+		Props:   nil,
 	}
 
 	require.Equal(t, exp, table)
@@ -73,7 +73,7 @@ func Test_Parse_4(t *testing.T) {
 	table, e := Parse(TestModel{})
 	require.NoError(t, e)
 
-	require.Equal(t, 0, len(table.Columns))
+	require.Equal(t, 0, len(table.Props))
 }
 
 func Test_Parse_5(t *testing.T) {
@@ -104,19 +104,19 @@ func Test_Parse_6(t *testing.T) {
 	table, e := Parse(TestModel{})
 	require.NoError(t, e)
 
-	exp := []ModelColumn{
-		ModelColumn{
+	exp := []Property{
+		Property{
 			GoType:     ref.TypeOf(int(0)),
 			GoIndex:    1,
 			GoName:     "Id",
 			SqlType:    "INTEGER",
 			SqlName:    "Id",
 			SqlDefault: int(0),
-			PrimaryKey: true,
+			IsKey:      true,
 		},
 	}
 
-	require.Equal(t, exp, table.Columns)
+	require.Equal(t, exp, table.Props)
 }
 
 func Test_Parse_7(t *testing.T) {
@@ -137,37 +137,37 @@ func Test_Parse_7(t *testing.T) {
 	table, e := Parse(TestModel{})
 	require.NoError(t, e)
 
-	exp := []ModelColumn{
-		ModelColumn{
+	exp := []Property{
+		Property{
 			GoType:     ref.TypeOf(int(0)),
 			GoIndex:    1,
 			GoName:     "Id",
 			SqlType:    "INTEGER",
 			SqlName:    "Id",
 			SqlDefault: int(0),
-			PrimaryKey: true,
+			IsKey:      true,
 		},
-		ModelColumn{
+		Property{
 			GoType:     ref.TypeOf(""),
 			GoIndex:    3,
 			GoName:     "Name",
 			SqlType:    "TEXT",
 			SqlName:    "Name",
 			SqlDefault: "''",
-			PrimaryKey: false,
+			IsKey:      false,
 		},
-		ModelColumn{
+		Property{
 			GoType:     ref.TypeOf(float64(0)),
 			GoIndex:    5,
 			GoName:     "Value",
 			SqlType:    "REAL",
 			SqlName:    "Value",
 			SqlDefault: float64(0),
-			PrimaryKey: false,
+			IsKey:      false,
 		},
 	}
 
-	require.Equal(t, exp, table.Columns)
+	require.Equal(t, exp, table.Props)
 }
 
 func Test_Table_PkCol_1(t *testing.T) {
@@ -187,18 +187,18 @@ func Test_Table_PkCol_1(t *testing.T) {
 	table, e := Parse(TestModel{})
 	require.NoError(t, e)
 
-	pkCol := table.PkCol()
+	pkCol := table.KeyProp()
 
-	exp := ModelColumn{
+	exp := Property{
 		GoType:     ref.TypeOf(int(0)),
 		GoIndex:    1,
 		GoName:     "Id",
 		SqlType:    "INTEGER",
 		SqlName:    "Id",
 		SqlDefault: int(0),
-		PrimaryKey: true,
+		IsKey:      true,
 	}
 
 	require.Equal(t, exp, pkCol)
-	require.Equal(t, table.Columns[0], pkCol)
+	require.Equal(t, table.Props[0], pkCol)
 }
