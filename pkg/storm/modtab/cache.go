@@ -2,79 +2,76 @@ package modtab
 
 import (
 	"database/sql"
-	ref "reflect"
+	"reflect"
 )
 
-// CacheEntry is the entry type for [CachedMapper].
-type CacheEntry struct {
-	// Exists is true if the table exsits within the
-	// database.
-	Exists bool
-
-	// Table is the parsed model being cached. It is the
-	// value returned by [Parse] or [Map].
-	Table ModelTable
-}
-
-// CachedMapper is a cache for [ModelTable]. The purpose of
-// the cache is to minimise database calls accessing table
-// information during bulk operations such as inserts,
-// updates, and deletes.
+// CachedMapper adapts the [Map] function to cache
+// results. The purpose of the cache is to minimise
+// database calls accessing table information during bulk
+// operations such as inserts, updates, and deletes.
 //
 // Because changes to table structure can be made at any
 // time, independent of this library, it's not possible
-// to be certain about the integrity of any [ModelTable] at
-// anytime. As a minimum, we have to assume a table's
-// structure will not change (or table deleted) for the
-// duration of a request. But the user programmer (you)
-// will usually know what can change when, thus, the user
-// programmer must create and manage this cache.
+// to be certain about the integrity of any [ModelTable]
+// and the state of the database table at anytime. As a
+// minimum, we have to assume a table's structure will not
+// change (or table deleted) for the duration of a request.
+// However, the user programmer (you) will usually have a
+// clear idea about what can change and when, thus, the
+// user programmer is charged with managing the cache.
 //
-// Because the cache is a map, the Go len, delete, and
-// clear functions work directly on instances of the
-// mapper.
-type CachedMapper map[ref.Type]CacheEntry
+// Because the cache is a map, Go's len, delete, and
+// clear functions work directly on instances of it.
+type CachedMapper map[reflect.Type]ModelTable
 
-// Map checks the cache for a parsed model first. If not
-// found a call to [Map] is made and the result cached only
-// if the table currently exists within the database.
+// Map checks the cache for an existing model and the entry
+// details if found. Else a call to [Map] is made and the
+// result cached only if the table exists.
 func (tm CachedMapper) Map(
 	db *sql.DB,
-	m any,
+	object any,
 ) (ModelTable, bool, error) {
-	t := ref.TypeOf(m)
+	t := reflect.TypeOf(object)
 
-	entry, ok := tm[t]
+	cachedModel, ok := tm[t]
 	if ok {
-		return entry.Table, entry.Exists, nil
+		return cachedModel, true, nil
 	}
 
-	table, exists, e := Map(db, m)
+	model, exists, e := Map(db, object)
 	if e != nil {
 		return ModelTable{}, false, e
 	}
 
-	tm[t] = CacheEntry{
-		Exists: exists,
-		Table:  table,
+	if exists {
+		tm[t] = model
 	}
 
-	return table, exists, nil
+	return model, exists, nil
 }
 
-// DeleteModel removes the entry for the specified model,
+// Clear removes all entries from the cache. This may also
+// be done using Go's clear function:
+//
+//	cache := CachedMapper{}
+//	clear(cache)
+func (cm CachedMapper) Clear() {
+	clear(cm)
+}
+
+// ClearType removes the model represented by the object,
 // if it exists.
-func (tm CachedMapper) DeleteModel(model any) {
-	t := ref.TypeOf(model)
-	delete(tm, t)
+func (cm CachedMapper) ClearType(object any) {
+	t := reflect.TypeOf(object)
+	delete(cm, t)
 }
 
-// DeleteTable removes all entries associated with the
+// ClearTable removes all models associated with the
 // specified table name.
-func (tm CachedMapper) DeleteTable(name string) {
-	for t, entry := range tm {
-		if entry.Table.SqlName == name {
-			delete(tm, t)
+func (cm CachedMapper) ClearTable(name string) {
+	for t, model := range cm {
+		if model.SqlName == name {
+			delete(cm, t)
 		}
 	}
 }

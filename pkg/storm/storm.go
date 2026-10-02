@@ -137,7 +137,7 @@ func (st *Storm) CacheClearModel(model any) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
-	st.cachedMapper.DeleteModel(model)
+	st.cachedMapper.ClearType(model)
 }
 
 // CacheClearTable removes a specific table from the cache
@@ -146,7 +146,7 @@ func (st *Storm) CacheClearTable(name string) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
-	st.cachedMapper.DeleteTable(name)
+	st.cachedMapper.ClearTable(name)
 }
 
 // Open opens the database. If not an 'in-memory' path then

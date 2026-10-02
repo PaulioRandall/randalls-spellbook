@@ -219,7 +219,7 @@ func (st *Storm) Drop(models ...any) error {
 			continue
 		}
 
-		st.cachedMapper.DeleteTable(table.SqlName)
+		st.cachedMapper.ClearTable(table.SqlName)
 
 		e = table.Drop(st.db)
 		if e != nil {

@@ -23,7 +23,7 @@ var (
 		"Model must be a struct kind, got kind '%s'",
 	)
 
-	// ErrUnsupportedType occurs when the kind for model
+	// ErrUnsupportedType occurs when the Go kind for model
 	// field's type is not supported.
 	ErrUnsupportedType = sin.Template(
 		"Unsupported Go kind used for exported field '%s'",

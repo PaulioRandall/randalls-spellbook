@@ -1,3 +1,3 @@
-// Package modtab enables the use of struct's as models for
-// database operations.
+// Package modtab provides a simple ORM-based interface to
+// managing SQLite databases with Go struct's.
 package modtab
