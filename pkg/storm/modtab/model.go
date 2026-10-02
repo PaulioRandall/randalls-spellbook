@@ -9,10 +9,10 @@ import (
 
 // Model maps a Go struct, or part of it, to a database
 // table structure, or part of it. A Model is always
-// derived from a Go type of kind 'reflect.Struct',
-// so there's a one-to-one relationship between a Go type
-// and a model but one-to-many relationship between tables
-// and models and Go types.
+// derived from a struct, so there's a one-to-one
+// relationship between a Go type and a model but
+// one-to-many relationship between tables and models and
+// Go types.
 type Model struct {
 	// GoType is the struct type as returned by
 	// reflect.TypeOf.
@@ -30,15 +30,15 @@ type Model struct {
 	Props []Property
 }
 
-// Property maps a Go struct's field to a specific
-// database table column.
+// Property maps a Go struct's field to a database table
+// column.
 type Property struct {
 	// GoType is the field type as returned by
 	// reflect.TypeOf.
 	GoType ref.Type
 
 	// GoIndex is the field index, i.e. it's 0-based position
-	// within the struct definition
+	// within the struct definition.
 	GoIndex int
 
 	// GoName is the field's name, i.e. GoType.Name().
@@ -192,13 +192,14 @@ func mapGoToSqlType(fieldKind ref.Kind) (string, error) {
 
 // Represents returns true if the model represents the
 // type of the passed object, and thus can be used with
-// model functions without type matching error.
+// the model's methods without causing a type mismatch
+// error.
 func (m Model) Represents(object any) bool {
 	return m.GoType == ref.TypeOf(object)
 }
 
 // KeyProp returns the property representing the model's
-// key. Zero value is returned if not found.
+// key. Zero value is returned if not present.
 func (m Model) KeyProp() Property {
 	for _, prop := range m.Props {
 		if prop.IsKey {
@@ -273,8 +274,8 @@ func (m Model) Drop(db *sql.DB) error {
 //
 // Inserting via an object that only represents part of a
 // table will cause the unset columns to default to
-// their zero value. When updating, the ID (primary key)
-// field is used to target the row but is not updated.
+// their zero value. When updating, the key property is
+// used to target the row but is not updated.
 func (m Model) Upsert(db *sql.DB, object any) error {
 	// TEST: ErrWrongObjectType is returned given bad object
 	//       type.
@@ -327,10 +328,10 @@ func (m Model) Upsert(db *sql.DB, object any) error {
 	return nil
 }
 
-// Select returns all rows from the table the model
+// SelectAll returns all rows from the table the model
 // represents within passed database. It assumes the
 // database is open and the table exists.
-func (m Model) Select[T any](db *sql.DB) ([]T, error) {
+func (m Model) SelectAll[T any](db *sql.DB) ([]T, error) {
 	// TEST: ErrWrongObjectType is returned given bad type.
 	var o T
 	if !m.Represents(o) {
@@ -362,7 +363,7 @@ func (m Model) Select[T any](db *sql.DB) ([]T, error) {
 // database. It assumes the database is open and the table
 // exists. The first return value will contain the row data
 // and second will be true if the row exists, else zero
-// value and false.
+// value and false are returned.
 func (m Model) SelectById[T any](db *sql.DB, id any) (T, bool, error) {
 	var zero T
 
@@ -514,7 +515,8 @@ func (m Model) populate[T any](item *T, values []any) {
 }
 
 // New creates a instance of the columns GoType. It will
-// contain the type's zero value.
-func (c Property) New[T any]() T {
-	return ref.New(c.GoType).Interface().(T)
+// contain the type's zero value. The value returned is
+// explicitly cast to T.
+func (p Property) New[T any]() T {
+	return ref.New(p.GoType).Interface().(T)
 }

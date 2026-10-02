@@ -106,7 +106,7 @@ func (st *Storm) List[T any](model T) (result []T, e error) {
 		return nil, nil
 	}
 
-	result, e = table.Select[T](st.db)
+	result, e = table.SelectAll[T](st.db)
 	if e != nil {
 		goto Err
 	}

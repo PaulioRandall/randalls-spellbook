@@ -51,4 +51,11 @@
 //     in the process and there's no way to restore it. To
 //     protect data, create regular backups of the database
 //     file.
+//
+// # TODO
+//   - AS operations, e.g. CreateAs("Users", Model{})
+//     Allow table name to be specified rather than using
+//     the struct's name.
+//   - Function to perform custom operations. Must lock
+//     and allow access to cachedMapper and db.
 package storm
