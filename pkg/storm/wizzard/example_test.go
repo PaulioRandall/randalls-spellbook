@@ -24,11 +24,19 @@ func Example() {
 	err = model.Create(db)
 
 	// Insert an entry into the Player table.
-	// Can also be used to update an entry.
+	// Can also use model.Insert.
 	err = model.Upsert(db, Player{
 		Id:     123,
 		Name:   "Bob",
 		Rating: 6.9,
+	})
+
+	// Update an entry within the Player table.
+	// Can also use model.Update.
+	err = model.Upsert(db, Player{
+		Id:     123,
+		Name:   "Charlie",
+		Rating: 4.2,
 	})
 
 	// Select all entries from the Player table.
@@ -178,20 +186,20 @@ func ExampleTableCache() {
 		Id     int
 	}
 
-	db, _ := sql.Open("sqlite", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	defer db.Close()
 
 	mapper := TableCache{}
 
-	// Won't add the model to the cache becasue the table
+	// Won't add the model to the cache because the table
 	// doesn't exist.
-	model, _, _ := mapper.Map(db, Player{})
+	model, exists, err := mapper.Map(db, Player{})
 
 	model.Create(db)
 
 	// Will add the model to the cache because the table now
 	// exists.
-	model, _, _ = mapper.Map(db, Player{})
+	model, exists, err = mapper.Map(db, Player{})
 
 	model.Upsert(db, Player{
 		Id:     123,
@@ -200,11 +208,11 @@ func ExampleTableCache() {
 	})
 
 	// Will pull from the cache rather than parsing again.
-	model, _, _ = mapper.Map(db, Player{})
+	model, exists, err = mapper.Map(db, Player{})
 
 	// The table will be dropped but the cache entry still
 	// remains.
-	_ = model.Drop(db)
+	err = model.Drop(db)
 
 	// Removes the cache entry for the Player type.
 	mapper.ClearType(Player{})
@@ -215,4 +223,7 @@ func ExampleTableCache() {
 
 	// Can also empty the entire cache.
 	mapper.Clear()
+
+	_ = exists
+	_ = err
 }

@@ -10,7 +10,7 @@ import (
 
 func Test_Storm_Create_1(t *testing.T) {
 	// When creating a table
-	// if the table doesn't yet exist
+	// if the table doesn't exist
 	// then the table is created.
 
 	st := openStormDatabase(t)
@@ -19,7 +19,51 @@ func Test_Storm_Create_1(t *testing.T) {
 	e := st.Create(TestTable{})
 	require.NoError(t, e)
 
-	requireDummyTableExists(t, st)
+	requireTableExists(t, st, "TestTable")
+}
+
+func Test_Storm_Create_2(t *testing.T) {
+	// When creating a table
+	// if the table already exists
+	// then nothing happens.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	e := st.Create(TestTable{})
+	require.NoError(t, e)
+
+	e = st.Create(TestTable{})
+	require.NoError(t, e)
+}
+
+func Test_Storm_CreateAs_1(t *testing.T) {
+	// When creating a table
+	// if the table doesn't exist
+	// then the table is created.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	e := st.CreateAs("TestDummy", TestTable{})
+	require.NoError(t, e)
+
+	requireTableExists(t, st, "TestDummy")
+}
+
+func Test_Storm_CreateAs_2(t *testing.T) {
+	// When creating a table
+	// if the table already exists
+	// then nothing happens.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	e := st.CreateAs("TestDummy", TestTable{})
+	require.NoError(t, e)
+
+	e = st.CreateAs("TestDummy", TestTable{})
+	require.NoError(t, e)
 }
 
 func Test_Storm_Put_1(t *testing.T) {
@@ -96,6 +140,82 @@ func Test_Storm_Put_3(t *testing.T) {
 
 	requireDummyTableExists(t, st)
 	requireDummyTableRows(t, st, updated)
+}
+
+func Test_Storm_PutAs_1(t *testing.T) {
+	// When inserting data
+	// if the table doesn't exist yet
+	// then the table is created
+	// and then the data is inserted.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	data := TestTable{
+		Id:     123,
+		Name:   "Abc",
+		Rating: 123.456,
+	}
+
+	e := st.PutAs("TestDummy", data)
+	require.NoError(t, e)
+
+	requireTableExists(t, st, "TestDummy")
+	requireTableContains(t, st, "TestDummy", data)
+}
+
+func Test_Storm_PutAs_2(t *testing.T) {
+	// When inserting data
+	// if the table already exists
+	// then the data is inserted.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	data := TestTable{
+		Id:     123,
+		Name:   "Abc",
+		Rating: 123.456,
+	}
+
+	e := st.CreateAs("TestDummy", TestTable{})
+	require.NoError(t, e)
+
+	e = st.PutAs("TestDummy", data)
+	require.NoError(t, e)
+
+	requireTableExists(t, st, "TestDummy")
+	requireTableContains(t, st, "TestDummy", data)
+}
+
+func Test_Storm_PutAs_3(t *testing.T) {
+	// When updating data
+	// if the table and row exists
+	// then the data is updated without error.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	original := TestTable{
+		Id:     123,
+		Name:   "Abc",
+		Rating: 123.456,
+	}
+
+	e := st.PutAs("TestDummy", original)
+	require.NoError(t, e)
+
+	updated := TestTable{
+		Id:     123,
+		Name:   "xyZ",
+		Rating: 987.654,
+	}
+
+	e = st.PutAs("TestDummy", updated)
+	require.NoError(t, e)
+
+	requireTableExists(t, st, "TestDummy")
+	requireTableContains(t, st, "TestDummy", updated)
 }
 
 func Test_Storm_List_1(t *testing.T) {

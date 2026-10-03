@@ -43,6 +43,36 @@ func (st *Storm) Create(objects ...any) error {
 	return nil
 }
 
+// CreateAs is the same as [Storm.Create] except the table
+// name is provided explicitly and only a single table may
+// be created per call.
+func (st *Storm) CreateAs(table string, object any) error {
+	if !st.IsOpen() {
+		return st.errNotOpen()
+	}
+
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+
+	st.prepareMapper()
+
+	model, exists, e := st.mapModelAs(table, object)
+	if e != nil {
+		return st.errForModel(object, e)
+	}
+
+	if exists {
+		return nil
+	}
+
+	e = model.Create(st.db)
+	if e != nil {
+		return st.errForModel(object, e)
+	}
+
+	return nil
+}
+
 // Put inserts or updates (upserts) every object in the
 // passed list. Inserting via an object that only
 // represents part of a table will cause the unfilled
@@ -59,6 +89,10 @@ func (st *Storm) Put[T any](objects ...T) error {
 		return st.errNotOpen()
 	}
 
+	if len(objects) == 0 {
+		return nil
+	}
+
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
@@ -71,6 +105,51 @@ func (st *Storm) Put[T any](objects ...T) error {
 		}
 
 		if !exists {
+			e = model.Create(st.db)
+			if e != nil {
+				return st.errForModel(o, e)
+			}
+		}
+
+		if e == nil {
+			e = model.Upsert(st.db, o)
+		}
+
+		if e != nil {
+			return st.errForModel(o, e)
+		}
+	}
+
+	return nil
+}
+
+// PutAs is the same as [Storm.Put] except the table
+// name is provided explicitly and only objects going into
+// the named table should be passed. Passing the wrong
+// objects may cause an error but it may insert some of
+// those objects into the table, poisoning your data.
+func (st *Storm) PutAs[T any](table string, objects ...T) error {
+	if !st.IsOpen() {
+		return st.errNotOpen()
+	}
+
+	if len(objects) == 0 {
+		return nil
+	}
+
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+
+	st.prepareMapper()
+
+	for _, o := range objects {
+		model, exists, e := st.mapModelAs(table, objects[0])
+		if e != nil {
+			return st.errForModel(o, e)
+		}
+
+		if !exists {
+			// Might be true on first call only.
 			e = model.Create(st.db)
 			if e != nil {
 				return st.errForModel(o, e)
@@ -171,6 +250,10 @@ func (st *Storm) Delete[T, ID any](object T, ids ...ID) error {
 		return st.errNotOpen()
 	}
 
+	if len(ids) == 0 {
+		return nil
+	}
+
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
@@ -200,9 +283,13 @@ func (st *Storm) Delete[T, ID any](object T, ids ...ID) error {
 // table are also removed. All table data is deleted in the
 // process and there's no way to restore it. To protect
 // data, create backups of the database file.
-func (st *Storm) Drop(models ...any) error {
+func (st *Storm) Drop(objects ...any) error {
 	if !st.IsOpen() {
 		return st.errNotOpen()
+	}
+
+	if len(objects) == 0 {
+		return nil
 	}
 
 	st.mutex.Lock()
@@ -210,10 +297,10 @@ func (st *Storm) Drop(models ...any) error {
 
 	st.prepareMapper()
 
-	for _, m := range models {
-		table, found, e := st.mapModel(m)
+	for _, o := range objects {
+		table, found, e := st.mapModel(o)
 		if e != nil {
-			return st.errForModel(m, e)
+			return st.errForModel(o, e)
 		}
 
 		if !found {
@@ -224,7 +311,7 @@ func (st *Storm) Drop(models ...any) error {
 
 		e = table.Drop(st.db)
 		if e != nil {
-			return st.errForModel(m, e)
+			return st.errForModel(o, e)
 		}
 	}
 

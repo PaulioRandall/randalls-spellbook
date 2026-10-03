@@ -310,6 +310,16 @@ func (st *Storm) mapModel(
 	return st.mapper.Map(st.db, model)
 }
 
+func (st *Storm) mapModelAs(
+	table string,
+	model any,
+) (wizzard.Model, bool, error) {
+	if st.cacheMode == CacheModeNone {
+		return wizzard.MapAs(st.db, table, model)
+	}
+	return st.mapper.MapAs(st.db, table, model)
+}
+
 func (st *Storm) errNotOpen() error {
 	return ErrNotOpen.
 		WrapIn(ErrForDatabase).

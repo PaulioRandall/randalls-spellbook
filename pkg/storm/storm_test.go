@@ -17,11 +17,16 @@ type TestTable struct {
 
 func openStormDatabase(t *testing.T) *Storm {
 	st := New(":memory:")
-
 	e := st.Open()
 	require.NoError(t, e)
-
 	return st
+}
+
+func requireTableExists(t *testing.T, st *Storm, name string) {
+	tableSchema, e := scumble.QuerySqliteSchema(st.db, name)
+	require.NoError(t, e)
+	require.Equal(t, name, tableSchema.Name)
+	require.Equal(t, name, tableSchema.TableName)
 }
 
 func requireDummyTableExists(t *testing.T, st *Storm) {
@@ -29,6 +34,38 @@ func requireDummyTableExists(t *testing.T, st *Storm) {
 	require.NoError(t, e)
 	require.Equal(t, "TestTable", tableSchema.Name)
 	require.Equal(t, "TestTable", tableSchema.TableName)
+}
+
+func requireTableContains(
+	t *testing.T,
+	st *Storm,
+	table string,
+	data ...TestTable,
+) []TestTable {
+	rows, e := st.db.Query(`
+		SELECT
+			Id,
+			Name,
+			Rating
+		FROM
+	` + table)
+	require.NoError(t, e)
+	defer rows.Close()
+
+	var dbData []TestTable
+
+	for rows.Next() {
+		var tt TestTable
+		e := rows.Scan(&tt.Id, &tt.Name, &tt.Rating)
+		require.NoError(t, e)
+		dbData = append(dbData, tt)
+	}
+
+	for i, exp := range data {
+		require.Equal(t, exp, dbData[i])
+	}
+
+	return dbData
 }
 
 func requireDummyTableRows(t *testing.T, st *Storm, data ...TestTable) {
