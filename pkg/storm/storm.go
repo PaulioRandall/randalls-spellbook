@@ -84,20 +84,20 @@ var (
 // database. Operations share a single mutex so only
 // operations, including reads and writes
 type Storm struct {
-	path         string
-	db           *sql.DB
-	mutex        sync.Mutex
-	cacheMode    CacheMode
-	cachedMapper wizzard.CachedMapper
+	path      string
+	db        *sql.DB
+	mutex     sync.Mutex
+	cacheMode CacheMode
+	mapper    wizzard.TableCache
 }
 
 // New returns a new [Storm] for the database represented
 // by path.
 func New(path string) *Storm {
 	return &Storm{
-		path:         path,
-		cacheMode:    CacheModeSession,
-		cachedMapper: wizzard.CachedMapper{},
+		path:      path,
+		cacheMode: CacheModeSession,
+		mapper:    wizzard.TableCache{},
 	}
 }
 
@@ -105,9 +105,9 @@ func New(path string) *Storm {
 // by path, and opens it before returning.
 func Open(path string) (*Storm, error) {
 	st := &Storm{
-		path:         path,
-		cacheMode:    CacheModeSession,
-		cachedMapper: wizzard.CachedMapper{},
+		path:      path,
+		cacheMode: CacheModeSession,
+		mapper:    wizzard.TableCache{},
 	}
 	return st, st.Open()
 }
@@ -129,7 +129,7 @@ func (st *Storm) SetCacheMode(mode CacheMode) {
 	defer st.mutex.Unlock()
 
 	st.cacheMode = mode
-	clear(st.cachedMapper)
+	clear(st.mapper)
 }
 
 // CacheClear clears the cache regardless of mode.
@@ -137,7 +137,7 @@ func (st *Storm) CacheClear() {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
-	clear(st.cachedMapper)
+	clear(st.mapper)
 }
 
 // CacheClearModel removes all cache entries associated
@@ -146,7 +146,7 @@ func (st *Storm) CacheClearModel(model any) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
-	st.cachedMapper.ClearType(model)
+	st.mapper.ClearType(model)
 }
 
 // CacheClearModel removes all cache entries associated
@@ -155,7 +155,7 @@ func (st *Storm) CacheClearTable(name string) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
-	st.cachedMapper.ClearTable(name)
+	st.mapper.ClearTable(name)
 }
 
 // Open opens the database. If not an 'in-memory' path then
@@ -202,7 +202,7 @@ func (st *Storm) Close() error {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
-	clear(st.cachedMapper)
+	clear(st.mapper)
 
 	defer func() {
 		st.db = nil
@@ -297,7 +297,7 @@ func isInMemoryDatabase(path string) bool {
 
 func (st *Storm) prepareMapper() {
 	if st.cacheMode == CacheModeRequest {
-		clear(st.cachedMapper)
+		clear(st.mapper)
 	}
 }
 
@@ -307,7 +307,7 @@ func (st *Storm) mapModel(
 	if st.cacheMode == CacheModeNone {
 		return wizzard.Map(st.db, model)
 	}
-	return st.cachedMapper.Map(st.db, model)
+	return st.mapper.Map(st.db, model)
 }
 
 func (st *Storm) errNotOpen() error {

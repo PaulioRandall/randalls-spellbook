@@ -7,7 +7,9 @@ import (
 
 // ModelCache stores mappings between models and the GoType
 // they model. ModelCache ignores the table name so it's
-// recommended to always use [CachedMapper] instead.
+// recommended to always use [TableCache] instead. The
+// purpose of the cache is to minimise database calls
+// accessing table information.
 //
 // Because the cache is a map, Go's len, delete, and
 // clear functions work directly on instances of it.
@@ -58,9 +60,9 @@ func (mc ModelCache) ClearType(object any) {
 	delete(mc, t)
 }
 
-// CachedMapper is wraps the [Map] function to add result
-// caching. The purpose of the cache is to minimise
-// database calls accessing table information.
+// TableCache stores mappings between models and the
+// GoTypes they model with separate [ModelCache]s for
+// each table.
 //
 // Because changes to table structure can be made at
 // anytime, independent of this library, it's not possible
@@ -75,13 +77,13 @@ func (mc ModelCache) ClearType(object any) {
 //
 // Because the cache is a map, Go's len, delete, and
 // clear functions work directly on instances of it.
-type CachedMapper map[string]ModelCache
+type TableCache map[string]ModelCache
 
 // Map checks the cache for an existing model of the
 // object's type and returns it if found, else a call to
 // [Map] is made and the result cached only if the database
 // table exists.
-func (cm CachedMapper) Map(
+func (cm TableCache) Map(
 	db *sql.DB,
 	object any,
 ) (Model, bool, error) {
@@ -94,9 +96,9 @@ func (cm CachedMapper) Map(
 	)
 }
 
-// MapAs is the same as [CachedMapper.Map] but works the
+// MapAs is the same as [TableCache.Map] but works the
 // same as [MapAs] function instead.
-func (cm CachedMapper) MapAs(
+func (cm TableCache) MapAs(
 	db *sql.DB,
 	table string,
 	object any,
@@ -110,7 +112,7 @@ func (cm CachedMapper) MapAs(
 	)
 }
 
-func (cm CachedMapper) mapTypeAsModel(
+func (cm TableCache) mapTypeAsModel(
 	db *sql.DB,
 	table string,
 	objectType reflect.Type,
@@ -131,13 +133,13 @@ func (cm CachedMapper) mapTypeAsModel(
 
 // Clear removes all entries from the cache. This may also
 // be done using Go's clear function.
-func (cm CachedMapper) Clear() {
+func (cm TableCache) Clear() {
 	clear(cm)
 }
 
 // ClearType removes the model represented by the object,
 // if it exists.
-func (cm CachedMapper) ClearType(object any) {
+func (cm TableCache) ClearType(object any) {
 	t := reflect.TypeOf(object)
 	for _, mc := range cm {
 		delete(mc, t)
@@ -147,6 +149,6 @@ func (cm CachedMapper) ClearType(object any) {
 // ClearTable removes all models associated with the
 // specified table name. This may also be done using Go's
 // delete function.
-func (cm CachedMapper) ClearTable(table string) {
+func (cm TableCache) ClearTable(table string) {
 	delete(cm, table)
 }

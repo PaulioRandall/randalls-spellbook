@@ -12,11 +12,11 @@
 // New York", and Wham's "Last Christmas".
 //
 // This package is actually named after the words
-// emblazoned in sequins on Rincewind's hat. Rincewind is a
-// failed wizard of the Discworld who lives in a
-// never-ending series of interesting times. They say that
-// if you've never read a Discworld novel you're not really
-// real. But since very few people are really real,
+// haphazardly crafted in sequins on Rincewind's hat.
+// Rincewind is a failed wizard of the Discworld who lives
+// in a never-ending series of interesting times. They say
+// that if you've never read a Discworld novel you're not
+// really real. But since very few people are really real,
 // 'they' included, I wouldn't worry about it. But I do
 // recommend reading the entire series.
 //

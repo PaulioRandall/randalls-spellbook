@@ -22,10 +22,10 @@ func Test_CacheMapper_Map_1(t *testing.T) {
 	db := createTestDb(t)
 	defer db.Close()
 
-	mapper := CachedMapper{}
+	mapper := TableCache{}
 	_, _, e := mapper.Map(db, Player{})
 
-	exp := CachedMapper{
+	exp := TableCache{
 		"Player": ModelCache{},
 	}
 
@@ -48,10 +48,10 @@ func Test_CacheMapper_Map_2(t *testing.T) {
 	db := createAndPopulateTestDb(t)
 	defer db.Close()
 
-	mapper := CachedMapper{}
+	mapper := TableCache{}
 	model, _, e := mapper.Map(db, Player{})
 
-	exp := CachedMapper{
+	exp := TableCache{
 		"Player": ModelCache{
 			ref.TypeOf(Player{}): model,
 		},
@@ -75,9 +75,9 @@ func Test_CacheMapper_Map_3(t *testing.T) {
 	db := createTestDb(t)
 	defer db.Close()
 
-	// Empty Model because the CachedMapper will never
+	// Empty Model because the TableCache will never
 	// store the an empty version.
-	mapper := CachedMapper{
+	mapper := TableCache{
 		"Player": ModelCache{
 			ref.TypeOf(Player{}): Model{},
 		},
@@ -104,7 +104,7 @@ func Test_CacheMapper_ClearType_1(t *testing.T) {
 	b2 := Model{SqlName: "NotPlayer"}
 	c2 := Model{SqlName: "NotPlayer"}
 
-	mapper := CachedMapper{
+	mapper := TableCache{
 		"Player": ModelCache{
 			ref.TypeOf(Alpha{}):   a1,
 			ref.TypeOf(Beta{}):    b1,
@@ -117,7 +117,7 @@ func Test_CacheMapper_ClearType_1(t *testing.T) {
 		},
 	}
 
-	exp := CachedMapper{
+	exp := TableCache{
 		"Player": ModelCache{
 			ref.TypeOf(Beta{}):    b1,
 			ref.TypeOf(Charlie{}): c1,
@@ -150,7 +150,7 @@ func Test_CacheMapper_ClearTable_1(t *testing.T) {
 	b2 := Model{SqlName: "NotPlayer"}
 	c2 := Model{SqlName: "NotPlayer"}
 
-	mapper := CachedMapper{
+	mapper := TableCache{
 		"Player": ModelCache{
 			ref.TypeOf(Alpha{}):   a1,
 			ref.TypeOf(Beta{}):    b1,
@@ -163,7 +163,7 @@ func Test_CacheMapper_ClearTable_1(t *testing.T) {
 		},
 	}
 
-	exp := CachedMapper{
+	exp := TableCache{
 		"NotPlayer": ModelCache{
 			ref.TypeOf(Alpha{}):   a2,
 			ref.TypeOf(Beta{}):    b2,

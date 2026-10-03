@@ -169,7 +169,7 @@ func ExampleMapAs() {
 	//	Id INTEGER
 }
 
-func ExampleCachedMapper() {
+func ExampleTableCache() {
 	// YUDO: Error handling.
 
 	type Player struct {
@@ -181,7 +181,7 @@ func ExampleCachedMapper() {
 	db, _ := sql.Open("sqlite", ":memory:")
 	defer db.Close()
 
-	mapper := CachedMapper{}
+	mapper := TableCache{}
 
 	// Won't add the model to the cache becasue the table
 	// doesn't exist.
