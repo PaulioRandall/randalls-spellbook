@@ -312,25 +312,6 @@ func (m Model) Create(db *sql.DB) error {
 	return nil
 }
 
-// Drop removes the table the model represents from the
-// passed database. It assumes the database is open. If the
-// table doesn't exist then nothing happens and no error is
-// returned.
-func (m Model) Drop(db *sql.DB) error {
-	query := nidoking.Given(`
-		DROP TABLE IF EXISTS {{table.SqlName}}
-	`).
-		InlineMap("table", m).
-		String()
-
-	_, e := db.Exec(query)
-	if e != nil {
-		return ErrForModel.Fmt(m.GoName).Wrap(e)
-	}
-
-	return nil
-}
-
 // Upsert inserts the object if it doesn't exist within the
 // database, else it updates the row. It assumes the
 // database is open and the table exists. An error is
@@ -381,6 +362,93 @@ func (m Model) Upsert(db *sql.DB, object any) error {
 
 	// Because PK is in the WHERE clause
 	cols := append(m.Props, pkCol)
+	values := extractFieldValues(cols, object)
+
+	_, e := db.Exec(query, values...)
+	if e != nil {
+		return ErrForModel.Fmt(m.GoName).Wrap(e)
+	}
+
+	return nil
+}
+
+// Insert inserts the object into the database. It assumes
+// the database is open and the table exists. An error is
+// returned if the object's type does not match the model's
+// GoType. Inserting via an object that only represents
+// part of a table will cause the unset columns to default
+// to their zero value.
+func (m Model) Insert(db *sql.DB, object any) error {
+	if !m.Represents(object) {
+		return ErrForModel.
+			Fmt(m.GoName).
+			Wrap(ErrWrongObjectType)
+	}
+
+	if m.KeyProp() == (Property{}) {
+		return ErrForModel.
+			Fmt(m.GoName).
+			Wrap(ErrMissingIdField)
+	}
+
+	query := nidoking.Given(`
+		INSERT INTO {{table.SqlName}} (
+		  {{cols.SqlName}}
+		)
+		VALUES (
+			{{q_marks}}
+		)
+	`).
+		InlineMap("table", m).
+		ListMap("cols", ",", m.Props...).
+		ListRepeat("q_marks", ",", "?", len(m.Props)).
+		String()
+
+	values := extractFieldValues(m.Props, object)
+	_, e := db.Exec(query, values...)
+	if e != nil {
+		return ErrForModel.Fmt(m.GoName).Wrap(e)
+	}
+
+	return nil
+}
+
+// Update updates the object within the database. It
+// assumes the database is open and the table exists. An
+// error is returned if the object's type does not match
+// the model's GoType. The key property is used to target
+// the row but is not updated.
+func (m Model) Update(db *sql.DB, object any) error {
+	if !m.Represents(object) {
+		return ErrForModel.
+			Fmt(m.GoName).
+			Wrap(ErrWrongObjectType)
+	}
+
+	pkCol := m.KeyProp()
+	nonPkCols := m.NonKeyProps()
+
+	if pkCol == (Property{}) {
+		return ErrForModel.
+			Fmt(m.GoName).
+			Wrap(ErrMissingIdField)
+	}
+
+	query := nidoking.Given(`
+		UPDATE
+			{{table.SqlName}}
+		SET
+			{{non_pk_col.SqlName}} = ?
+		WHERE
+			{{pk_col.SqlName}} = ?
+	`).
+		InlineMap("table", m).
+		ListMap("non_pk_col", ",", nonPkCols...).
+		InlineMap("pk_col", pkCol).
+		String()
+
+	// Because PK is in the WHERE clause
+	cols := append(nonPkCols, pkCol)
 	values := extractFieldValues(cols, object)
 
 	_, e := db.Exec(query, values...)
@@ -475,6 +543,25 @@ func (m Model) DeleteById(db *sql.DB, id any) error {
 		String()
 
 	_, e := db.Exec(query, id)
+	if e != nil {
+		return ErrForModel.Fmt(m.GoName).Wrap(e)
+	}
+
+	return nil
+}
+
+// Drop removes the table the model represents from the
+// passed database. It assumes the database is open. If the
+// table doesn't exist then nothing happens and no error is
+// returned.
+func (m Model) Drop(db *sql.DB) error {
+	query := nidoking.Given(`
+		DROP TABLE IF EXISTS {{table.SqlName}}
+	`).
+		InlineMap("table", m).
+		String()
+
+	_, e := db.Exec(query)
 	if e != nil {
 		return ErrForModel.Fmt(m.GoName).Wrap(e)
 	}

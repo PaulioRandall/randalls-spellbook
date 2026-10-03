@@ -21,7 +21,6 @@
 // recommend reading the entire series.
 //
 // # TODO
-//   - Add Insert and Update functions to Model.
 //   - Add Select function to Model that accepts string
 //     WHERE clause followed by series of arguments to
 //     SQL parameters and returns all results.

@@ -201,6 +201,38 @@ func Test_Model_Upsert_1(t *testing.T) {
 	requireDummyTableContains(t, db, newData)
 }
 
+func Test_Model_Insert_Update_1(t *testing.T) {
+	// When inserting data
+	// then the data is inserted
+	// when updating that data
+	// then the data is updated
+
+	db := createDummyTestDb(t)
+	defer db.Close()
+
+	model := modelOfDummy()
+
+	data := Dummy{
+		Id:     1,
+		Name:   "Alice",
+		Rating: 1.11,
+	}
+	e := model.Insert(db, data)
+	require.NoError(t, e)
+
+	requireDummyTableContains(t, db, data)
+
+	newData := Dummy{
+		Id:     1,
+		Name:   "Bob",
+		Rating: 2.22,
+	}
+	e = model.Update(db, newData)
+	require.NoError(t, e)
+
+	requireDummyTableContains(t, db, newData)
+}
+
 func Test_Model_DeleteById_1(t *testing.T) {
 	// When deleting data
 	// if the data row exists
