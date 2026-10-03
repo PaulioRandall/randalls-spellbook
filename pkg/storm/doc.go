@@ -1,12 +1,12 @@
 // Package storm is a minimalistic ORM based SQLite
-// database API using type information of struct's.
+// database API.
 //
 // Instead of writing or building query statements, user
 // programmers pass objects (instances of structs) to
-// represent tables or part of a table. Objects with these
-// struct types are passed to various functions to perform
-// database operations. It's an approach used by existing
-// database packages such as https://gorm.io/.
+// represent tables or part of a table. Objects are passed
+// to various functions to perform database operations.
+// It's an approach used by existin database packages such
+// as https://gorm.io/.
 //
 // This package provides a minimalistic solution that
 // trades away the feature richness and configurability of
@@ -23,10 +23,12 @@
 // completely decoupled, i.e. a struct may be used to
 // create a model or partial model for database operations
 // of any table; whether it is suitable is your decision.
-// A model may be partial. Partial models don't map
-// field-to-column perfectly with some exported struct
-// fields that don't appear in the table, and table columns
-// that don't appear as a field in the model's Go type.
+// A single struct may be used to for multiple tables using
+// the functions ending in 'As'. A model may be partial.
+// Partial models don't map field-to-column perfectly with
+// some exported struct fields that don't appear in the
+// table, and table columns that don't appear as a field in
+// the model's Go type.
 //
 // # Operations
 //
@@ -58,13 +60,16 @@
 //     returns without error if the table already exists,
 //     and Drop and Delete operations return without error
 //     if the table doesn't exist.
-//   - OperationModeStrict: tables are not created
+//   - OperationModeError: tables are not created
 //     automatically for Put operations (an error is
 //     returned instead), List and Get operations return
 //     an error if the table or speecific entry doesn't
 //     exist, Create returns an error if the table already
 //     exists, and Drop and Delete operations return an
 //     error if the table doesn't exist.
+//   - Function to cause all errors to become panics
+//     instead allowing the error return value to be
+//     ignored for all functions.
 //   - Create function to copy or backup database.
 //   - Rename package to stormy.
 //   - Reorg named errors & test they are returned.

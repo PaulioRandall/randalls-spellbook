@@ -183,7 +183,7 @@ func (st *Storm) List[T any](object T) (result []T, e error) {
 
 	model, found, e := st.mapModel(object)
 	if e != nil {
-		goto Err
+		return nil, st.errForModel(object, e)
 	}
 
 	if !found {
@@ -192,13 +192,10 @@ func (st *Storm) List[T any](object T) (result []T, e error) {
 
 	result, e = model.SelectAll[T](st.db)
 	if e != nil {
-		goto Err
+		return nil, st.errForModel(object, e)
 	}
 
 	return result, nil
-
-Err:
-	return nil, st.errForModel(object, e)
 }
 
 // ListAs is the same as [Storm.List] except the table

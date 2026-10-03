@@ -238,6 +238,18 @@ func (st *Storm) Table(model any) (scumble.SqlTable, error) {
 	)
 }
 
+// TableAs is the same as [Storm.Table] except the table
+// name is provided explicitly.
+func (st *Storm) TableAs(table string) (scumble.SqlTable, error) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+
+	return scumble.QueryTable(
+		st.db,
+		table,
+	)
+}
+
 func makeParentDirs(path string) error {
 	if isInMemoryDatabase(path) {
 		// There is no path!
