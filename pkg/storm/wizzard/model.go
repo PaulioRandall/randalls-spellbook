@@ -342,8 +342,6 @@ func (m Model) Drop(db *sql.DB) error {
 // their zero value. When updating, the key property is
 // used to target the row but is not updated.
 func (m Model) Upsert(db *sql.DB, object any) error {
-	// TEST: ErrWrongObjectType is returned given bad object
-	//       type.
 	if !m.Represents(object) {
 		return ErrForModel.
 			Fmt(m.GoName).

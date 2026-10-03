@@ -1,7 +1,6 @@
 package wizzard
 
 import (
-	ref "reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,26 +11,11 @@ func Test_Map_1(t *testing.T) {
 	// if the table doesn't exist within the database
 	// then the full unmodified model is returned
 
-	type UnusedModel struct {
-		Id     int
-		Name   string
-		Rating float64
-	}
-
-	db := createAndPopulateTestDb(t)
+	db := createTestDb(t)
 	defer db.Close()
 
-	act, exists, e := Map(db, UnusedModel{})
-	exp := Model{
-		GoType:  ref.TypeOf(UnusedModel{}),
-		GoName:  "UnusedModel",
-		SqlName: "UnusedModel",
-		Props: []Property{
-			TestIdCol,
-			TestNameCol,
-			TestRatingCol,
-		},
-	}
+	act, exists, e := Map(db, Dummy{})
+	exp := modelOfDummy()
 
 	require.NoError(t, e)
 	require.Equal(t, false, exists)
@@ -44,26 +28,11 @@ func Test_Map_2(t *testing.T) {
 	// and the model matches the table field-to-column
 	// then the full model is returned
 
-	type Player struct {
-		Id     int
-		Name   string
-		Rating float64
-	}
-
-	db := createAndPopulateTestDb(t)
+	db := createDummyTestDb(t)
 	defer db.Close()
 
-	act, exists, e := Map(db, Player{})
-	exp := Model{
-		GoType:  ref.TypeOf(Player{}),
-		GoName:  "Player",
-		SqlName: "Player",
-		Props: []Property{
-			TestIdCol,
-			TestNameCol,
-			TestRatingCol,
-		},
-	}
+	act, exists, e := Map(db, Dummy{})
+	exp := modelOfDummy()
 
 	require.NoError(t, e)
 	require.Equal(t, true, exists)
@@ -77,28 +46,21 @@ func Test_Map_3(t *testing.T) {
 	// the table structure
 	// then those fields are omitted from the model
 
-	type Player struct {
+	type Dummy struct {
 		Id         int
 		Name       string
 		NotInTable float64
 	}
 
-	db := createAndPopulateTestDb(t)
+	db := createDummyTestDb(t)
 	defer db.Close()
 
-	act, _, e := Map(db, Player{})
-	exp := Model{
-		GoType:  ref.TypeOf(Player{}),
-		GoName:  "Player",
-		SqlName: "Player",
-		Props: []Property{
-			TestIdCol,
-			TestNameCol,
-		},
-	}
+	act, _, e := Map(db, Dummy{})
+	exp := modelOfDummy().Props
+	exp = exp[:2] // Remove last property/field
 
 	require.NoError(t, e)
-	require.Equal(t, exp, act)
+	require.Equal(t, exp, act.Props)
 }
 
 func Test_Map_4(t *testing.T) {
@@ -112,39 +74,26 @@ func Test_Map_4(t *testing.T) {
 	// primary key and all other fields are set as
 	// not being primary keys
 
-	type Player struct {
+	type Dummy struct {
 		Name   string // Default primary key
 		Rating float64
 		Id     int // Real primary key
 	}
 
-	db := createAndPopulateTestDb(t)
+	db := createDummyTestDb(t)
 	defer db.Close()
 
-	act, _, e := Map(db, Player{})
+	act, _, e := Map(db, Dummy{})
+	exp := modelOfDummy().Props
 
-	exp := Model{
-		GoType:  ref.TypeOf(Player{}),
-		GoName:  "Player",
-		SqlName: "Player",
-		Props: []Property{
-			TestNameCol,
-			TestRatingCol,
-			TestIdCol,
-		},
-	}
-
-	// The pre-created package level test props won't
-	// have the correct GoIndex because we messed up the
-	// field ordering to test that ordering is accounted for
-	// in the output, thus we need to correct the GoIndex so
-	// the test assertion passes
-	for i := range exp.Props {
-		exp.Props[i].GoIndex = i
+	// Reorder props of default model.
+	exp[0], exp[1], exp[2] = exp[1], exp[2], exp[0]
+	for i := range exp {
+		exp[i].GoIndex = i
 	}
 
 	require.NoError(t, e)
-	require.Equal(t, exp, act)
+	require.Equal(t, exp, act.Props)
 }
 
 func Test_Map_5(t *testing.T) {
@@ -154,14 +103,14 @@ func Test_Map_5(t *testing.T) {
 	// that is compatible with the SQL column's type
 	// then a named error is returned
 
-	type Player struct {
+	type Dummy struct {
 		Name int
 	}
 
-	db := createAndPopulateTestDb(t)
+	db := createDummyTestDb(t)
 	defer db.Close()
 
-	_, _, e := Map(db, Player{})
+	_, _, e := Map(db, Dummy{})
 	require.ErrorIs(t, e, ErrForTable)
 	require.ErrorIs(t, e, ErrForModel)
 	require.ErrorIs(t, e, ErrTypeMismatch)
@@ -172,26 +121,12 @@ func Test_MapAs_1(t *testing.T) {
 	// if the table doesn't exist within the database
 	// then the full unmodified model is returned
 
-	type TestModel struct {
-		Id     int
-		Name   string
-		Rating float64
-	}
-
-	db := createAndPopulateTestDb(t)
+	db := createTestDb(t)
 	defer db.Close()
 
-	act, exists, e := MapAs(db, "AliasName", TestModel{})
-	exp := Model{
-		GoType:  ref.TypeOf(TestModel{}),
-		GoName:  "TestModel",
-		SqlName: "AliasName",
-		Props: []Property{
-			TestIdCol,
-			TestNameCol,
-			TestRatingCol,
-		},
-	}
+	act, exists, e := MapAs(db, "AliasName", Dummy{})
+	exp := modelOfDummy()
+	exp.SqlName = "AliasName"
 
 	require.NoError(t, e)
 	require.Equal(t, false, exists)
