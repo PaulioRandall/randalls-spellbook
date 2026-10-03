@@ -1,4 +1,4 @@
-package modtab
+package wizzard
 
 import (
 	"database/sql"

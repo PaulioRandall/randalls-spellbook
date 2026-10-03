@@ -14,7 +14,7 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/modtab"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/wizzard"
 )
 
 // CacheMode represents an approach to caching parsed
@@ -87,7 +87,7 @@ type Storm struct {
 	db           *sql.DB
 	mutex        sync.Mutex
 	cacheMode    CacheMode
-	cachedMapper modtab.CachedMapper
+	cachedMapper wizzard.CachedMapper
 }
 
 // New returns a new [Storm] for the database represented
@@ -96,7 +96,7 @@ func New(path string) *Storm {
 	return &Storm{
 		path:         path,
 		cacheMode:    CacheModeSession,
-		cachedMapper: modtab.CachedMapper{},
+		cachedMapper: wizzard.CachedMapper{},
 	}
 }
 
@@ -290,9 +290,9 @@ func (st *Storm) prepareMapper() {
 
 func (st *Storm) mapModel(
 	model any,
-) (modtab.Model, bool, error) {
+) (wizzard.Model, bool, error) {
 	if st.cacheMode == CacheModeNone {
-		return modtab.Map(st.db, model)
+		return wizzard.Map(st.db, model)
 	}
 	return st.cachedMapper.Map(st.db, model)
 }

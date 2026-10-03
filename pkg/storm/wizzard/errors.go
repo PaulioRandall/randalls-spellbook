@@ -1,4 +1,4 @@
-package modtab
+package wizzard
 
 import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
