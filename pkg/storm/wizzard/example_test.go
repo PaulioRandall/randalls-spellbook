@@ -54,35 +54,48 @@ func ExampleParse() {
 	// YUDO: Error handling.
 
 	type Player struct {
-		ignored bool
 		Id      int
+		ignored bool
 		Name    string
 		Rating  float64
 	}
 
 	model, _ := Parse(Player{})
 
-	fmt.Printf("Struct: %s => Table: %s\n", model.GoName, model.SqlName)
-	for _, prop := range model.Props {
-		if prop.IsKey {
-			fmt.Print("\tKey ")
-		} else {
-			fmt.Print("\t")
-		}
-
-		fmt.Printf(
-			"Field: %s (%s) => Column: %s (%s)\n",
-			prop.GoName,
-			prop.GoType.Name(),
-			prop.SqlName,
-			prop.SqlType,
-		)
-	}
+	fmt.Println(model.String())
 	// Output:
-	// Struct: Player => Table: Player
-	//	Key Field: Id (int) => Column: Id (INTEGER)
-	//	Field: Name (string) => Column: Name (TEXT)
-	//	Field: Rating (float64) => Column: Rating (REAL)
+	// Go Type: Player
+	//	[0] Id int
+	//	[2] Name string
+	//	[3] Rating float64
+	// Sql Table: Player
+	//	Id INTEGER
+	//	Name TEXT
+	//	Rating REAL
+}
+
+func ExampleParseAs() {
+	// YUDO: Error handling.
+
+	type Player struct {
+		Id      int
+		ignored bool
+		Name    string
+		Rating  float64
+	}
+
+	model, _ := ParseAs("User", Player{})
+
+	fmt.Println(model.String())
+	// Output:
+	// Go Type: Player
+	//	[0] Id int
+	//	[2] Name string
+	//	[3] Rating float64
+	// Sql Table: User
+	//	Id INTEGER
+	//	Name TEXT
+	//	Rating REAL
 }
 
 // The Map function excludes the Player.Rating field since
@@ -111,27 +124,49 @@ func ExampleMap() {
 	model, exists, _ := Map(db, Player{})
 	fmt.Printf("Does table exist in database: %v\n", exists)
 
-	fmt.Printf("Struct: %s => Table: %s\n", model.GoName, model.SqlName)
-	for _, prop := range model.Props {
-		if prop.IsKey {
-			fmt.Print("\tKey ")
-		} else {
-			fmt.Print("\t")
-		}
-
-		fmt.Printf(
-			"Field: %s (%s) => Column: %s (%s)\n",
-			prop.GoName,
-			prop.GoType.Name(),
-			prop.SqlName,
-			prop.SqlType,
-		)
-	}
+	fmt.Println(model.String())
 	// Output:
 	// Does table exist in database: true
-	// Struct: Player => Table: Player
-	//	Field: Name (string) => Column: Name (TEXT)
-	//	Key Field: Id (int) => Column: Id (INTEGER)
+	// Go Type: Player
+	//	[0] Name string
+	//	[2] Id int
+	// Sql Table: Player
+	//	Name TEXT
+	//	Id INTEGER
+}
+
+func ExampleMapAs() {
+	// YUDO: Error handling.
+
+	type Player struct {
+		Name   string
+		Rating float64
+		Id     int
+	}
+
+	db, _ := sql.Open("sqlite", ":memory:")
+	defer db.Close()
+
+	_, _ = db.Exec(`
+	CREATE TABLE User (
+		Id INTEGER NOT NULL DEFAULT 0,
+		Name TEXT NOT NULL DEFAULT '',
+	  PRIMARY KEY (Id)
+	)
+`)
+
+	model, exists, _ := MapAs(db, "User", Player{})
+	fmt.Printf("Does table exist in database: %v\n", exists)
+
+	fmt.Println(model.String())
+	// Output:
+	// Does table exist in database: true
+	// Go Type: Player
+	//	[0] Name string
+	//	[2] Id int
+	// Sql Table: User
+	//	Name TEXT
+	//	Id INTEGER
 }
 
 func ExampleCachedMapper() {

@@ -13,6 +13,7 @@ func Test_Parse_1(t *testing.T) {
 	// then a named error is returned
 
 	_, e := Parse(123)
+	require.ErrorIs(t, e, ErrForTable)
 	require.ErrorIs(t, e, ErrForModel)
 	require.ErrorIs(t, e, ErrNotStruct)
 }
@@ -24,7 +25,7 @@ func Test_Parse_2(t *testing.T) {
 
 	type TestModel struct{}
 
-	table, e := Parse(TestModel{})
+	model, e := Parse(TestModel{})
 	require.NoError(t, e)
 
 	exp := Model{
@@ -34,7 +35,7 @@ func Test_Parse_2(t *testing.T) {
 		Props:   nil,
 	}
 
-	require.Equal(t, exp, table)
+	require.Equal(t, exp, model)
 }
 
 func Test_Parse_3(t *testing.T) {
@@ -48,7 +49,7 @@ func Test_Parse_3(t *testing.T) {
 
 	ptr := &TestModel{}
 	ptrPtr := &ptr
-	table, e := Parse(ptrPtr)
+	model, e := Parse(ptrPtr)
 	require.NoError(t, e)
 
 	exp := Model{
@@ -58,7 +59,7 @@ func Test_Parse_3(t *testing.T) {
 		Props:   nil,
 	}
 
-	require.Equal(t, exp, table)
+	require.Equal(t, exp, model)
 }
 
 func Test_Parse_4(t *testing.T) {
@@ -70,10 +71,10 @@ func Test_Parse_4(t *testing.T) {
 		unexported int
 	}
 
-	table, e := Parse(TestModel{})
+	model, e := Parse(TestModel{})
 	require.NoError(t, e)
 
-	require.Equal(t, 0, len(table.Props))
+	require.Equal(t, 0, len(model.Props))
 }
 
 func Test_Parse_5(t *testing.T) {
@@ -86,6 +87,7 @@ func Test_Parse_5(t *testing.T) {
 	}
 
 	_, e := Parse(TestModel{})
+	require.ErrorIs(t, e, ErrForTable)
 	require.ErrorIs(t, e, ErrForModel)
 	require.ErrorIs(t, e, ErrForField)
 	require.ErrorIs(t, e, ErrUnsupportedType)
@@ -101,7 +103,7 @@ func Test_Parse_6(t *testing.T) {
 		Id      int
 	}
 
-	table, e := Parse(TestModel{})
+	model, e := Parse(TestModel{})
 	require.NoError(t, e)
 
 	exp := []Property{
@@ -116,7 +118,7 @@ func Test_Parse_6(t *testing.T) {
 		},
 	}
 
-	require.Equal(t, exp, table.Props)
+	require.Equal(t, exp, model.Props)
 }
 
 func Test_Parse_7(t *testing.T) {
@@ -134,7 +136,7 @@ func Test_Parse_7(t *testing.T) {
 		Value    float64
 	}
 
-	table, e := Parse(TestModel{})
+	model, e := Parse(TestModel{})
 	require.NoError(t, e)
 
 	exp := []Property{
@@ -167,10 +169,30 @@ func Test_Parse_7(t *testing.T) {
 		},
 	}
 
-	require.Equal(t, exp, table.Props)
+	require.Equal(t, exp, model.Props)
 }
 
-func Test_Table_PkCol_1(t *testing.T) {
+func Test_ParseAs_(t *testing.T) {
+	// When the parsing an object into a model
+	// then the model's SqlName is the name passed
+	// and the model's GoName is the name of the Go type
+
+	type TestModel struct{}
+
+	model, e := ParseAs("AliasName", TestModel{})
+	require.NoError(t, e)
+
+	exp := Model{
+		GoType:  ref.TypeOf(TestModel{}),
+		GoName:  "TestModel",
+		SqlName: "AliasName",
+		Props:   nil,
+	}
+
+	require.Equal(t, exp, model)
+}
+
+func Test_Table_KeyProp_1(t *testing.T) {
 	// When getting the primary key column
 	// if the model has multiple fields
 	// the primary key column is found and returned
@@ -184,10 +206,10 @@ func Test_Table_PkCol_1(t *testing.T) {
 		Value    float64
 	}
 
-	table, e := Parse(TestModel{})
+	model, e := Parse(TestModel{})
 	require.NoError(t, e)
 
-	pkCol := table.KeyProp()
+	pkCol := model.KeyProp()
 
 	exp := Property{
 		GoType:     ref.TypeOf(int(0)),
@@ -200,5 +222,5 @@ func Test_Table_PkCol_1(t *testing.T) {
 	}
 
 	require.Equal(t, exp, pkCol)
-	require.Equal(t, table.Props[0], pkCol)
+	require.Equal(t, model.Props[0], pkCol)
 }

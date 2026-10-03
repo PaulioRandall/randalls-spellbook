@@ -25,7 +25,9 @@ func Test_CacheMapper_Map_1(t *testing.T) {
 	mapper := CachedMapper{}
 	_, _, e := mapper.Map(db, Player{})
 
-	exp := CachedMapper{}
+	exp := CachedMapper{
+		"Player": ModelCache{},
+	}
 
 	require.NoError(t, e)
 	require.Equal(t, exp, mapper)
@@ -50,7 +52,9 @@ func Test_CacheMapper_Map_2(t *testing.T) {
 	model, _, e := mapper.Map(db, Player{})
 
 	exp := CachedMapper{
-		ref.TypeOf(Player{}): model,
+		"Player": ModelCache{
+			ref.TypeOf(Player{}): model,
+		},
 	}
 
 	require.NoError(t, e)
@@ -74,7 +78,9 @@ func Test_CacheMapper_Map_3(t *testing.T) {
 	// Empty Model because the CachedMapper will never
 	// store the an empty version.
 	mapper := CachedMapper{
-		ref.TypeOf(Player{}): Model{},
+		"Player": ModelCache{
+			ref.TypeOf(Player{}): Model{},
+		},
 	}
 
 	act, _, _ := mapper.Map(db, Player{})
@@ -90,19 +96,36 @@ func Test_CacheMapper_ClearType_1(t *testing.T) {
 	type Beta struct{}
 	type Charlie struct{}
 
-	a := Model{SqlName: "Player"}
-	b := Model{SqlName: "Player"}
-	c := Model{SqlName: "NotPlayer"}
+	a1 := Model{SqlName: "Player"}
+	b1 := Model{SqlName: "Player"}
+	c1 := Model{SqlName: "Player"}
+
+	a2 := Model{SqlName: "NotPlayer"}
+	b2 := Model{SqlName: "NotPlayer"}
+	c2 := Model{SqlName: "NotPlayer"}
 
 	mapper := CachedMapper{
-		ref.TypeOf(Alpha{}):   a,
-		ref.TypeOf(Beta{}):    b,
-		ref.TypeOf(Charlie{}): c,
+		"Player": ModelCache{
+			ref.TypeOf(Alpha{}):   a1,
+			ref.TypeOf(Beta{}):    b1,
+			ref.TypeOf(Charlie{}): c1,
+		},
+		"NotPlayer": ModelCache{
+			ref.TypeOf(Alpha{}):   a2,
+			ref.TypeOf(Beta{}):    b2,
+			ref.TypeOf(Charlie{}): c2,
+		},
 	}
 
 	exp := CachedMapper{
-		ref.TypeOf(Beta{}):    b,
-		ref.TypeOf(Charlie{}): c,
+		"Player": ModelCache{
+			ref.TypeOf(Beta{}):    b1,
+			ref.TypeOf(Charlie{}): c1,
+		},
+		"NotPlayer": ModelCache{
+			ref.TypeOf(Beta{}):    b2,
+			ref.TypeOf(Charlie{}): c2,
+		},
 	}
 
 	mapper.ClearType(Alpha{})
@@ -119,18 +142,33 @@ func Test_CacheMapper_ClearTable_1(t *testing.T) {
 	type Beta struct{}
 	type Charlie struct{}
 
-	a := Model{SqlName: "Player"}
-	b := Model{SqlName: "Player"}
-	c := Model{SqlName: "NotPlayer"}
+	a1 := Model{SqlName: "Player"}
+	b1 := Model{SqlName: "Player"}
+	c1 := Model{SqlName: "Player"}
+
+	a2 := Model{SqlName: "NotPlayer"}
+	b2 := Model{SqlName: "NotPlayer"}
+	c2 := Model{SqlName: "NotPlayer"}
 
 	mapper := CachedMapper{
-		ref.TypeOf(Alpha{}):   a,
-		ref.TypeOf(Beta{}):    b,
-		ref.TypeOf(Charlie{}): c,
+		"Player": ModelCache{
+			ref.TypeOf(Alpha{}):   a1,
+			ref.TypeOf(Beta{}):    b1,
+			ref.TypeOf(Charlie{}): c1,
+		},
+		"NotPlayer": ModelCache{
+			ref.TypeOf(Alpha{}):   a2,
+			ref.TypeOf(Beta{}):    b2,
+			ref.TypeOf(Charlie{}): c2,
+		},
 	}
 
 	exp := CachedMapper{
-		ref.TypeOf(Charlie{}): c,
+		"NotPlayer": ModelCache{
+			ref.TypeOf(Alpha{}):   a2,
+			ref.TypeOf(Beta{}):    b2,
+			ref.TypeOf(Charlie{}): c2,
+		},
 	}
 
 	mapper.ClearTable("Player")

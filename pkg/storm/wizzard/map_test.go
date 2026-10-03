@@ -162,6 +162,38 @@ func Test_Map_5(t *testing.T) {
 	defer db.Close()
 
 	_, _, e := Map(db, Player{})
+	require.ErrorIs(t, e, ErrForTable)
 	require.ErrorIs(t, e, ErrForModel)
 	require.ErrorIs(t, e, ErrTypeMismatch)
+}
+
+func Test_MapAs_1(t *testing.T) {
+	// When mapping a struct to a database table
+	// if the table doesn't exist within the database
+	// then the full unmodified model is returned
+
+	type TestModel struct {
+		Id     int
+		Name   string
+		Rating float64
+	}
+
+	db := createAndPopulateTestDb(t)
+	defer db.Close()
+
+	act, exists, e := MapAs(db, "AliasName", TestModel{})
+	exp := Model{
+		GoType:  ref.TypeOf(TestModel{}),
+		GoName:  "TestModel",
+		SqlName: "AliasName",
+		Props: []Property{
+			TestIdCol,
+			TestNameCol,
+			TestRatingCol,
+		},
+	}
+
+	require.NoError(t, e)
+	require.Equal(t, false, exists)
+	require.Equal(t, exp, act)
 }

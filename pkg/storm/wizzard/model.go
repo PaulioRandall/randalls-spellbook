@@ -2,7 +2,9 @@ package wizzard
 
 import (
 	"database/sql"
+	"fmt"
 	ref "reflect"
+	"strings"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/nidoking"
 )
@@ -12,7 +14,8 @@ import (
 // derived from a struct, so there's a one-to-one
 // relationship between a Go type and a model but
 // one-to-many relationship between tables and models and
-// Go types.
+// Go types. However, it's possible for some models to
+// differ by SqlName only.
 type Model struct {
 	// GoType is the struct type as returned by
 	// reflect.TypeOf.
@@ -86,9 +89,22 @@ type Property struct {
 // managing number polarity and overflow. I recommend
 // sticking to int, int64, float64, and string as these are
 // the least likely to cause problems.
-func Parse(object any) (model Model, e error) {
+func Parse(object any) (Model, error) {
 	objectType := derefObjectType(object)
+	return parseTypeAsModel(objectType.Name(), objectType)
+}
 
+// ParseAs is the same as [Parse] except the table name is
+// provided explicitly.
+func ParseAs(table string, object any) (Model, error) {
+	objectType := derefObjectType(object)
+	return parseTypeAsModel(table, objectType)
+}
+
+func parseTypeAsModel(
+	table string,
+	objectType ref.Type,
+) (model Model, e error) {
 	if objectType.Kind() != ref.Struct {
 		e = ErrNotStruct.Fmt(objectType.Kind().String())
 		goto Err
@@ -96,7 +112,7 @@ func Parse(object any) (model Model, e error) {
 
 	model.GoType = objectType
 	model.GoName = objectType.Name()
-	model.SqlName = objectType.Name()
+	model.SqlName = table
 
 	model.Props, e = parseProps(objectType)
 	if e != nil {
@@ -108,7 +124,9 @@ func Parse(object any) (model Model, e error) {
 Err:
 	return Model{}, ErrForModel.
 		Fmt(objectType.Name()).
-		Wrap(e)
+		Wrap(e).
+		WrapIn(ErrForTable).
+		Fmt(table)
 }
 
 func derefObjectType(object any) ref.Type {
@@ -188,6 +206,53 @@ func mapGoToSqlType(fieldKind ref.Kind) (string, error) {
 	default:
 		return "", ErrUnsupportedType.Fmt(fieldKind.String())
 	}
+}
+
+// String returns a developer friendly representation of
+// the model.
+func (m Model) String() string {
+	return m.GoTypeString() + "\n" + m.SqlTableString()
+}
+
+// GoTypeString returns a string representation of the
+// model's Go type.
+func (m Model) GoTypeString() string {
+	sb := strings.Builder{}
+
+	sb.WriteString("Go Type: ")
+	sb.WriteString(m.GoName)
+
+	for _, p := range m.Props {
+		s := fmt.Sprintf(
+			"\n\t[%d] %s %s",
+			p.GoIndex,
+			p.GoName,
+			p.GoType.Name(),
+		)
+		sb.WriteString(s)
+	}
+
+	return sb.String()
+}
+
+// SqlTableString returns a string representation of the
+// model's table details.
+func (m Model) SqlTableString() string {
+	sb := strings.Builder{}
+
+	sb.WriteString("Sql Table: ")
+	sb.WriteString(m.SqlName)
+
+	for _, p := range m.Props {
+		s := fmt.Sprintf(
+			"\n\t%s %s",
+			p.SqlName,
+			p.SqlType,
+		)
+		sb.WriteString(s)
+	}
+
+	return sb.String()
 }
 
 // Represents returns true if the model represents the

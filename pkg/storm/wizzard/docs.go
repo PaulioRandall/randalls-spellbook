@@ -21,8 +21,6 @@
 // recommend reading the entire series.
 //
 // # TODO
-//   - Allow table name to differ from struct name by
-//     creating ParseAs and MapAs functions.
 //   - Add Insert and Update functions to Model.
 //   - Add Select function to Model that accepts string
 //     WHERE clause followed by series of arguments to

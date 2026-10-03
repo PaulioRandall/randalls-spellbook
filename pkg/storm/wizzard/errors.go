@@ -5,6 +5,12 @@ import (
 )
 
 var (
+	// ErrForTable occurs when an operation on a known table
+	// fails.
+	ErrForTable = sin.Template(
+		"Regarding table '%s'",
+	)
+
 	// ErrForModel occurs when an operation on a known model
 	// fails.
 	ErrForModel = sin.Template(

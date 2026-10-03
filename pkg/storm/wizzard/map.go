@@ -3,6 +3,7 @@ package wizzard
 import (
 	"database/sql"
 	"errors"
+	"reflect"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
 )
@@ -12,20 +13,34 @@ import (
 // If the table doesn't currently exist then the model will
 // be the same as that returned by [Parse].
 func Map(db *sql.DB, object any) (Model, bool, error) {
+	objectType := derefObjectType(object)
+	return mapTypeAsModel(db, objectType.Name(), objectType)
+}
+
+// MapAs is the same as [Map] except the table name is
+// provided explicitly.
+func MapAs(db *sql.DB, table string, object any) (Model, bool, error) {
+	objectType := derefObjectType(object)
+	return mapTypeAsModel(db, table, objectType)
+}
+
+func mapTypeAsModel(
+	db *sql.DB,
+	table string,
+	objectType reflect.Type,
+) (Model, bool, error) {
 	var zero Model
 
-	model, e := Parse(object)
+	model, e := parseTypeAsModel(table, objectType)
 	if e != nil {
-		// Issue parsing object.
+		// Issue parsing object. Error is already dressed up.
 		return zero, false, e
 	}
 
 	cols, found, e := queryTable(db, model.SqlName)
 	if e != nil {
 		// Issue querying table data.
-		return zero, false, ErrForModel.
-			Fmt(model.GoName).
-			Wrap(e)
+		goto Err
 	}
 
 	if !found {
@@ -41,12 +56,17 @@ func Map(db *sql.DB, object any) (Model, bool, error) {
 
 	if e != nil {
 		// Issue filtering table data.
-		return zero, false, ErrForModel.
-			Fmt(model.GoName).
-			Wrap(e)
+		goto Err
 	}
 
 	return model, true, nil
+
+Err:
+	return zero, false, ErrForModel.
+		Fmt(model.GoName).
+		Wrap(e).
+		WrapIn(ErrForTable).
+		Fmt(table)
 }
 
 func queryTable(
