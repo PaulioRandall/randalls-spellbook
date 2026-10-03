@@ -22,7 +22,7 @@
 // database table. Go types and SQLite tables are
 // completely decoupled, i.e. a struct may be used to
 // create a model or partial model for database operations
-// of any table; whether it is suitable is your descision.
+// of any table; whether it is suitable is your decision.
 // A model may be partial. Partial models don't map
 // field-to-column perfectly with some exported struct
 // fields that don't appear in the table, and table columns
@@ -30,25 +30,19 @@
 //
 // # Operations
 //
-//   - [Storm.Create] explicitly creates tables.
-//   - [Storm.Put] inserts or updates (upserts) data. If
-//     the table doesn't exist then the object's type
-//     (model) information will be used to create it. You
-//     can also pass objects of partial models to insert or
-//     update a subset of data; on insert the other columns
-//     will default to their zero values.
-//   - [Storm.List] to select all data for a specific table.
-//   - [Storm.Get] to select a specific entry by ID.
-//   - [Storm.Delete] to delete an entry by ID.
-//   - [Storm.Drop] to remove a table. All data is deleted
-//     in the process and there's no way to restore it. To
-//     protect data, create regular backups of the database
-//     file.
+//   - [Storm.Create] and [Storm.CreateAs] explicitly
+//     create tables.
+//   - [Storm.Put] and [Storm.PutAs] insert or update
+//     (upsert) data.
+//   - [Storm.List] and [Storm.ListAs] to select all data
+//     for a specific table.
+//   - [Storm.Get] and [Storm.GetAs] to select a specific
+//     entry by ID.
+//   - [Storm.Delete] and [Storm.DeleteAs] to delete an
+//     entry by ID.
+//   - [Storm.Drop] and [Storm.DropAs] to remove a table.
 //
 // # TODO
-//   - AS operations, e.g. CreateAs("Users", Model{})
-//     Allow table name to be specified rather than using
-//     the struct's name.
 //   - Function to perform custom operations. Must lock
 //     and allow access to cachedMapper and db.
 //   - Be more targetted with mutex use. Only lock when
@@ -72,5 +66,6 @@
 //     exists, and Drop and Delete operations return an
 //     error if the table doesn't exist.
 //   - Create function to copy or backup database.
-//   - Rename package to stormy
+//   - Rename package to stormy.
+//   - Reorg named errors & test they are returned.
 package storm

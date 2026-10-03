@@ -54,6 +54,12 @@ var (
 		"For table '%s'",
 	)
 
+	// ErrForModel occurs in the chain of every error
+	// produced from an operation on a known model.
+	ErrForModel = sin.Template(
+		"For model '%s'",
+	)
+
 	// ErrForObject occurs in the chain of every error
 	// produced from an operation on an object with a known
 	// ID.
@@ -326,6 +332,17 @@ func (st *Storm) errNotOpen() error {
 		Fmt(st.path)
 }
 
+func (st *Storm) errForTable(
+	table string,
+	cause error,
+) error {
+	return ErrForTable.
+		Fmt(table).
+		Wrap(cause).
+		WrapIn(ErrForDatabase).
+		Fmt(st.path)
+}
+
 func (st *Storm) errForModel(
 	model any,
 	cause error,
@@ -334,7 +351,7 @@ func (st *Storm) errForModel(
 		model = typeName(model)
 	}
 
-	return ErrForTable.
+	return ErrForModel.
 		Fmt(model).
 		Wrap(cause).
 		WrapIn(ErrForDatabase).
@@ -353,7 +370,7 @@ func (st *Storm) errForObject(
 	return ErrForObject.
 		Fmt(objectId).
 		Wrap(cause).
-		WrapIn(ErrForTable).
+		WrapIn(ErrForModel).
 		Fmt(model).
 		WrapIn(ErrForDatabase).
 		Fmt(st.path)

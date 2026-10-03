@@ -267,6 +267,55 @@ func Test_Storm_List_2(t *testing.T) {
 	require.Equal(t, 0, len(act))
 }
 
+func Test_Storm_ListAs_1(t *testing.T) {
+	// When selecting all data in a table
+	// if the table exists
+	// then all data is returned.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	a := TestTable{
+		Id:     1,
+		Name:   "A",
+		Rating: 1.1,
+	}
+
+	b := TestTable{
+		Id:     2,
+		Name:   "B",
+		Rating: 2.2,
+	}
+
+	e := st.PutAs("TestDummy", a)
+	require.NoError(t, e)
+
+	e = st.PutAs("TestDummy", b)
+	require.NoError(t, e)
+
+	act, e := st.ListAs("TestDummy", TestTable{})
+	require.NoError(t, e)
+
+	require.Equal(t, a, act[0])
+	require.Equal(t, b, act[1])
+	require.Equal(t, 2, len(act))
+}
+
+func Test_Storm_ListAs_2(t *testing.T) {
+	// When selecting all data in a table
+	// if the table doesn't exists
+	// then an empty result set (nil) is returned
+	// and no error occurs.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	act, e := st.ListAs("TestDummy", TestTable{})
+	require.NoError(t, e)
+
+	require.Equal(t, 0, len(act))
+}
+
 func Test_Storm_Get_1(t *testing.T) {
 	// When selecting a specific object/row
 	// if the table and row exist
@@ -324,6 +373,66 @@ func Test_Storm_Get_3(t *testing.T) {
 	defer st.Close()
 
 	_, e := st.Get(TestTable{}, 1)
+	require.ErrorIs(t, e, ErrObjectNotFound)
+}
+
+func Test_Storm_GetAs_1(t *testing.T) {
+	// When selecting a specific object/row
+	// if the table and row exist
+	// then the data is returned.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	a := TestTable{
+		Id:     1,
+		Name:   "A",
+		Rating: 1.1,
+	}
+
+	b := TestTable{
+		Id:     2,
+		Name:   "B",
+		Rating: 2.2,
+	}
+
+	e := st.PutAs("TestDummy", a)
+	require.NoError(t, e)
+
+	e = st.PutAs("TestDummy", b)
+	require.NoError(t, e)
+
+	act, e := st.GetAs("TestDummy", TestTable{}, 1)
+	require.NoError(t, e)
+
+	require.Equal(t, a, act)
+}
+
+func Test_Storm_GetAs_2(t *testing.T) {
+	// When selecting a specific object/row
+	// if the table exists
+	// but row does not exist
+	// then not found error is returned.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	e := st.CreateAs("TestDummy", TestTable{})
+	require.NoError(t, e)
+
+	_, e = st.GetAs("TestDummy", TestTable{}, 1)
+	require.ErrorIs(t, e, ErrObjectNotFound)
+}
+
+func Test_Storm_GetAs_3(t *testing.T) {
+	// When selecting a specific object/row
+	// if the table does not exists
+	// then not found error is returned.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	_, e := st.GetAs("TestDummy", TestTable{}, 1)
 	require.ErrorIs(t, e, ErrObjectNotFound)
 }
 
@@ -392,6 +501,73 @@ func Test_Storm_Delete_3(t *testing.T) {
 	require.NoError(t, e)
 
 	requireDummyTableRows(t, st, b)
+}
+
+func Test_Storm_DeleteAs_1(t *testing.T) {
+	// When deleting a specific object/row
+	// if the table does not exists
+	// then nothing happens
+	// and no error is returned.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	e := st.DeleteAs("TestDummy", TestTable{}, 1)
+	require.NoError(t, e)
+}
+
+func Test_Storm_DeleteAs_2(t *testing.T) {
+	// When deleting a specific object/row
+	// if the table exists
+	// but row does not exist
+	// then nothing happens
+	// and no error is returned.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	e := st.CreateAs("TestDummy", TestTable{})
+	require.NoError(t, e)
+
+	e = st.DeleteAs("TestDummy", TestTable{}, 1)
+	require.NoError(t, e)
+}
+
+func Test_Storm_DeleteAs_3(t *testing.T) {
+	// When deleting a specific object/row
+	// if the table and row exist
+	// then the row is deleted.
+
+	st := openStormDatabase(t)
+	defer st.Close()
+
+	e := st.CreateAs("TestDummy", TestTable{})
+	require.NoError(t, e)
+
+	a := TestTable{
+		Id:     1,
+		Name:   "A",
+		Rating: 1.1,
+	}
+
+	b := TestTable{
+		Id:     2,
+		Name:   "B",
+		Rating: 2.2,
+	}
+
+	e = st.PutAs("TestDummy", a)
+	require.NoError(t, e)
+
+	e = st.PutAs("TestDummy", b)
+	require.NoError(t, e)
+
+	requireTableContains(t, st, "TestDummy", a, b)
+
+	e = st.DeleteAs("TestDummy", TestTable{}, 1)
+	require.NoError(t, e)
+
+	requireTableContains(t, st, "TestDummy", b)
 }
 
 func Test_Storm_Drop_1(t *testing.T) {
