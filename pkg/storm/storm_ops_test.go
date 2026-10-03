@@ -9,8 +9,9 @@ import (
 )
 
 func Test_Storm_Create_1(t *testing.T) {
-	// Creates table in database GIVEN valid model AND no
-	// table in database yet.
+	// When creating a table
+	// if the table doesn't yet exist
+	// then the table is created.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -21,9 +22,11 @@ func Test_Storm_Create_1(t *testing.T) {
 	requireDummyTableExists(t, st)
 }
 
-func Test_Storm_Upsert_1(t *testing.T) {
-	// Creates table in database and inserts data GIVEN
-	// table not yet in database.
+func Test_Storm_Put_1(t *testing.T) {
+	// When inserting data
+	// if the table doesn't exist yet
+	// then the table is created
+	// and then the data is inserted.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -41,8 +44,10 @@ func Test_Storm_Upsert_1(t *testing.T) {
 	requireDummyTableRows(t, st, data)
 }
 
-func Test_Storm_Upsert_2(t *testing.T) {
-	// Inserts data GIVEN table is already created.
+func Test_Storm_Put_2(t *testing.T) {
+	// When inserting data
+	// if the table already exists
+	// then the data is inserted.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -63,8 +68,10 @@ func Test_Storm_Upsert_2(t *testing.T) {
 	requireDummyTableRows(t, st, data)
 }
 
-func Test_Storm_Upsert_3(t *testing.T) {
-	// Updates data GIVEN object is already within table.
+func Test_Storm_Put_3(t *testing.T) {
+	// When updating data
+	// if the table and row exists
+	// then the data is updated without error.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -92,7 +99,9 @@ func Test_Storm_Upsert_3(t *testing.T) {
 }
 
 func Test_Storm_List_1(t *testing.T) {
-	// Selects data from database GIVEN data exists.
+	// When selecting all data in a table
+	// if the table exists
+	// then all data is returned.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -124,8 +133,10 @@ func Test_Storm_List_1(t *testing.T) {
 }
 
 func Test_Storm_List_2(t *testing.T) {
-	// Selects nothing from database GIVEN table doesn't
-	// exist.
+	// When selecting all data in a table
+	// if the table doesn't exists
+	// then an empty result set (nil) is returned
+	// and no error occurs.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -137,8 +148,9 @@ func Test_Storm_List_2(t *testing.T) {
 }
 
 func Test_Storm_Get_1(t *testing.T) {
-	// Returns requested data from database GIVEN data
-	// exists.
+	// When selecting a specific object/row
+	// if the table and row exist
+	// then the data is returned.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -168,7 +180,10 @@ func Test_Storm_Get_1(t *testing.T) {
 }
 
 func Test_Storm_Get_2(t *testing.T) {
-	// Returns not found error GIVEN data not in database.
+	// When selecting a specific object/row
+	// if the table exists
+	// but row does not exist
+	// then not found error is returned.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -181,8 +196,9 @@ func Test_Storm_Get_2(t *testing.T) {
 }
 
 func Test_Storm_Get_3(t *testing.T) {
-	// Returns not found error GIVEN table doesn't exist
-	// in database.
+	// When selecting a specific object/row
+	// if the table does not exists
+	// then not found error is returned.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -192,7 +208,10 @@ func Test_Storm_Get_3(t *testing.T) {
 }
 
 func Test_Storm_Delete_1(t *testing.T) {
-	// Does nothing and no error GIVEN table doesn't exist.
+	// When deleting a specific object/row
+	// if the table does not exists
+	// then nothing happens
+	// and no error is returned.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -202,7 +221,11 @@ func Test_Storm_Delete_1(t *testing.T) {
 }
 
 func Test_Storm_Delete_2(t *testing.T) {
-	// Does nothing and no error GIVEN row not in database.
+	// When deleting a specific object/row
+	// if the table exists
+	// but row does not exist
+	// then nothing happens
+	// and no error is returned.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -215,7 +238,9 @@ func Test_Storm_Delete_2(t *testing.T) {
 }
 
 func Test_Storm_Delete_3(t *testing.T) {
-	// Deletes the  GIVEN row not in database.
+	// When deleting a specific object/row
+	// if the table and row exist
+	// then the row is deleted.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -250,7 +275,10 @@ func Test_Storm_Delete_3(t *testing.T) {
 }
 
 func Test_Storm_Drop_1(t *testing.T) {
-	// Does nothing GIVEN model table not in database.
+	// When removing a table
+	// if the table does not exist
+	// then nothing happens
+	// and no error is returned.
 
 	st := openStormDatabase(t)
 	defer st.Close()
@@ -260,7 +288,9 @@ func Test_Storm_Drop_1(t *testing.T) {
 }
 
 func Test_Storm_Drop_2(t *testing.T) {
-	// Drops table GIVEN model table in database.
+	// When removing a table
+	// if the table exists
+	// then the table is removed.
 
 	st := openStormDatabase(t)
 	defer st.Close()

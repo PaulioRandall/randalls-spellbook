@@ -29,14 +29,14 @@ const (
 	// request. This is useful if the structure or existence
 	// of tables is changed through custom operations but
 	// you are sure it will not change during calls to
-	// [Storm] methods.
+	// Storm methods.
 	CacheModeRequest
 
 	// CacheModeSession means entries persist across the
 	// session, but dropping a table will remove all entries
 	// for that table. Cache will be cleared on database
 	// close. Use this mode if the database is only written
-	// to using a single [Storm] instance (which is the
+	// to using a single Storm instance (which is the
 	// most common scenario, thus this is the default mode).
 	CacheModeSession
 )
@@ -73,15 +73,16 @@ var (
 		"When scanning row '%d'",
 	)
 
-	// ErrObjectNotFound is returned when a search for a
-	// specific object/row failed.
+	// ErrObjectNotFound is returned when an object or row
+	// could not be found when requesting a specifc object.
 	ErrObjectNotFound = sin.Err(
 		"Object not found",
 	)
 )
 
 // Storm is the core type for interfacing with the
-// database.
+// database. Operations share a single mutex so only
+// operations, including reads and writes
 type Storm struct {
 	path         string
 	db           *sql.DB
@@ -100,6 +101,17 @@ func New(path string) *Storm {
 	}
 }
 
+// Open create a new Storm for the database represented
+// by path, and opens it before returning.
+func Open(path string) (*Storm, error) {
+	st := &Storm{
+		path:         path,
+		cacheMode:    CacheModeSession,
+		cachedMapper: wizzard.CachedMapper{},
+	}
+	return st, st.Open()
+}
+
 // CacheMode returns the current caching mode.
 func (st *Storm) CacheMode() CacheMode {
 	return st.cacheMode
@@ -107,7 +119,7 @@ func (st *Storm) CacheMode() CacheMode {
 
 // SetCacheMode sets the caching mode. If the mode is
 // already set then nothing happens, else the cache
-// contents is cleared before unlock.
+// content is cleared before returning.
 func (st *Storm) SetCacheMode(mode CacheMode) {
 	if st.cacheMode == mode {
 		return
@@ -128,8 +140,8 @@ func (st *Storm) CacheClear() {
 	clear(st.cachedMapper)
 }
 
-// CacheClearModel removes a specific model from the cache
-// regardless of mode.
+// CacheClearModel removes all cache entries associated
+// with a specific model regardless of caching mode.
 func (st *Storm) CacheClearModel(model any) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
@@ -137,8 +149,8 @@ func (st *Storm) CacheClearModel(model any) {
 	st.cachedMapper.ClearType(model)
 }
 
-// CacheClearTable removes a specific table from the cache
-// regardless of mode.
+// CacheClearModel removes all cache entries associated
+// with a specific table regardless of caching mode.
 func (st *Storm) CacheClearTable(name string) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
@@ -179,8 +191,9 @@ func (st *Storm) IsOpen() bool {
 	return st.db != nil
 }
 
-// Close closes the database. Use with defer as usual.
-// The cache content is cleared regardless of current mode.
+// Close closes the database. Use Go's defer as usual.
+// The cache content is always cleared on close regardless
+// of caching mode.
 func (st *Storm) Close() error {
 	if !st.IsOpen() {
 		return nil
@@ -206,9 +219,9 @@ func (st *Storm) Close() error {
 		Fmt(st.path)
 }
 
-// Table returns the full table details the passed model
-// represents. All columns in the table are included, not
-// just those that map to the passed model type.
+// Table returns the full table details the passed object
+// maps to. All columns in the table are included, not
+// just those that are mapped.
 func (st *Storm) Table(model any) (scumble.SqlTable, error) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()

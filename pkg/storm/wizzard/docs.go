@@ -12,16 +12,15 @@
 // New York", and Wham's "Last Christmas".
 //
 // This package is actually named after the words
-// emblazoned in sequins on Rincewinds hat. Rincewind is a
+// emblazoned in sequins on Rincewind's hat. Rincewind is a
 // failed wizard of the Discworld who lives in a
 // never-ending series of interesting times. They say that
 // if you've never read a Discworld novel you're not really
 // real. But since very few people are really real,
-// 'they' included, I wouldn't worry about it.
+// 'they' included, I wouldn't worry about it. But I do
+// recommend reading the entire series.
 //
 // # TODO
-//   - Update and tidy storm package before applying ideas
-//     below this one.
 //   - Allow table name to differ from struct name by
 //     creating ParseAs and MapAs functions.
 //   - Add Insert and Update functions to Model.
@@ -31,4 +30,7 @@
 //   - Add SelectFirst function to Model that accepts
 //     string  WHERE clause followed by series of arguments to
 //     SQL parameters and returns a single result.
+//   - Add Delete function to Model that accepts string
+//     WHERE clause followed by series of arguments to
+//     SQL parameters.
 package wizzard

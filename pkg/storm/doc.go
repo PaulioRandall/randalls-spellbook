@@ -1,12 +1,12 @@
-// Package storm is a minimalistic ORM based database
-// API using type information of struct's.
+// Package storm is a minimalistic ORM based SQLite
+// database API using type information of struct's.
 //
 // Instead of writing or building query statements, user
-// programmers pass structs to represent tables or part of
-// a table. Objects with these struct types are passed to
-// various functions to perform standard database
-// actions. It's an approach used by existing database
-// packages, such as https://gorm.io/.
+// programmers pass objects (instances of structs) to
+// represent tables or part of a table. Objects with these
+// struct types are passed to various functions to perform
+// database operations. It's an approach used by existing
+// database packages such as https://gorm.io/.
 //
 // This package provides a minimalistic solution that
 // trades away the feature richness and configurability of
@@ -17,23 +17,16 @@
 //
 // # Models
 //
-// Models are objects passed for their type information.
-// Their actual data is ignored. Some operations only use
-// the type information of the passed object while others
-// use the type information and the object data. Structs
-// and tables are completely decoupled, i.e. any struct
-// may be used as a model or partial model for operations
-// such as inserting, selecting, and deleting from a table;
-// the name of the struct determines which table they
-// operate on.
-//
-// Partial models will have the same name as a table but
-// not all the same exported fields. For some operations
-// such as inserting, updating, and selecting they can be
-// used to provide or access a subset of columns from the
-// table. It's a similar concept to Go's interfaces, as
-// long as the model's name matches then it counts as a
-// model for that table.
+// Models are created from an object's type information and
+// represent a mapping between a Go type and a SQLite
+// database table. Go types and SQLite tables are
+// completely decoupled, i.e. a struct may be used to
+// create a model or partial model for database operations
+// of any table; whether it is suitable is your descision.
+// A model may be partial. Partial models don't map
+// field-to-column perfectly with some exported struct
+// fields that don't appear in the table, and table columns
+// that don't appear as a field in the model's Go type.
 //
 // # Operations
 //
@@ -58,4 +51,26 @@
 //     the struct's name.
 //   - Function to perform custom operations. Must lock
 //     and allow access to cachedMapper and db.
+//   - Be more targetted with mutex use. Only lock when
+//     performing Model parsing and caching. Ponder use
+//     of RWMutex instead.
+//   - Create operation modes (could create adapters using
+//     an interface instead so structs representing the
+//     below modes are created instead of using modes):
+//   - OperationModeFree: tables are created automatically
+//     for Put operations, List and Get operations return
+//     an empty/zero result set or result object if the
+//     table doesn't exist (not an error), Create
+//     returns without error if the table already exists,
+//     and Drop and Delete operations return without error
+//     if the table doesn't exist.
+//   - OperationModeStrict: tables are not created
+//     automatically for Put operations (an error is
+//     returned instead), List and Get operations return
+//     an error if the table or speecific entry doesn't
+//     exist, Create returns an error if the table already
+//     exists, and Drop and Delete operations return an
+//     error if the table doesn't exist.
+//   - Create function to copy or backup database.
+//   - Rename package to stormy
 package storm
