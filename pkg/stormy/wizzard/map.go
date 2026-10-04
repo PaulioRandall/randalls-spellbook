@@ -62,7 +62,7 @@ func mapTypeAsModel(
 	return model, true, nil
 
 Err:
-	return zero, false, ErrForModel.
+	return zero, false, ErrForType.
 		Fmt(model.GoName).
 		Wrap(e).
 		WrapIn(ErrForTable).

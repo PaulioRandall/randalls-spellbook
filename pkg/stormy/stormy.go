@@ -1,4 +1,4 @@
-package storm
+package stormy
 
 import (
 	"database/sql"
@@ -14,7 +14,7 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/wizzard"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/stormy/wizzard"
 )
 
 // CacheMode represents an approach to caching parsed
@@ -27,24 +27,25 @@ const (
 
 	// CacheModeRequest means the cache is reset for each
 	// request. This is useful if the structure or existence
-	// of tables is changed through custom operations but
-	// you are sure it will not change during calls to
-	// Storm methods.
+	// of tables is changed external to stormy but not during
+	// operations like [Stormy.Put] which can accepts
+	// heterogeneous data types but input is usually
+	// homogeneous.
 	CacheModeRequest
 
 	// CacheModeSession means entries persist across the
 	// session, but dropping a table will remove all entries
 	// for that table. Cache will be cleared on database
 	// close. Use this mode if the database is only written
-	// to using a single Storm instance (which is the
+	// to via a single Stormy object (which is the
 	// most common scenario, thus this is the default mode).
 	CacheModeSession
 )
 
-// Storm is the core type for interfacing with the
+// Stormy is the core type for interfacing with the
 // database. Operations share a single mutex so only
 // a single operation is permitted at once.
-type Storm struct {
+type Stormy struct {
 	path      string
 	db        *sql.DB
 	mutex     sync.Mutex
@@ -52,20 +53,20 @@ type Storm struct {
 	mapper    wizzard.TableCache
 }
 
-// New returns a new [Storm] for the database represented
-// by path.
-func New(path string) *Storm {
-	return &Storm{
+// New returns a new [Stormy] object for the database
+// represented by path.
+func New(path string) *Stormy {
+	return &Stormy{
 		path:      path,
 		cacheMode: CacheModeSession,
 		mapper:    wizzard.TableCache{},
 	}
 }
 
-// Open create a new Storm for the database represented
-// by path, and opens it before returning.
-func Open(path string) (*Storm, error) {
-	st := &Storm{
+// Open creates a new [Stormy] object for the database
+// represented by path, and opens it before returning.
+func Open(path string) (*Stormy, error) {
+	st := &Stormy{
 		path:      path,
 		cacheMode: CacheModeSession,
 		mapper:    wizzard.TableCache{},
@@ -74,14 +75,14 @@ func Open(path string) (*Storm, error) {
 }
 
 // CacheMode returns the current caching mode.
-func (st *Storm) CacheMode() CacheMode {
+func (st *Stormy) CacheMode() CacheMode {
 	return st.cacheMode
 }
 
 // SetCacheMode sets the caching mode. If the mode is
 // already set then nothing happens, else the cache
 // content is cleared before returning.
-func (st *Storm) SetCacheMode(mode CacheMode) {
+func (st *Stormy) SetCacheMode(mode CacheMode) {
 	if st.cacheMode == mode {
 		return
 	}
@@ -93,8 +94,8 @@ func (st *Storm) SetCacheMode(mode CacheMode) {
 	clear(st.mapper)
 }
 
-// CacheClear clears the cache regardless of mode.
-func (st *Storm) CacheClear() {
+// CacheClear clears the cache regardless of caching mode.
+func (st *Stormy) CacheClear() {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
@@ -103,7 +104,7 @@ func (st *Storm) CacheClear() {
 
 // CacheClearModel removes all cache entries associated
 // with a specific model regardless of caching mode.
-func (st *Storm) CacheClearModel(model any) {
+func (st *Stormy) CacheClearModel(model any) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
@@ -112,7 +113,7 @@ func (st *Storm) CacheClearModel(model any) {
 
 // CacheClearModel removes all cache entries associated
 // with a specific table regardless of caching mode.
-func (st *Storm) CacheClearTable(name string) {
+func (st *Stormy) CacheClearTable(name string) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
@@ -122,7 +123,7 @@ func (st *Storm) CacheClearTable(name string) {
 // Open opens the database. If not an 'in-memory' path then
 // the missing directories in the directory path are
 // created.
-func (st *Storm) Open() error {
+func (st *Stormy) Open() error {
 	if st.IsOpen() {
 		return nil
 	}
@@ -148,22 +149,22 @@ func (st *Storm) Open() error {
 }
 
 // IsOpen returns true if the database is open.
-func (st *Storm) IsOpen() bool {
+func (st *Stormy) IsOpen() bool {
 	return st.db != nil
 }
 
-// Database returns *sql.DB underpinning this Storm
+// Database returns *sql.DB underpinning this Stormy
 // instance. Operations performed directly on the sql.DB
 // will not benefit from internal synchronisation and other
 // safe guards. Use with care.
-func (st *Storm) Database() *sql.DB {
+func (st *Stormy) Database() *sql.DB {
 	return st.db
 }
 
 // Close closes the database. Use Go's defer as usual.
 // The cache content is always cleared on close regardless
 // of caching mode.
-func (st *Storm) Close() error {
+func (st *Stormy) Close() error {
 	if !st.IsOpen() {
 		return nil
 	}
@@ -191,7 +192,7 @@ func (st *Storm) Close() error {
 // Table returns the full table details the passed object
 // maps to. All columns in the table are included, not
 // just those that are mapped.
-func (st *Storm) Table(model any) (scumble.SqlTable, error) {
+func (st *Stormy) Table(model any) (scumble.SqlTable, error) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
@@ -201,9 +202,9 @@ func (st *Storm) Table(model any) (scumble.SqlTable, error) {
 	)
 }
 
-// TableAs is the same as [Storm.Table] except the table
+// TableAs is the same as [Stormy.Table] except the table
 // name is provided explicitly.
-func (st *Storm) TableAs(table string) (scumble.SqlTable, error) {
+func (st *Stormy) TableAs(table string) (scumble.SqlTable, error) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
@@ -276,13 +277,13 @@ func isInMemoryDatabase(path string) bool {
 	return name == ":memory:"
 }
 
-func (st *Storm) prepareMapper() {
+func (st *Stormy) prepareMapper() {
 	if st.cacheMode == CacheModeRequest {
 		clear(st.mapper)
 	}
 }
 
-func (st *Storm) mapModel(
+func (st *Stormy) mapModel(
 	model any,
 ) (wizzard.Model, bool, error) {
 	if st.cacheMode == CacheModeNone {
@@ -291,7 +292,7 @@ func (st *Storm) mapModel(
 	return st.mapper.Map(st.db, model)
 }
 
-func (st *Storm) mapModelAs(
+func (st *Stormy) mapModelAs(
 	table string,
 	model any,
 ) (wizzard.Model, bool, error) {
@@ -301,13 +302,13 @@ func (st *Storm) mapModelAs(
 	return st.mapper.MapAs(st.db, table, model)
 }
 
-func (st *Storm) errNotOpen() error {
+func (st *Stormy) errNotOpen() error {
 	return ErrNotOpen.
 		WrapIn(ErrForDatabase).
 		Fmt(st.path)
 }
 
-func (st *Storm) errForTable(
+func (st *Stormy) errForTable(
 	table string,
 	cause error,
 ) error {
@@ -318,17 +319,30 @@ func (st *Storm) errForTable(
 		Fmt(st.path)
 }
 
-func (st *Storm) errForModel(
-	model any,
+func (st *Stormy) errForType(
+	object any,
 	cause error,
 ) error {
-	if _, ok := model.(string); !ok {
-		model = typeName(model)
+	if _, ok := object.(string); !ok {
+		object = typeName(object)
 	}
 
-	return ErrForModel.
-		Fmt(model).
+	return ErrForType.
+		Fmt(object).
 		Wrap(cause).
+		WrapIn(ErrForDatabase).
+		Fmt(st.path)
+}
+
+func (st *Stormy) errForModel(
+	model wizzard.Model,
+	cause error,
+) error {
+	return ErrForType.
+		Fmt(model.GoName).
+		Wrap(cause).
+		WrapIn(ErrForTable).
+		Fmt(model.SqlName).
 		WrapIn(ErrForDatabase).
 		Fmt(st.path)
 }

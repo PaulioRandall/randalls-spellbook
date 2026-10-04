@@ -112,7 +112,7 @@ func Test_Map_5(t *testing.T) {
 
 	_, _, e := Map(db, Dummy{})
 	require.ErrorIs(t, e, ErrForTable)
-	require.ErrorIs(t, e, ErrForModel)
+	require.ErrorIs(t, e, ErrForType)
 	require.ErrorIs(t, e, ErrTypeMismatch)
 }
 

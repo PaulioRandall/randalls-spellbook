@@ -1,12 +1,12 @@
-package storm
+package stormy
 
 import (
 	"database/sql"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/storm/wizzard"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/stormy/wizzard"
 )
 
-// Operation is the function type used for [Storm.Custom]
+// Operation is the function type used for [Stormy.Custom]
 // operations.
 type Operation[R any] func(OperationContext) (R, error)
 
@@ -16,7 +16,7 @@ type Operation[R any] func(OperationContext) (R, error)
 // operation is being executed; panic will ensue if any of
 // its functions are called outside this time window.
 type OperationContext interface {
-	// Database returns the *sql.DB underpinning the [Storm]
+	// Database returns the *sql.DB underpinning the [Stormy]
 	// object.
 	Database() *sql.DB
 
@@ -45,7 +45,7 @@ type OperationContext interface {
 }
 
 type opCtx struct {
-	st   *Storm
+	st   *Stormy
 	dead *bool
 }
 
@@ -85,11 +85,12 @@ func (oc opCtx) CacheClearTable(name string) {
 	oc.st.mapper.ClearTable(name)
 }
 
-// Custom executes the passed operation. The Storm object
+// Custom executes the passed operation. The Stormy object
 // is locked during execution so no other named or custom
 // operations may occur in parallel. If you value your
-// sanity, do not close the database connection!
-func (st *Storm) Custom[R any](op Operation[R]) (R, error) {
+// sanity, do not close the database connection from within
+// the operation.
+func (st *Stormy) Custom[R any](op Operation[R]) (R, error) {
 	var empty R
 
 	if !st.IsOpen() {

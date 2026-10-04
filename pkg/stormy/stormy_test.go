@@ -1,4 +1,4 @@
-package storm
+package stormy
 
 import (
 	"testing"
@@ -15,21 +15,21 @@ type TestTable struct {
 	Rating  float64
 }
 
-func openStormDatabase(t *testing.T) *Storm {
+func openStormyDatabase(t *testing.T) *Stormy {
 	st := New(":memory:")
 	e := st.Open()
 	require.NoError(t, e)
 	return st
 }
 
-func requireTableExists(t *testing.T, st *Storm, name string) {
+func requireTableExists(t *testing.T, st *Stormy, name string) {
 	tableSchema, e := scumble.QuerySqliteSchema(st.db, name)
 	require.NoError(t, e)
 	require.Equal(t, name, tableSchema.Name)
 	require.Equal(t, name, tableSchema.TableName)
 }
 
-func requireDummyTableExists(t *testing.T, st *Storm) {
+func requireDummyTableExists(t *testing.T, st *Stormy) {
 	tableSchema, e := scumble.QuerySqliteSchema(st.db, "TestTable")
 	require.NoError(t, e)
 	require.Equal(t, "TestTable", tableSchema.Name)
@@ -38,7 +38,7 @@ func requireDummyTableExists(t *testing.T, st *Storm) {
 
 func requireTableContains(
 	t *testing.T,
-	st *Storm,
+	st *Stormy,
 	table string,
 	data ...TestTable,
 ) []TestTable {
@@ -68,12 +68,12 @@ func requireTableContains(
 	return dbData
 }
 
-func requireDummyTableRows(t *testing.T, st *Storm, data ...TestTable) {
+func requireDummyTableRows(t *testing.T, st *Stormy, data ...TestTable) {
 	act := queryDummyTable(t, st)
 	require.Equal(t, data, act)
 }
 
-func queryDummyTable(t *testing.T, st *Storm) []TestTable {
+func queryDummyTable(t *testing.T, st *Stormy) []TestTable {
 	rows, e := st.db.Query(`
 		SELECT
 			Id,
@@ -96,8 +96,8 @@ func queryDummyTable(t *testing.T, st *Storm) []TestTable {
 	return result
 }
 
-func Test_Storm_Open_Close_1(t *testing.T) {
-	st := openStormDatabase(t)
+func Test_Stormy_Open_Close_1(t *testing.T) {
+	st := openStormyDatabase(t)
 	defer st.Close()
 
 	require.Equal(t, true, st.IsOpen())

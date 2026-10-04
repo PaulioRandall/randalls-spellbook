@@ -14,7 +14,7 @@ func Test_Parse_1(t *testing.T) {
 
 	_, e := Parse(123)
 	require.ErrorIs(t, e, ErrForTable)
-	require.ErrorIs(t, e, ErrForModel)
+	require.ErrorIs(t, e, ErrForType)
 	require.ErrorIs(t, e, ErrNotStruct)
 }
 
@@ -81,7 +81,7 @@ func Test_Parse_5(t *testing.T) {
 
 	_, e := Parse(TestDummy{})
 	require.ErrorIs(t, e, ErrForTable)
-	require.ErrorIs(t, e, ErrForModel)
+	require.ErrorIs(t, e, ErrForType)
 	require.ErrorIs(t, e, ErrForField)
 	require.ErrorIs(t, e, ErrUnsupportedType)
 }

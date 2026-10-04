@@ -141,7 +141,8 @@ func (ds *Datastore) AddMedia(media Media) (Media, error) {
 }
 
 func (ds *Datastore) GetMediaById(id string) (Media, error) {
-	return ds.db.Get(Media{}, "Id = ?", id)
+	m, _, e := ds.db.Get(Media{}, "Id = ?", id)
+	return m, e
 }
 
 func (ds *Datastore) DeleteMedia(id string) error {

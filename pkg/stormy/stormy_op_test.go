@@ -1,4 +1,4 @@
-package storm
+package stormy
 
 import (
 	"errors"
@@ -7,13 +7,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_Storm_Custom_1(t *testing.T) {
+func Test_Stormy_Custom_1(t *testing.T) {
 	// When performing a custom operation
 	// then the operation is called
 	// and the context is not dead
 	// and error is returned
 
-	st := openStormDatabase(t)
+	st := openStormyDatabase(t)
 	defer st.Close()
 
 	errMeh := errors.New("Meh")
@@ -28,12 +28,12 @@ func Test_Storm_Custom_1(t *testing.T) {
 	require.ErrorIs(t, e, errMeh)
 }
 
-func Test_Storm_Custom_2(t *testing.T) {
+func Test_Stormy_Custom_2(t *testing.T) {
 	// When performing a custom operation
 	// if the operation does not return an error
 	// then the result value will be returned
 
-	st := openStormDatabase(t)
+	st := openStormyDatabase(t)
 	defer st.Close()
 
 	exp := TestTable{
@@ -50,13 +50,13 @@ func Test_Storm_Custom_2(t *testing.T) {
 	require.Equal(t, exp, act)
 }
 
-func Test_Storm_Custom_3(t *testing.T) {
+func Test_Stormy_Custom_3(t *testing.T) {
 	// When performing a custom operation
 	// if an operation context is called after the operation
 	// ends
 	// then panic ensues
 
-	st := openStormDatabase(t)
+	st := openStormyDatabase(t)
 	defer st.Close()
 
 	var escapedCtx OperationContext

@@ -1,4 +1,4 @@
-package storm
+package stormy
 
 import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
@@ -8,7 +8,7 @@ var (
 	// ErrForDatabase is returned for almost all errors and
 	// prints the database path.
 	ErrForDatabase = sin.Template(
-		"Stormy database error '%s'",
+		"Stormyy database error '%s'",
 	)
 
 	// ErrForTable occurs in the chain of every error
@@ -17,9 +17,9 @@ var (
 		"For table '%s'",
 	)
 
-	// ErrForModel occurs in the chain of every error
+	// ErrForType occurs in the chain of every error
 	// produced from an operation on a known model.
-	ErrForModel = sin.Template(
+	ErrForType = sin.Template(
 		"For model '%s'",
 	)
 
@@ -33,12 +33,6 @@ var (
 	// scanning database results.
 	ErrRowScan = sin.Template(
 		"When scanning row '%d'",
-	)
-
-	// ErrObjectNotFound is returned when an object or row
-	// could not be found when requesting a specifc object.
-	ErrObjectNotFound = sin.Err(
-		"Object not found",
 	)
 
 	// ErrNoIdField occurs when attempting to perform an

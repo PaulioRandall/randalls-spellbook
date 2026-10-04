@@ -11,9 +11,9 @@ var (
 		"Regarding table '%s'",
 	)
 
-	// ErrForModel occurs when an operation on a known model
+	// ErrForType occurs when an operation on a known model
 	// fails.
-	ErrForModel = sin.Template(
+	ErrForType = sin.Template(
 		"Regarding model '%s'",
 	)
 

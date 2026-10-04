@@ -122,7 +122,7 @@ func parseTypeAsModel(
 	return model, nil
 
 Err:
-	return Model{}, ErrForModel.
+	return Model{}, ErrForType.
 		Fmt(objectType.Name()).
 		Wrap(e).
 		WrapIn(ErrForTable).
@@ -306,7 +306,7 @@ func (m Model) Create(db *sql.DB) error {
 
 	_, e := db.Exec(query)
 	if e != nil {
-		return ErrForModel.Fmt(m.GoName).Wrap(e)
+		return ErrForType.Fmt(m.GoName).Wrap(e)
 	}
 
 	return nil
@@ -324,7 +324,7 @@ func (m Model) Create(db *sql.DB) error {
 // used to target the row but is not updated.
 func (m Model) Upsert(db *sql.DB, object any) error {
 	if !m.Represents(object) {
-		return ErrForModel.
+		return ErrForType.
 			Fmt(m.GoName).
 			Wrap(ErrWrongObjectType)
 	}
@@ -333,7 +333,7 @@ func (m Model) Upsert(db *sql.DB, object any) error {
 	nonPkCols := m.NonKeyProps()
 
 	if pkCol == (Property{}) {
-		return ErrForModel.
+		return ErrForType.
 			Fmt(m.GoName).
 			Wrap(ErrMissingIdField)
 	}
@@ -366,7 +366,7 @@ func (m Model) Upsert(db *sql.DB, object any) error {
 
 	_, e := db.Exec(query, values...)
 	if e != nil {
-		return ErrForModel.Fmt(m.GoName).Wrap(e)
+		return ErrForType.Fmt(m.GoName).Wrap(e)
 	}
 
 	return nil
@@ -380,13 +380,13 @@ func (m Model) Upsert(db *sql.DB, object any) error {
 // to their zero value.
 func (m Model) Insert(db *sql.DB, object any) error {
 	if !m.Represents(object) {
-		return ErrForModel.
+		return ErrForType.
 			Fmt(m.GoName).
 			Wrap(ErrWrongObjectType)
 	}
 
 	if m.KeyProp() == (Property{}) {
-		return ErrForModel.
+		return ErrForType.
 			Fmt(m.GoName).
 			Wrap(ErrMissingIdField)
 	}
@@ -407,7 +407,7 @@ func (m Model) Insert(db *sql.DB, object any) error {
 	values := extractFieldValues(m.Props, object)
 	_, e := db.Exec(query, values...)
 	if e != nil {
-		return ErrForModel.Fmt(m.GoName).Wrap(e)
+		return ErrForType.Fmt(m.GoName).Wrap(e)
 	}
 
 	return nil
@@ -420,7 +420,7 @@ func (m Model) Insert(db *sql.DB, object any) error {
 // the row but is not updated.
 func (m Model) Update(db *sql.DB, object any) error {
 	if !m.Represents(object) {
-		return ErrForModel.
+		return ErrForType.
 			Fmt(m.GoName).
 			Wrap(ErrWrongObjectType)
 	}
@@ -429,7 +429,7 @@ func (m Model) Update(db *sql.DB, object any) error {
 	nonPkCols := m.NonKeyProps()
 
 	if pkCol == (Property{}) {
-		return ErrForModel.
+		return ErrForType.
 			Fmt(m.GoName).
 			Wrap(ErrMissingIdField)
 	}
@@ -453,7 +453,7 @@ func (m Model) Update(db *sql.DB, object any) error {
 
 	_, e := db.Exec(query, values...)
 	if e != nil {
-		return ErrForModel.Fmt(m.GoName).Wrap(e)
+		return ErrForType.Fmt(m.GoName).Wrap(e)
 	}
 
 	return nil
@@ -466,7 +466,7 @@ func (m Model) Update(db *sql.DB, object any) error {
 func (m Model) Select[T any](db *sql.DB, where string, args ...any) ([]T, error) {
 	var o T
 	if !m.Represents(o) {
-		return nil, ErrForModel.
+		return nil, ErrForType.
 			Fmt(m.GoName).
 			Wrap(ErrWrongParameterType)
 	}
@@ -490,7 +490,7 @@ func (m Model) Select[T any](db *sql.DB, where string, args ...any) ([]T, error)
 
 	rows, e := db.Query(query, args...)
 	if e != nil {
-		return nil, ErrForModel.Fmt(m.GoName).Wrap(e)
+		return nil, ErrForType.Fmt(m.GoName).Wrap(e)
 	}
 
 	return m.ScanRows[T](rows)
@@ -506,7 +506,7 @@ func (m Model) SelectFirst[T any](db *sql.DB, where string, args ...any) (T, boo
 	var zero T
 
 	if !m.Represents(zero) {
-		return zero, false, ErrForModel.
+		return zero, false, ErrForType.
 			Fmt(m.GoName).
 			Wrap(ErrWrongParameterType)
 	}
@@ -532,7 +532,7 @@ func (m Model) SelectFirst[T any](db *sql.DB, where string, args ...any) (T, boo
 
 	rows, e := db.Query(query, args...)
 	if e != nil {
-		return zero, false, ErrForModel.Fmt(m.GoName).Wrap(e)
+		return zero, false, ErrForType.Fmt(m.GoName).Wrap(e)
 	}
 
 	return m.ScanFirstRow[T](rows)
@@ -561,7 +561,7 @@ func (m Model) Delete(db *sql.DB, where string, args ...any) error {
 
 	_, e := db.Exec(query, args...)
 	if e != nil {
-		return ErrForModel.Fmt(m.GoName).Wrap(e)
+		return ErrForType.Fmt(m.GoName).Wrap(e)
 	}
 
 	return nil
@@ -580,7 +580,7 @@ func (m Model) Drop(db *sql.DB) error {
 
 	_, e := db.Exec(query)
 	if e != nil {
-		return ErrForModel.Fmt(m.GoName).Wrap(e)
+		return ErrForType.Fmt(m.GoName).Wrap(e)
 	}
 
 	return nil

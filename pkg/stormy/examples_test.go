@@ -1,10 +1,10 @@
-package storm
+package stormy
 
 import (
 	"fmt"
 )
 
-func ExampleStorm_Table() {
+func ExampleStormy_Table() {
 	// YUDO: Error handling.
 
 	type Player struct {
@@ -15,9 +15,11 @@ func ExampleStorm_Table() {
 
 	st, err := Open(":memory:")
 	defer st.Close()
-
 	err = st.Create(Player{})
+
+	// Point of interest.
 	table, err := st.Table(Player{})
+
 	_ = err
 
 	fmt.Println(table.Name)
@@ -35,7 +37,7 @@ func ExampleStorm_Table() {
 	//	Rating REAL
 }
 
-func ExampleStorm_Create() {
+func ExampleStormy_Create() {
 	// YUDO: Error handling.
 
 	type Player struct {
@@ -45,16 +47,16 @@ func ExampleStorm_Create() {
 		ignored *int // Will be ignored.
 	}
 
-	// Using in-memory database for the example but is
-	// usually a local file path.
 	st, err := Open(":memory:")
 	defer st.Close()
 
+	// Point of interest.
 	err = st.Create(Player{})
+
 	_ = err
 }
 
-func ExampleStorm_Drop() {
+func ExampleStormy_Drop() {
 	// YUDO: Error handling.
 
 	type Player struct {
@@ -65,13 +67,15 @@ func ExampleStorm_Drop() {
 
 	st, err := Open(":memory:")
 	defer st.Close()
-
 	err = st.Create(Player{})
+
+	// Point of interest.
 	err = st.Drop(Player{})
+
 	_ = err
 }
 
-func ExampleStorm_Put() {
+func ExampleStormy_Put() {
 	// YUDO: Error handling.
 
 	type Player struct {
@@ -83,6 +87,7 @@ func ExampleStorm_Put() {
 	st, err := Open(":memory:")
 	defer st.Close()
 
+	// Point of interest.
 	// Table auto created on insert.
 	err = st.Put(Player{
 		Id:     4,
@@ -108,11 +113,13 @@ func ExampleStorm_Put() {
 		},
 	}
 
+	// Point of interest.
 	err = st.Put(players...)
+
 	_ = err
 }
 
-func ExampleStorm_List() {
+func ExampleStormy_List() {
 	// YUDO: Error handling.
 
 	type Player struct {
@@ -124,7 +131,6 @@ func ExampleStorm_List() {
 	st, err := Open(":memory:")
 	defer st.Close()
 
-	// Table auto created on insert.
 	err = st.Put(
 		Player{
 			Id:     1,
@@ -143,7 +149,9 @@ func ExampleStorm_List() {
 		},
 	)
 
+	// Point of interest.
 	players, err := st.List(Player{}, "Rating > ?", 2)
+
 	_ = err
 
 	for _, p := range players {
@@ -154,7 +162,7 @@ func ExampleStorm_List() {
 	// 3: Charlie
 }
 
-func ExampleStorm_Get() {
+func ExampleStormy_Get() {
 	// YUDO: Error handling.
 
 	type Player struct {
@@ -166,7 +174,6 @@ func ExampleStorm_Get() {
 	st, err := Open(":memory:")
 	defer st.Close()
 
-	// Table auto created on insert.
 	err = st.Put(
 		Player{
 			Id:     1,
@@ -185,15 +192,19 @@ func ExampleStorm_Get() {
 		},
 	)
 
-	bob, err := st.Get(Player{}, "Id = ?", 2)
+	// Point of interest.
+	bob, found, err := st.Get(Player{}, "Id = ?", 2)
+
 	_ = err
 
+	fmt.Printf("Found: %v\n", found)
 	fmt.Printf("%d: %s\n", bob.Id, bob.Name)
 	// Output:
+	// Found: true
 	// 2: Bob
 }
 
-func ExampleStorm_Delete() {
+func ExampleStormy_Delete() {
 	// YUDO: Error handling.
 
 	type Player struct {
@@ -205,7 +216,6 @@ func ExampleStorm_Delete() {
 	st, err := Open(":memory:")
 	defer st.Close()
 
-	// Table auto created on insert.
 	err = st.Put(
 		Player{
 			Id:     1,
@@ -224,8 +234,8 @@ func ExampleStorm_Delete() {
 		},
 	)
 
+	// Point of interest.
 	err = st.Delete(Player{}, "Id = ?", 2)
-	_ = err
 
 	players, err := st.List(Player{}, "")
 	_ = err
@@ -238,7 +248,7 @@ func ExampleStorm_Delete() {
 	// 3: Charlie
 }
 
-func ExampleStorm_Custom() {
+func ExampleStormy_Custom() {
 	// YUDO: Error handling.
 
 	type Player struct {
@@ -269,14 +279,14 @@ func ExampleStorm_Custom() {
 		},
 	)
 
-	results, err := st.Custom(func(ctx OperationContext) ([]Player, error) {
+	// Point of interest.
+	listLi := func(ctx OperationContext) ([]Player, error) {
 		model, exist, err := ctx.MapAs("User", Player{})
 
 		if !exist {
 			return nil, nil
 		}
 
-		// Never close the database!
 		db := ctx.Database()
 		rows, err := db.Query(`
 		SELECT
@@ -291,7 +301,10 @@ func ExampleStorm_Custom() {
 		results, err := model.ScanRows[Player](rows)
 		_ = err
 		return results, nil
-	})
+	}
+
+	// Point of interest.
+	results, err := st.Custom(listLi)
 
 	for _, p := range results {
 		fmt.Printf("%d: %s\n", p.Id, p.Name)
