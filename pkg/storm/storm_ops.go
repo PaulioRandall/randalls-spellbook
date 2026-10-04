@@ -262,8 +262,7 @@ func (st *Storm) Get[T any](object T, where string, args ...any) (result T, e er
 	}
 
 	if !found {
-		e = ErrObjectNotFound
-		goto Err
+		return empty, nil
 	}
 
 	return result, nil
@@ -302,8 +301,7 @@ func (st *Storm) GetAs[T any](table string, object T, where string, args ...any)
 	}
 
 	if !found {
-		e = ErrObjectNotFound
-		goto Err
+		return empty, nil
 	}
 
 	return result, nil

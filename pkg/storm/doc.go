@@ -3,7 +3,7 @@
 //
 // Instead of writing or building query statements, user
 // programmers pass objects (instances of structs) to
-// represent tables or part of a table. Objects are passed
+// represent tables or parts of them. Objects are passed
 // to various functions to perform database operations.
 // It's an approach used by existin database packages such
 // as https://gorm.io/.
@@ -50,23 +50,6 @@
 //   - Be more targetted with mutex use. Only lock when
 //     performing Model parsing and caching. Ponder use
 //     of RWMutex instead.
-//   - Create operation modes (could create adapters using
-//     an interface instead so structs representing the
-//     below modes are created instead of using modes):
-//   - OperationModeFree: tables are created automatically
-//     for Put operations, List and Get operations return
-//     an empty/zero result set or result object if the
-//     table doesn't exist (not an error), Create
-//     returns without error if the table already exists,
-//     and Drop and Delete operations return without error
-//     if the table doesn't exist.
-//   - OperationModeError: tables are not created
-//     automatically for Put operations (an error is
-//     returned instead), List and Get operations return
-//     an error if the table or speecific entry doesn't
-//     exist, Create returns an error if the table already
-//     exists, and Drop and Delete operations return an
-//     error if the table doesn't exist.
 //   - Create function to copy or backup database.
 //   - Rename package to stormy.
 //   - Reorg named errors & test they are returned.

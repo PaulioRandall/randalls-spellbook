@@ -360,8 +360,9 @@ func Test_Storm_Get_2(t *testing.T) {
 	e := st.Create(TestTable{})
 	require.NoError(t, e)
 
-	_, e = st.Get(TestTable{}, "Id = ?", 1)
-	require.ErrorIs(t, e, ErrObjectNotFound)
+	result, e := st.Get(TestTable{}, "Id = ?", 1)
+	require.NoError(t, e)
+	require.Equal(t, TestTable{}, result)
 }
 
 func Test_Storm_Get_3(t *testing.T) {
@@ -420,8 +421,9 @@ func Test_Storm_GetAs_2(t *testing.T) {
 	e := st.CreateAs("TestDummy", TestTable{})
 	require.NoError(t, e)
 
-	_, e = st.GetAs("TestDummy", TestTable{}, "Id = ?", 1)
-	require.ErrorIs(t, e, ErrObjectNotFound)
+	result, e := st.GetAs("TestDummy", TestTable{}, "Id = ?", 1)
+	require.NoError(t, e)
+	require.Equal(t, TestTable{}, result)
 }
 
 func Test_Storm_GetAs_3(t *testing.T) {
