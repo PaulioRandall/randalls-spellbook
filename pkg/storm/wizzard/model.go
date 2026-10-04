@@ -493,7 +493,7 @@ func (m Model) Select[T any](db *sql.DB, where string, args ...any) ([]T, error)
 		return nil, ErrForModel.Fmt(m.GoName).Wrap(e)
 	}
 
-	return m.scanRows[T](rows)
+	return m.ScanRows[T](rows)
 }
 
 // SelectFirst returns the first row matching the passed
@@ -535,7 +535,7 @@ func (m Model) SelectFirst[T any](db *sql.DB, where string, args ...any) (T, boo
 		return zero, false, ErrForModel.Fmt(m.GoName).Wrap(e)
 	}
 
-	return m.scanFirstRow[T](rows)
+	return m.ScanFirstRow[T](rows)
 }
 
 // Delete removes all table rows matching the given where
@@ -586,23 +586,17 @@ func (m Model) Drop(db *sql.DB) error {
 	return nil
 }
 
-func extractFieldValues(
-	props []Property,
-	object any,
-) []any {
-	value := ref.ValueOf(object)
-	result := make([]any, len(props))
-
-	for i := 0; i < len(props); i++ {
-		field := value.FieldByName(props[i].GoName)
-		result[i] = field.Interface()
-	}
-
-	return result
-}
-
-func (m Model) scanRows[T any](rows *sql.Rows) ([]T, error) {
+// ScanRows scans all SQL rows returned from a query into
+// objects of type T. If T's type does not match the
+// model's GoType then an error is returned. The rows
+// object will then be closed preventing further scanning.
+func (m Model) ScanRows[T any](rows *sql.Rows) ([]T, error) {
 	defer rows.Close()
+
+	var zero T
+	if !m.Represents(zero) {
+		return nil, ErrWrongParameterType
+	}
 
 	values, valuePtrs := m.newValueContainers()
 	var results []T
@@ -626,9 +620,19 @@ func (m Model) scanRows[T any](rows *sql.Rows) ([]T, error) {
 	return results, nil
 }
 
-func (m Model) scanFirstRow[T any](rows *sql.Rows) (T, bool, error) {
+// ScanFirstRow scans the first result within the passed
+// SQL rows into into an object of type T. If there are no
+// more rows then the zero value of T is retuned. If T's
+// type does not match the model's GoType then an error is
+// returned. The rows object will then be closed preventing
+// further scanning.
+func (m Model) ScanFirstRow[T any](rows *sql.Rows) (T, bool, error) {
 	defer rows.Close()
+
 	var zero T
+	if !m.Represents(zero) {
+		return zero, false, ErrWrongParameterType
+	}
 
 	if !rows.Next() {
 		return zero, false, nil
@@ -648,6 +652,21 @@ func (m Model) scanFirstRow[T any](rows *sql.Rows) (T, bool, error) {
 	var item T
 	m.populate(&item, values)
 	return item, true, nil
+}
+
+func extractFieldValues(
+	props []Property,
+	object any,
+) []any {
+	value := ref.ValueOf(object)
+	result := make([]any, len(props))
+
+	for i := 0; i < len(props); i++ {
+		field := value.FieldByName(props[i].GoName)
+		result[i] = field.Interface()
+	}
+
+	return result
 }
 
 func (m Model) newValueContainers() ([]any, []any) {

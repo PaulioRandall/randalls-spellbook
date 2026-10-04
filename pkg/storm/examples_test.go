@@ -237,3 +237,68 @@ func ExampleStorm_Delete() {
 	// 1: Alice
 	// 3: Charlie
 }
+
+func ExampleStorm_Custom() {
+	// YUDO: Error handling.
+
+	type Player struct {
+		Id     int
+		Name   string
+		Rating float64
+	}
+
+	st, err := Open(":memory:")
+	defer st.Close()
+
+	err = st.PutAs(
+		"User",
+		Player{
+			Id:     1,
+			Name:   "Alice",
+			Rating: 1.1,
+		},
+		Player{
+			Id:     2,
+			Name:   "Bob",
+			Rating: 2.2,
+		},
+		Player{
+			Id:     3,
+			Name:   "Charlie",
+			Rating: 3.3,
+		},
+	)
+
+	results, err := st.Custom(func(ctx OperationContext) ([]Player, error) {
+		model, exist, err := ctx.MapAs("User", Player{})
+
+		if !exist {
+			return nil, nil
+		}
+
+		// Never close the database!
+		db := ctx.Database()
+		rows, err := db.Query(`
+		SELECT
+			Id,
+			Name,
+			Rating
+		FROM
+			User
+		WHERE Name LIKE '%li%'
+	`)
+
+		results, err := model.ScanRows[Player](rows)
+		_ = err
+		return results, nil
+	})
+
+	for _, p := range results {
+		fmt.Printf("%d: %s\n", p.Id, p.Name)
+	}
+
+	_ = err
+	// Output:
+	// 1: Alice
+	// 3: Charlie
+}

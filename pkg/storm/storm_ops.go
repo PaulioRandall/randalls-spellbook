@@ -232,8 +232,8 @@ Err:
 }
 
 // Get returns the first object (row) matching the where
-// clause and arguments. If no record is found then an
-// error is returned.
+// clause and arguments. If no record is found then the
+// zero value of T is returned.
 func (st *Storm) Get[T any](object T, where string, args ...any) (result T, e error) {
 	var empty T
 
@@ -350,6 +350,7 @@ func (st *Storm) DeleteAs[T any](table string, object T, where string, args ...a
 	defer st.mutex.Unlock()
 
 	st.prepareMapper()
+
 	model, found, e := st.mapModelAs(table, object)
 	if e != nil {
 		return st.errForModel(object, e)

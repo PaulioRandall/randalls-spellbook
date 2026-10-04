@@ -152,6 +152,14 @@ func (st *Storm) IsOpen() bool {
 	return st.db != nil
 }
 
+// Database returns *sql.DB underpinning this Storm
+// instance. Operations performed directly on the sql.DB
+// will not benefit from internal synchronisation and other
+// safe guards. Use with care.
+func (st *Storm) Database() *sql.DB {
+	return st.db
+}
+
 // Close closes the database. Use Go's defer as usual.
 // The cache content is always cleared on close regardless
 // of caching mode.

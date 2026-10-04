@@ -43,13 +43,9 @@
 //   - [Storm.Delete] and [Storm.DeleteAs] to delete all
 //     objects matching criteria.
 //   - [Storm.Drop] and [Storm.DropAs] to remove a table.
+//   - [Storm.Custom] allows custom queries.
 //
 // # TODO
-//   - Function to perform custom operations. Must lock
-//     and allow access to cachedMapper and db.
-//   - Be more targetted with mutex use. Only lock when
-//     performing Model parsing and caching. Ponder use
-//     of RWMutex instead.
 //   - Create function to copy or backup database.
 //   - Rename package to stormy.
 //   - Reorg named errors & test they are returned.
