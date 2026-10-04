@@ -129,7 +129,7 @@ func (m Media) GetLocalPath() string {
 }
 
 func (ds *Datastore) ListMedia() ([]Media, error) {
-	return ds.db.List(Media{})
+	return ds.db.List(Media{}, "")
 }
 
 func (ds *Datastore) AddMedia(media Media) (Media, error) {
@@ -141,11 +141,11 @@ func (ds *Datastore) AddMedia(media Media) (Media, error) {
 }
 
 func (ds *Datastore) GetMediaById(id string) (Media, error) {
-	return ds.db.Get(Media{}, id)
+	return ds.db.Get(Media{}, "Id = ?", id)
 }
 
 func (ds *Datastore) DeleteMedia(id string) error {
-	return ds.db.Delete(Media{}, id)
+	return ds.db.Delete(Media{}, "Id = ?", id)
 }
 
 type Res = http.ResponseWriter

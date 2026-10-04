@@ -40,13 +40,13 @@ func Example() {
 	})
 
 	// Select all entries from the Player table.
-	results, err := model.SelectAll[Player](db)
+	results, err := model.Select[Player](db, "")
 
 	// Select the entry from the Player table.
-	result, found, err := model.SelectById[Player](db, 123)
+	result, found, err := model.SelectFirst[Player](db, "Id = ?", 123)
 
 	// Delete the entry from the Player table.
-	err = model.DeleteById(db, 123)
+	err = model.Delete(db, "Id = ?", 123)
 
 	// Remove the Player table.
 	err = model.Drop(db)

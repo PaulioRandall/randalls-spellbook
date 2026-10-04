@@ -168,10 +168,11 @@ func (st *Storm) PutAs[T any](table string, objects ...T) error {
 	return nil
 }
 
-// List returns all rows (objects) in the table associated
-// with the passed object. If the table doesn't exist a
-// nil or empty result set is returned, not an error.
-func (st *Storm) List[T any](object T) (result []T, e error) {
+// List returns all objects (rows) in the table associated
+// with the passed object that match the where clause and
+// arguments. If the table doesn't exist a nil or empty
+// result set is returned, not an error.
+func (st *Storm) List[T any](object T, where string, args ...any) (result []T, e error) {
 	if !st.IsOpen() {
 		return nil, st.errNotOpen()
 	}
@@ -190,7 +191,7 @@ func (st *Storm) List[T any](object T) (result []T, e error) {
 		return nil, nil
 	}
 
-	result, e = model.SelectAll[T](st.db)
+	result, e = model.Select[T](st.db, where, args...)
 	if e != nil {
 		return nil, st.errForModel(object, e)
 	}
@@ -200,7 +201,7 @@ func (st *Storm) List[T any](object T) (result []T, e error) {
 
 // ListAs is the same as [Storm.List] except the table
 // name is provided explicitly.
-func (st *Storm) ListAs[T any](table string, object T) (result []T, e error) {
+func (st *Storm) ListAs[T any](table string, object T, where string, args ...any) (result []T, e error) {
 	if !st.IsOpen() {
 		return nil, st.errNotOpen()
 	}
@@ -219,7 +220,7 @@ func (st *Storm) ListAs[T any](table string, object T) (result []T, e error) {
 		return nil, nil
 	}
 
-	result, e = model.SelectAll[T](st.db)
+	result, e = model.Select[T](st.db, where, args...)
 	if e != nil {
 		goto Err
 	}
@@ -230,10 +231,10 @@ Err:
 	return nil, st.errForModel(object, e)
 }
 
-// Get returns the object (row) with the given ID from
-// the table the passed object maps to. If no record is
-// found then an error is returned.
-func (st *Storm) Get[T, ID any](object T, id ID) (result T, e error) {
+// Get returns the first object (row) matching the where
+// clause and arguments. If no record is found then an
+// error is returned.
+func (st *Storm) Get[T any](object T, where string, args ...any) (result T, e error) {
 	var empty T
 
 	if !st.IsOpen() {
@@ -255,7 +256,7 @@ func (st *Storm) Get[T, ID any](object T, id ID) (result T, e error) {
 		goto Err
 	}
 
-	result, found, e = model.SelectById[T](st.db, id)
+	result, found, e = model.SelectFirst[T](st.db, where, args...)
 	if e != nil {
 		goto Err
 	}
@@ -268,12 +269,12 @@ func (st *Storm) Get[T, ID any](object T, id ID) (result T, e error) {
 	return result, nil
 
 Err:
-	return empty, st.errForObject(object, e, id)
+	return empty, st.errForModel(object, e)
 }
 
 // GetAs is the same as [Storm.Get] except the table
 // name is provided explicitly.
-func (st *Storm) GetAs[T, ID any](table string, object T, id ID) (result T, e error) {
+func (st *Storm) GetAs[T any](table string, object T, where string, args ...any) (result T, e error) {
 	var empty T
 
 	if !st.IsOpen() {
@@ -295,7 +296,7 @@ func (st *Storm) GetAs[T, ID any](table string, object T, id ID) (result T, e er
 		goto Err
 	}
 
-	result, found, e = model.SelectById[T](st.db, id)
+	result, found, e = model.SelectFirst[T](st.db, where, args...)
 	if e != nil {
 		goto Err
 	}
@@ -308,19 +309,15 @@ func (st *Storm) GetAs[T, ID any](table string, object T, id ID) (result T, e er
 	return result, nil
 
 Err:
-	return empty, st.errForObject(object, e, id)
+	return empty, st.errForModel(object, e)
 }
 
-// Delete removes the object (row) with the given IDs from
-// the table the passed object maps to. If no record is
-// found then nothing happens.
-func (st *Storm) Delete[T, ID any](object T, ids ...ID) error {
+// Delete removes the objects (rows) matching the given
+// where clause and arguments from the table the passed
+// object maps to. If no rows match then nothing happens.
+func (st *Storm) Delete[T any](object T, where string, args ...any) error {
 	if !st.IsOpen() {
 		return st.errNotOpen()
-	}
-
-	if len(ids) == 0 {
-		return nil
 	}
 
 	st.mutex.Lock()
@@ -336,11 +333,9 @@ func (st *Storm) Delete[T, ID any](object T, ids ...ID) error {
 		return nil
 	}
 
-	for _, id := range ids {
-		e = model.DeleteById(st.db, id)
-		if e != nil {
-			return st.errForObject(object, e, id)
-		}
+	e = model.Delete(st.db, where, args...)
+	if e != nil {
+		return st.errForModel(object, e)
 	}
 
 	return nil
@@ -348,13 +343,9 @@ func (st *Storm) Delete[T, ID any](object T, ids ...ID) error {
 
 // DeleteAs is the same as [Storm.Delete] except the table
 // name is provided explicitly.
-func (st *Storm) DeleteAs[T, ID any](table string, object T, ids ...ID) error {
+func (st *Storm) DeleteAs[T any](table string, object T, where string, args ...any) error {
 	if !st.IsOpen() {
 		return st.errNotOpen()
-	}
-
-	if len(ids) == 0 {
-		return nil
 	}
 
 	st.mutex.Lock()
@@ -370,11 +361,9 @@ func (st *Storm) DeleteAs[T, ID any](table string, object T, ids ...ID) error {
 		return nil
 	}
 
-	for _, id := range ids {
-		e = model.DeleteById(st.db, id)
-		if e != nil {
-			return st.errForObject(object, e, id)
-		}
+	e = model.Delete(st.db, where, args...)
+	if e != nil {
+		return st.errForModel(object, e)
 	}
 
 	return nil
@@ -401,7 +390,7 @@ func (st *Storm) Drop(objects ...any) error {
 	st.prepareMapper()
 
 	for _, o := range objects {
-		table, found, e := st.mapModel(o)
+		model, found, e := st.mapModel(o)
 		if e != nil {
 			return st.errForModel(o, e)
 		}
@@ -410,9 +399,9 @@ func (st *Storm) Drop(objects ...any) error {
 			continue
 		}
 
-		st.mapper.ClearTable(table.SqlName)
+		st.mapper.ClearTable(model.SqlName)
 
-		e = table.Drop(st.db)
+		e = model.Drop(st.db)
 		if e != nil {
 			return st.errForModel(o, e)
 		}

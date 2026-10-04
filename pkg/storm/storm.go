@@ -41,54 +41,9 @@ const (
 	CacheModeSession
 )
 
-var (
-	// ErrForDatabase is returned for almost all errors and
-	// prints the database path.
-	ErrForDatabase = sin.Template(
-		"Stormy database error '%s'",
-	)
-
-	// ErrForTable occurs in the chain of every error
-	// produced from an operation on a known table.
-	ErrForTable = sin.Template(
-		"For table '%s'",
-	)
-
-	// ErrForModel occurs in the chain of every error
-	// produced from an operation on a known model.
-	ErrForModel = sin.Template(
-		"For model '%s'",
-	)
-
-	// ErrForObject occurs in the chain of every error
-	// produced from an operation on an object with a known
-	// ID.
-	ErrForObject = sin.Template(
-		"For object with ID '%v'",
-	)
-
-	// ErrNotOpen occurs when trying to perform an operation
-	// before opening the database.
-	ErrNotOpen = sin.Err(
-		"Database not open",
-	)
-
-	// ErrRowScan is returned when an error occurs
-	// scanning database results.
-	ErrRowScan = sin.Template(
-		"When scanning row '%d'",
-	)
-
-	// ErrObjectNotFound is returned when an object or row
-	// could not be found when requesting a specifc object.
-	ErrObjectNotFound = sin.Err(
-		"Object not found",
-	)
-)
-
 // Storm is the core type for interfacing with the
 // database. Operations share a single mutex so only
-// operations, including reads and writes
+// a single operation is permitted at once.
 type Storm struct {
 	path      string
 	db        *sql.DB
@@ -366,24 +321,6 @@ func (st *Storm) errForModel(
 	return ErrForModel.
 		Fmt(model).
 		Wrap(cause).
-		WrapIn(ErrForDatabase).
-		Fmt(st.path)
-}
-
-func (st *Storm) errForObject(
-	model any,
-	cause error,
-	objectId any,
-) error {
-	if _, ok := model.(string); !ok {
-		model = typeName(model)
-	}
-
-	return ErrForObject.
-		Fmt(objectId).
-		Wrap(cause).
-		WrapIn(ErrForModel).
-		Fmt(model).
 		WrapIn(ErrForDatabase).
 		Fmt(st.path)
 }

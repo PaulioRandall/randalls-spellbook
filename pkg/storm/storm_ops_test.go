@@ -244,7 +244,7 @@ func Test_Storm_List_1(t *testing.T) {
 	e = st.Put(b)
 	require.NoError(t, e)
 
-	act, e := st.List(TestTable{})
+	act, e := st.List(TestTable{}, "")
 	require.NoError(t, e)
 
 	require.Equal(t, a, act[0])
@@ -261,7 +261,7 @@ func Test_Storm_List_2(t *testing.T) {
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	act, e := st.List(TestTable{})
+	act, e := st.List(TestTable{}, "")
 	require.NoError(t, e)
 
 	require.Equal(t, 0, len(act))
@@ -293,7 +293,7 @@ func Test_Storm_ListAs_1(t *testing.T) {
 	e = st.PutAs("TestDummy", b)
 	require.NoError(t, e)
 
-	act, e := st.ListAs("TestDummy", TestTable{})
+	act, e := st.ListAs("TestDummy", TestTable{}, "")
 	require.NoError(t, e)
 
 	require.Equal(t, a, act[0])
@@ -310,7 +310,7 @@ func Test_Storm_ListAs_2(t *testing.T) {
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	act, e := st.ListAs("TestDummy", TestTable{})
+	act, e := st.ListAs("TestDummy", TestTable{}, "")
 	require.NoError(t, e)
 
 	require.Equal(t, 0, len(act))
@@ -342,7 +342,7 @@ func Test_Storm_Get_1(t *testing.T) {
 	e = st.Put(b)
 	require.NoError(t, e)
 
-	act, e := st.Get(TestTable{}, 1)
+	act, e := st.Get(TestTable{}, "Id = ?", 1)
 	require.NoError(t, e)
 
 	require.Equal(t, a, act)
@@ -360,7 +360,7 @@ func Test_Storm_Get_2(t *testing.T) {
 	e := st.Create(TestTable{})
 	require.NoError(t, e)
 
-	_, e = st.Get(TestTable{}, 1)
+	_, e = st.Get(TestTable{}, "Id = ?", 1)
 	require.ErrorIs(t, e, ErrObjectNotFound)
 }
 
@@ -372,7 +372,7 @@ func Test_Storm_Get_3(t *testing.T) {
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	_, e := st.Get(TestTable{}, 1)
+	_, e := st.Get(TestTable{}, "Id = ?", 1)
 	require.ErrorIs(t, e, ErrObjectNotFound)
 }
 
@@ -402,7 +402,7 @@ func Test_Storm_GetAs_1(t *testing.T) {
 	e = st.PutAs("TestDummy", b)
 	require.NoError(t, e)
 
-	act, e := st.GetAs("TestDummy", TestTable{}, 1)
+	act, e := st.GetAs("TestDummy", TestTable{}, "Id = ?", 1)
 	require.NoError(t, e)
 
 	require.Equal(t, a, act)
@@ -420,7 +420,7 @@ func Test_Storm_GetAs_2(t *testing.T) {
 	e := st.CreateAs("TestDummy", TestTable{})
 	require.NoError(t, e)
 
-	_, e = st.GetAs("TestDummy", TestTable{}, 1)
+	_, e = st.GetAs("TestDummy", TestTable{}, "Id = ?", 1)
 	require.ErrorIs(t, e, ErrObjectNotFound)
 }
 
@@ -432,7 +432,7 @@ func Test_Storm_GetAs_3(t *testing.T) {
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	_, e := st.GetAs("TestDummy", TestTable{}, 1)
+	_, e := st.GetAs("TestDummy", TestTable{}, "Id = ?", 1)
 	require.ErrorIs(t, e, ErrObjectNotFound)
 }
 
@@ -445,7 +445,7 @@ func Test_Storm_Delete_1(t *testing.T) {
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	e := st.Delete(TestTable{}, 1)
+	e := st.Delete(TestTable{}, "Id = ?", 1)
 	require.NoError(t, e)
 }
 
@@ -462,7 +462,7 @@ func Test_Storm_Delete_2(t *testing.T) {
 	e := st.Create(TestTable{})
 	require.NoError(t, e)
 
-	e = st.Delete(TestTable{}, 1)
+	e = st.Delete(TestTable{}, "Id = ?", 1)
 	require.NoError(t, e)
 }
 
@@ -497,7 +497,7 @@ func Test_Storm_Delete_3(t *testing.T) {
 
 	requireDummyTableRows(t, st, a, b)
 
-	e = st.Delete(TestTable{}, 1)
+	e = st.Delete(TestTable{}, "Id = ?", 1)
 	require.NoError(t, e)
 
 	requireDummyTableRows(t, st, b)
@@ -512,7 +512,7 @@ func Test_Storm_DeleteAs_1(t *testing.T) {
 	st := openStormDatabase(t)
 	defer st.Close()
 
-	e := st.DeleteAs("TestDummy", TestTable{}, 1)
+	e := st.DeleteAs("TestDummy", TestTable{}, "Id = ?", 1)
 	require.NoError(t, e)
 }
 
@@ -529,7 +529,7 @@ func Test_Storm_DeleteAs_2(t *testing.T) {
 	e := st.CreateAs("TestDummy", TestTable{})
 	require.NoError(t, e)
 
-	e = st.DeleteAs("TestDummy", TestTable{}, 1)
+	e = st.DeleteAs("TestDummy", TestTable{}, "Id = ?", 1)
 	require.NoError(t, e)
 }
 
@@ -564,7 +564,7 @@ func Test_Storm_DeleteAs_3(t *testing.T) {
 
 	requireTableContains(t, st, "TestDummy", a, b)
 
-	e = st.DeleteAs("TestDummy", TestTable{}, 1)
+	e = st.DeleteAs("TestDummy", TestTable{}, "Id = ?", 1)
 	require.NoError(t, e)
 
 	requireTableContains(t, st, "TestDummy", b)

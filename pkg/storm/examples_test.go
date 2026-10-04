@@ -143,14 +143,13 @@ func ExampleStorm_List() {
 		},
 	)
 
-	players, err := st.List(Player{})
+	players, err := st.List(Player{}, "Rating > ?", 2)
 	_ = err
 
 	for _, p := range players {
 		fmt.Printf("%d: %s\n", p.Id, p.Name)
 	}
 	// Output:
-	// 1: Alice
 	// 2: Bob
 	// 3: Charlie
 }
@@ -186,7 +185,7 @@ func ExampleStorm_Get() {
 		},
 	)
 
-	bob, err := st.Get(Player{}, 2)
+	bob, err := st.Get(Player{}, "Id = ?", 2)
 	_ = err
 
 	fmt.Printf("%d: %s\n", bob.Id, bob.Name)
@@ -225,10 +224,10 @@ func ExampleStorm_Delete() {
 		},
 	)
 
-	err = st.Delete(Player{}, 2)
+	err = st.Delete(Player{}, "Id = ?", 2)
 	_ = err
 
-	players, err := st.List(Player{})
+	players, err := st.List(Player{}, "")
 	_ = err
 
 	for _, p := range players {

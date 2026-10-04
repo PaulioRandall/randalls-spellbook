@@ -61,7 +61,7 @@ func (mc ModelCache) ClearType(object any) {
 }
 
 // TableCache stores mappings between models and the
-// GoTypes they model with separate [ModelCache]s for
+// GoTypes they model with separate [ModelCache] for
 // each table.
 //
 // Because changes to table structure can be made at
@@ -69,11 +69,10 @@ func (mc ModelCache) ClearType(object any) {
 // to be certain about the integrity of any [Model]
 // and the state of the database table at anytime. As a
 // minimum, we have to assume a table's structure will not
-// change (or table deleted) for the duration of an
-// operation on a [Model]. However, the user programmer
-// (you) will usually have a clear idea about what can
-// change and when, thus, the user programmer is charged
-// with managing the cache.
+// change (or deleted) for the duration of an operation.
+// However, the user programmer (you) will usually have a
+// clear idea about what can change and when, thus, the
+// user programmer is charged with managing the cache.
 //
 // Because the cache is a map, Go's len, delete, and
 // clear functions work directly on instances of it.

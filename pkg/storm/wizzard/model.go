@@ -459,11 +459,11 @@ func (m Model) Update(db *sql.DB, object any) error {
 	return nil
 }
 
-// SelectAll returns all rows from the table the model
-// represents within passed database. It assumes the
-// database is open and the table exists.
-func (m Model) SelectAll[T any](db *sql.DB) ([]T, error) {
-	// TEST: ErrWrongObjectType is returned given bad type.
+// Select returns all rows matching the passed where clause
+// from the table the model represents within passed
+// database. It assumes the database is open and the table
+// exists.
+func (m Model) Select[T any](db *sql.DB, where string, args ...any) ([]T, error) {
 	var o T
 	if !m.Represents(o) {
 		return nil, ErrForModel.
@@ -471,17 +471,24 @@ func (m Model) SelectAll[T any](db *sql.DB) ([]T, error) {
 			Wrap(ErrWrongParameterType)
 	}
 
+	where = strings.TrimSpace(where)
+	if where != "" {
+		where = "WHERE " + where
+	}
+
 	query := nidoking.Given(`
 		SELECT
 			{{col.SqlName}}
 		FROM
 			{{table.SqlName}}
+		{{where}}
 	`).
 		InlineMap("table", m).
 		ListMap("col", ",", m.Props...).
+		Inline("where", where).
 		String()
 
-	rows, e := db.Query(query)
+	rows, e := db.Query(query, args...)
 	if e != nil {
 		return nil, ErrForModel.Fmt(m.GoName).Wrap(e)
 	}
@@ -489,20 +496,24 @@ func (m Model) SelectAll[T any](db *sql.DB) ([]T, error) {
 	return m.scanRows[T](rows)
 }
 
-// SelectById returns the table row with the passed ID
-// from the table the model represents within the passed
-// database. It assumes the database is open and the table
-// exists. The first return value will contain the row data
-// and second will be true if the row exists, else zero
-// value and false are returned.
-func (m Model) SelectById[T any](db *sql.DB, id any) (T, bool, error) {
+// SelectFirst returns the first row matching the passed
+// where clause from the table the model represents within
+// the passed database. It assumes the database is open and
+// the table exists. The first return value will contain
+// the row data and second will be true if the row exists,
+// else zero value and false are returned.
+func (m Model) SelectFirst[T any](db *sql.DB, where string, args ...any) (T, bool, error) {
 	var zero T
 
-	// TEST: ErrWrongObjectType is returned given bad type.
 	if !m.Represents(zero) {
 		return zero, false, ErrForModel.
 			Fmt(m.GoName).
 			Wrap(ErrWrongParameterType)
+	}
+
+	where = strings.TrimSpace(where)
+	if where != "" {
+		where = "WHERE " + where
 	}
 
 	query := nidoking.Given(`
@@ -510,15 +521,16 @@ func (m Model) SelectById[T any](db *sql.DB, id any) (T, bool, error) {
 			{{cols.SqlName}}
 		FROM
 			{{table.SqlName}}
-		WHERE
-			{{pk_col.SqlName}} = ?
+		{{where}}
+		LIMIT 1
 	`).
 		ListMap("cols", ",", m.Props...).
 		InlineMap("table", m).
 		InlineMap("pk_col", m.KeyProp()).
+		Inline("where", where).
 		String()
 
-	rows, e := db.Query(query, id)
+	rows, e := db.Query(query, args...)
 	if e != nil {
 		return zero, false, ErrForModel.Fmt(m.GoName).Wrap(e)
 	}
@@ -526,23 +538,28 @@ func (m Model) SelectById[T any](db *sql.DB, id any) (T, bool, error) {
 	return m.scanFirstRow[T](rows)
 }
 
-// DeleteById removes the table row with the given ID
-// from the table the model represents within the passed
-// database. It assumes the database is open and the table
-// exists. If no matching row is found then nothing happens
-// and no error is returned.
-func (m Model) DeleteById(db *sql.DB, id any) error {
+// Delete removes all table rows matching the given where
+// clause and arguments from the table the model represents
+// within the passed database. It assumes the database is
+// open and the table exists. If no matching rows are found
+// then nothing happens and no error is returned.
+func (m Model) Delete(db *sql.DB, where string, args ...any) error {
+	where = strings.TrimSpace(where)
+	if where != "" {
+		where = "WHERE " + where
+	}
+
 	query := nidoking.Given(`
 		DELETE FROM
 			{{table.SqlName}}
-		WHERE
-			{{pk_col.SqlName}} = ?
+		{{where}}
 	`).
 		InlineMap("table", m).
 		InlineMap("pk_col", m.KeyProp()).
+		Inline("where", where).
 		String()
 
-	_, e := db.Exec(query, id)
+	_, e := db.Exec(query, args...)
 	if e != nil {
 		return ErrForModel.Fmt(m.GoName).Wrap(e)
 	}

@@ -24,11 +24,11 @@
 // create a model or partial model for database operations
 // of any table; whether it is suitable is your decision.
 // A single struct may be used to for multiple tables using
-// the functions ending in 'As'. A model may be partial.
-// Partial models don't map field-to-column perfectly with
-// some exported struct fields that don't appear in the
-// table, and table columns that don't appear as a field in
-// the model's Go type.
+// the functions ending in 'As', e.g. CreateAs. A model
+// may be partial. Partial models don't map field-to-column
+// perfectly with some exported struct fields that don't
+// appear in the table, and table columns that don't appear
+// as a field in the model's Go type.
 //
 // # Operations
 //
@@ -36,12 +36,12 @@
 //     create tables.
 //   - [Storm.Put] and [Storm.PutAs] insert or update
 //     (upsert) data.
-//   - [Storm.List] and [Storm.ListAs] to select all data
-//     for a specific table.
-//   - [Storm.Get] and [Storm.GetAs] to select a specific
-//     entry by ID.
-//   - [Storm.Delete] and [Storm.DeleteAs] to delete an
-//     entry by ID.
+//   - [Storm.List] and [Storm.ListAs] to select all
+//     objects matching criteria.
+//   - [Storm.Get] and [Storm.GetAs] to select the first
+//     object matching criteria.
+//   - [Storm.Delete] and [Storm.DeleteAs] to delete all
+//     objects matching criteria.
 //   - [Storm.Drop] and [Storm.DropAs] to remove a table.
 //
 // # TODO
@@ -67,9 +67,6 @@
 //     exist, Create returns an error if the table already
 //     exists, and Drop and Delete operations return an
 //     error if the table doesn't exist.
-//   - Function to cause all errors to become panics
-//     instead allowing the error return value to be
-//     ignored for all functions.
 //   - Create function to copy or backup database.
 //   - Rename package to stormy.
 //   - Reorg named errors & test they are returned.

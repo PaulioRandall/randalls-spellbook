@@ -19,15 +19,4 @@
 // you're not really real. But since very few people are
 // really real, 'they' included, I wouldn't worry about it.
 // But I do recommend reading the entire Discworld series.
-//
-// # TODO
-//   - Add Select function to Model that accepts string
-//     WHERE clause followed by series of arguments to
-//     SQL parameters and returns all results.
-//   - Add SelectFirst function to Model that accepts
-//     string  WHERE clause followed by series of arguments to
-//     SQL parameters and returns a single result.
-//   - Add Delete function to Model that accepts string
-//     WHERE clause followed by series of arguments to
-//     SQL parameters.
 package wizzard

@@ -233,7 +233,7 @@ func Test_Model_Insert_Update_1(t *testing.T) {
 	requireDummyTableContains(t, db, newData)
 }
 
-func Test_Model_DeleteById_1(t *testing.T) {
+func Test_Model_Delete_1(t *testing.T) {
 	// When deleting data
 	// if the data row exists
 	// then the data is deleted
@@ -254,16 +254,17 @@ func Test_Model_DeleteById_1(t *testing.T) {
 	dbData := requireDummyTableContains(t, db)
 	require.Equal(t, 1, len(dbData))
 
-	e = model.DeleteById(db, 1)
+	e = model.Delete(db, "Id = ?", 1)
 	require.NoError(t, e)
 
 	dbData = requireDummyTableContains(t, db)
 	require.Equal(t, 0, len(dbData))
 }
 
-func Test_Model_SelectAll_1(t *testing.T) {
-	// When seelcting all data
-	// then all data is returned
+func Test_Model_Select_1(t *testing.T) {
+	// When selcting data
+	// if the where clause is empty
+	// then all rows are returned
 
 	db := createDummyTestDb(t)
 	defer db.Close()
@@ -293,15 +294,17 @@ func Test_Model_SelectAll_1(t *testing.T) {
 		require.NoError(t, e)
 	}
 
-	results, e := model.SelectAll[Dummy](db)
+	results, e := model.Select[Dummy](db, "")
 	require.NoError(t, e)
 	require.Equal(t, data, results)
 }
 
-func Test_Model_SelectById_1(t *testing.T) {
-	// When selcting a specific data row by ID
-	// if the row exists
-	// then all the data is returned
+func Test_Model_Select_2(t *testing.T) {
+	// When selecting data
+	// if the where clause has a statement filtering results
+	// and the where statement contains a parameter
+	// and an argument is provided
+	// then a filtered set of results are returned
 
 	db := createDummyTestDb(t)
 	defer db.Close()
@@ -331,15 +334,103 @@ func Test_Model_SelectById_1(t *testing.T) {
 		require.NoError(t, e)
 	}
 
-	result, found, e := model.SelectById[Dummy](db, 2)
+	results, e := model.Select[Dummy](db, "Rating > ?", 2)
+	require.NoError(t, e)
+
+	exp := data[1:] // Bob and Charlie only.
+	require.Equal(t, exp, results)
+}
+
+func Test_Model_SelectFirst_1(t *testing.T) {
+	// When selecting a specific row
+	// if the where clause is empty
+	// then the first row of the table is returned
+
+	db := createDummyTestDb(t)
+	defer db.Close()
+
+	model := modelOfDummy()
+
+	data := []Dummy{
+		Dummy{
+			Id:     1,
+			Name:   "Alice",
+			Rating: 1.11,
+		},
+		Dummy{
+			Id:     2,
+			Name:   "Bob",
+			Rating: 2.22,
+		},
+		Dummy{
+			Id:     3,
+			Name:   "Charlie",
+			Rating: 3.33,
+		},
+	}
+
+	for _, d := range data {
+		e := model.Upsert(db, d)
+		require.NoError(t, e)
+	}
+
+	result, found, e := model.SelectFirst[Dummy](db, "")
+	require.NoError(t, e)
+	require.Equal(t, true, found)
+	require.Equal(t, data[0], result)
+}
+
+func Test_Model_SelectFirst_2(t *testing.T) {
+	// When selecting a specific row
+	// if the where clause has a statement filtering results
+	// and the where statement contains a parameter
+	// and an argument is provided
+	// then the first item of filtered result set is returned
+
+	db := createDummyTestDb(t)
+	defer db.Close()
+
+	model := modelOfDummy()
+
+	data := []Dummy{
+		Dummy{
+			Id:     1,
+			Name:   "Alice",
+			Rating: 1.11,
+		},
+		Dummy{
+			Id:     2,
+			Name:   "Bob",
+			Rating: 2.22,
+		},
+		Dummy{
+			Id:     3,
+			Name:   "Charlie",
+			Rating: 3.33,
+		},
+	}
+
+	for _, d := range data {
+		e := model.Upsert(db, d)
+		require.NoError(t, e)
+	}
+
+	result, found, e := model.SelectFirst[Dummy](
+		db,
+		"Id = ?",
+		2,
+	)
 	require.NoError(t, e)
 	require.Equal(t, true, found)
 	require.Equal(t, data[1], result)
 }
 
-func Test_Model_SelectById_2(t *testing.T) {
-	// When selcting a specific data row by ID
-	// if the row does not exist
+func Test_Model_SelectFirst_3(t *testing.T) {
+	// When selecting a specific row
+	// if the where clause has a statement filtering results
+	// and the where statement contains a parameter
+	// and an argument is provided
+	// but where clause filters all results
 	// then the found flag is returned false
 
 	db := createDummyTestDb(t)
@@ -347,7 +438,34 @@ func Test_Model_SelectById_2(t *testing.T) {
 
 	model := modelOfDummy()
 
-	_, found, e := model.SelectById[Dummy](db, 2)
+	data := []Dummy{
+		Dummy{
+			Id:     1,
+			Name:   "Alice",
+			Rating: 1.11,
+		},
+		Dummy{
+			Id:     2,
+			Name:   "Bob",
+			Rating: 2.22,
+		},
+		Dummy{
+			Id:     3,
+			Name:   "Charlie",
+			Rating: 3.33,
+		},
+	}
+
+	for _, d := range data {
+		e := model.Upsert(db, d)
+		require.NoError(t, e)
+	}
+
+	_, found, e := model.SelectFirst[Dummy](
+		db,
+		"Id = ?",
+		4,
+	)
 	require.NoError(t, e)
 	require.Equal(t, false, found)
 }
