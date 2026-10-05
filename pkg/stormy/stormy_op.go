@@ -90,17 +90,13 @@ func (oc opCtx) CacheClearTable(name string) {
 // operations may occur in parallel. If you value your
 // sanity, do not close the database connection from within
 // the operation.
-func (st *Stormy) Custom[R any](op Operation[R]) (R, error) {
+func (st *Stormy) Custom[R any](op Operation[R]) (_ R, e error) {
 	var empty R
 
-	if !st.IsOpen() {
-		return empty, st.errNotOpen()
+	if e := st.setupOperation(); e != nil {
+		return empty, e
 	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.prepareMapper()
+	defer st.tearDownOperation(&e)
 
 	var dead bool
 	defer func() {
@@ -117,4 +113,46 @@ func (st *Stormy) Custom[R any](op Operation[R]) (R, error) {
 	}
 
 	return r, nil
+}
+
+// setupOperation must always be called at the start of an
+// operation.
+func (st *Stormy) setupOperation() error {
+	st.mutex.Lock()
+
+	if st.IsOpen() {
+		return nil
+	}
+
+	if st.openMode == OpenModeManual {
+		st.mutex.Unlock()
+		return st.errNotOpen()
+	}
+
+	if st.cacheMode == CacheModeRequest {
+		clear(st.mapper)
+	}
+
+	switch st.openMode {
+	case OpenModeRequest, OpenModePersist:
+		st.autoOpened = true
+		return st.open()
+	default:
+		panic("Sanity check! Unsupported OpenMode")
+	}
+}
+
+// tearDownOperation must always be defer called straight
+// after setupOperation.
+func (st *Stormy) tearDownOperation(errPtr *error) {
+	defer st.mutex.Unlock()
+
+	if st.autoOpened && st.openMode == OpenModeRequest {
+		e := st.close()
+
+		// Don't hide the original error.
+		if *errPtr == nil {
+			*errPtr = e
+		}
+	}
 }

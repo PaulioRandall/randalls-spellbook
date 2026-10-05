@@ -4,6 +4,42 @@ import (
 	"fmt"
 )
 
+func ExampleOpenMode() {
+	// YUDO: Error handling.
+
+	type Player struct {
+		Id     int
+		Name   string
+		Rating float64
+	}
+
+	st := New(":memory:")
+	defer st.Close()
+
+	fmt.Printf("Before any operation, IsOpen: %v\n", st.IsOpen())
+
+	// Stormy defaults to OpenModePersist which opens the
+	// database the moment you try to perform an operation
+	// then remains open until manually closed.
+	err := st.Create(Player{})
+	fmt.Printf("OpenModePersist, IsOpen: %v\n", st.IsOpen())
+	st.Close()
+
+	// OpenModeRequest will open a database to perform an
+	// operation then close. However, if the database is
+	// already open it is left open.
+	st.SetOpenMode(OpenModeRequest)
+	err = st.Create(Player{})
+	fmt.Printf("OpenModeRequest, IsOpen: %v\n", st.IsOpen())
+
+	// OpenModeManual disables auto opening and closing
+	// entirely. An error is returned if the database isn't
+	// open.
+	st.SetOpenMode(OpenModeManual)
+	err = st.Create(Player{})
+	fmt.Printf("OpenModeManual, Error: %v\n", err)
+}
+
 func ExampleStormy_Table() {
 	// YUDO: Error handling.
 

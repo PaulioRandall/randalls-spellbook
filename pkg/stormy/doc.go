@@ -27,9 +27,22 @@
 // fields that don't appear in the table, and table columns
 // that don't appear as fields in the struct.
 //
+// # Open Modes
+//
+// By default the database will open, if not already open,
+// when the first operation is called ([OpenModePersist]).
+// Other modes include [OpenModeRequest] which will open
+// to perform a request then close, but only if the
+// database wasn't already open. This can be ideal when
+// database interactions are rare and avoids the need for
+// clean up on app exit. Of course it shouldn't be used
+// when database interactions are regular as it degrades
+// application performance. [OpenModeManual] disables auto
+// opening and closing entirely.
+//
 // # Operations
 //
-// Operations were designed to be minimise errors by
+// Operations were designed to minimise errors by
 // making positive assumptions. For example, a check is
 // made on the existance of a table before executing a
 // query. If the table doesn't exist then an appropriate
@@ -50,17 +63,4 @@
 //     objects matching criteria.
 //   - [Stormy.Drop] and [Stormy.DropAs] to remove a table.
 //   - [Stormy.Custom] allows custom queries.
-//
-// # TODO
-//   - Add new mode: OpenMode,
-//   - OpenModeManual: that means the database performs
-//     no automated opening or closing of the database.
-//   - OpenModeRequest: upon making an API call that
-//     requires an open DB, if it is already open then
-//     it will remain open after the request, if it is
-//     not open then it will be opened for the request then
-//     closed.
-//   - OpenModePersist: upon making an API call that
-//     requires an open DB, if it is closed then it will be
-//     opened and remain open after the request (DEFAULT)
 package stormy

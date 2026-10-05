@@ -14,15 +14,11 @@ package stormy
 //     the field's Go type.
 //   - By default, the first field in the model is
 //     designated the key (ID and PRIMARY KEY).
-func (st *Stormy) Create(objects ...any) error {
-	if !st.IsOpen() {
-		return st.errNotOpen()
+func (st *Stormy) Create(objects ...any) (e error) {
+	if e = st.setupOperation(); e != nil {
+		return e
 	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.prepareMapper()
+	defer st.tearDownOperation(&e)
 
 	for _, obj := range objects {
 		model, exists, e := st.mapModel(obj)
@@ -46,15 +42,11 @@ func (st *Stormy) Create(objects ...any) error {
 // CreateAs is the same as [Stormy.Create] except the table
 // name is provided explicitly and only a single table may
 // be created per call.
-func (st *Stormy) CreateAs(table string, object any) error {
-	if !st.IsOpen() {
-		return st.errNotOpen()
+func (st *Stormy) CreateAs(table string, object any) (e error) {
+	if e = st.setupOperation(); e != nil {
+		return e
 	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.prepareMapper()
+	defer st.tearDownOperation(&e)
 
 	model, exists, e := st.mapModelAs(table, object)
 	if e != nil {
@@ -84,19 +76,15 @@ func (st *Stormy) CreateAs(table string, object any) error {
 // you'll need to call [Stormy.Create] or [Stormy.CreateAs]
 // with an object representing the full model first to
 // ensure all columns are created.
-func (st *Stormy) Put[T any](objects ...T) error {
-	if !st.IsOpen() {
-		return st.errNotOpen()
+func (st *Stormy) Put[T any](objects ...T) (e error) {
+	if e = st.setupOperation(); e != nil {
+		return e
 	}
+	defer st.tearDownOperation(&e)
 
 	if len(objects) == 0 {
 		return nil
 	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.prepareMapper()
 
 	for _, o := range objects {
 		model, exists, e := st.mapModel(o)
@@ -128,19 +116,15 @@ func (st *Stormy) Put[T any](objects ...T) error {
 // the named table should be passed. Passing the wrong
 // objects may cause an error but it may insert some of
 // those objects into the table, poisoning your data.
-func (st *Stormy) PutAs[T any](table string, objects ...T) error {
-	if !st.IsOpen() {
-		return st.errNotOpen()
+func (st *Stormy) PutAs[T any](table string, objects ...T) (e error) {
+	if e = st.setupOperation(); e != nil {
+		return e
 	}
+	defer st.tearDownOperation(&e)
 
 	if len(objects) == 0 {
 		return nil
 	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.prepareMapper()
 
 	for _, o := range objects {
 		model, exists, e := st.mapModelAs(table, objects[0])
@@ -173,14 +157,10 @@ func (st *Stormy) PutAs[T any](table string, objects ...T) error {
 // arguments. If the table doesn't exist a nil or empty
 // result set is returned, not an error.
 func (st *Stormy) List[T any](object T, where string, args ...any) (result []T, e error) {
-	if !st.IsOpen() {
-		return nil, st.errNotOpen()
+	if e = st.setupOperation(); e != nil {
+		return nil, e
 	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.prepareMapper()
+	defer st.tearDownOperation(&e)
 
 	model, found, e := st.mapModel(object)
 	if e != nil {
@@ -202,14 +182,10 @@ func (st *Stormy) List[T any](object T, where string, args ...any) (result []T, 
 // ListAs is the same as [Stormy.List] except the table
 // name is provided explicitly.
 func (st *Stormy) ListAs[T any](table string, object T, where string, args ...any) (result []T, e error) {
-	if !st.IsOpen() {
-		return nil, st.errNotOpen()
+	if e = st.setupOperation(); e != nil {
+		return nil, e
 	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.prepareMapper()
+	defer st.tearDownOperation(&e)
 
 	model, found, e := st.mapModelAs(table, object)
 	if e != nil {
@@ -234,14 +210,10 @@ func (st *Stormy) ListAs[T any](table string, object T, where string, args ...an
 func (st *Stormy) Get[T any](object T, where string, args ...any) (result T, found bool, e error) {
 	var empty T
 
-	if !st.IsOpen() {
-		return empty, false, st.errNotOpen()
+	if e = st.setupOperation(); e != nil {
+		return empty, false, e
 	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.prepareMapper()
+	defer st.tearDownOperation(&e)
 
 	model, found, e := st.mapModel(object)
 	if e != nil {
@@ -269,14 +241,10 @@ func (st *Stormy) Get[T any](object T, where string, args ...any) (result T, fou
 func (st *Stormy) GetAs[T any](table string, object T, where string, args ...any) (result T, found bool, e error) {
 	var empty T
 
-	if !st.IsOpen() {
-		return empty, false, st.errNotOpen()
+	if e = st.setupOperation(); e != nil {
+		return empty, false, e
 	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.prepareMapper()
+	defer st.tearDownOperation(&e)
 
 	model, found, e := st.mapModelAs(table, object)
 	if e != nil {
@@ -302,15 +270,12 @@ func (st *Stormy) GetAs[T any](table string, object T, where string, args ...any
 // Delete removes the objects (rows) matching the given
 // where clause and arguments from the table the passed
 // object maps to. If no rows match then nothing happens.
-func (st *Stormy) Delete[T any](object T, where string, args ...any) error {
-	if !st.IsOpen() {
-		return st.errNotOpen()
+func (st *Stormy) Delete[T any](object T, where string, args ...any) (e error) {
+	if e = st.setupOperation(); e != nil {
+		return e
 	}
+	defer st.tearDownOperation(&e)
 
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.prepareMapper()
 	model, found, e := st.mapModel(object)
 	if e != nil {
 		return st.errForType(object, e)
@@ -330,15 +295,11 @@ func (st *Stormy) Delete[T any](object T, where string, args ...any) error {
 
 // DeleteAs is the same as [Stormy.Delete] except the table
 // name is provided explicitly.
-func (st *Stormy) DeleteAs[T any](table string, object T, where string, args ...any) error {
-	if !st.IsOpen() {
-		return st.errNotOpen()
+func (st *Stormy) DeleteAs[T any](table string, object T, where string, args ...any) (e error) {
+	if e = st.setupOperation(); e != nil {
+		return e
 	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.prepareMapper()
+	defer st.tearDownOperation(&e)
 
 	model, found, e := st.mapModelAs(table, object)
 	if e != nil {
@@ -363,19 +324,15 @@ func (st *Stormy) DeleteAs[T any](table string, object T, where string, args ...
 // table are also removed. All table data is deleted in the
 // process and there's no way to restore it. To protect
 // data, create backups of the database file.
-func (st *Stormy) Drop(objects ...any) error {
-	if !st.IsOpen() {
-		return st.errNotOpen()
+func (st *Stormy) Drop(objects ...any) (e error) {
+	if e = st.setupOperation(); e != nil {
+		return e
 	}
+	defer st.tearDownOperation(&e)
 
 	if len(objects) == 0 {
 		return nil
 	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.prepareMapper()
 
 	for _, o := range objects {
 		model, found, e := st.mapModel(o)
@@ -400,13 +357,11 @@ func (st *Stormy) Drop(objects ...any) error {
 
 // DropAs is the same as [Stormy.Drop] except the table
 // names are provided explicitly.
-func (st *Stormy) DropAs(tables ...string) error {
-	if !st.IsOpen() {
-		return st.errNotOpen()
+func (st *Stormy) DropAs(tables ...string) (e error) {
+	if e = st.setupOperation(); e != nil {
+		return e
 	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
+	defer st.tearDownOperation(&e)
 
 	type dummyObject struct{}
 	for _, table := range tables {

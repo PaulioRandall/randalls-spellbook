@@ -5,52 +5,28 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	ref "reflect"
+	"reflect"
 	"strings"
 	"sync"
 
 	_ "github.com/glebarez/go-sqlite"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/stormy/wizzard"
-)
-
-// CacheMode represents an approach to caching parsed
-// models.
-type CacheMode int
-
-const (
-	// CacheModeNone means caching is disabled.
-	CacheModeNone CacheMode = iota
-
-	// CacheModeRequest means the cache is reset for each
-	// request. This is useful if the structure or existence
-	// of tables is changed external to stormy but not during
-	// operations like [Stormy.Put] which can accepts
-	// heterogeneous data types but input is usually
-	// homogeneous.
-	CacheModeRequest
-
-	// CacheModeSession means entries persist across the
-	// session, but dropping a table will remove all entries
-	// for that table. Cache will be cleared on database
-	// close. Use this mode if the database is only written
-	// to via a single Stormy object (which is the
-	// most common scenario, thus this is the default mode).
-	CacheModeSession
 )
 
 // Stormy is the core type for interfacing with the
 // database. Operations share a single mutex so only
 // a single operation is permitted at once.
 type Stormy struct {
-	path      string
-	db        *sql.DB
-	mutex     sync.Mutex
-	cacheMode CacheMode
-	mapper    wizzard.TableCache
+	path       string
+	db         *sql.DB
+	mutex      sync.Mutex
+	openMode   OpenMode
+	autoOpened bool
+	cacheMode  CacheMode
+	mapper     wizzard.TableCache
 }
 
 // New returns a new [Stormy] object for the database
@@ -58,6 +34,7 @@ type Stormy struct {
 func New(path string) *Stormy {
 	return &Stormy{
 		path:      path,
+		openMode:  OpenModePersist,
 		cacheMode: CacheModeSession,
 		mapper:    wizzard.TableCache{},
 	}
@@ -66,86 +43,19 @@ func New(path string) *Stormy {
 // Open creates a new [Stormy] object for the database
 // represented by path, and opens it before returning.
 func Open(path string) (*Stormy, error) {
-	st := &Stormy{
-		path:      path,
-		cacheMode: CacheModeSession,
-		mapper:    wizzard.TableCache{},
-	}
+	st := New(path)
 	return st, st.Open()
-}
-
-// CacheMode returns the current caching mode.
-func (st *Stormy) CacheMode() CacheMode {
-	return st.cacheMode
-}
-
-// SetCacheMode sets the caching mode. If the mode is
-// already set then nothing happens, else the cache
-// content is cleared before returning.
-func (st *Stormy) SetCacheMode(mode CacheMode) {
-	if st.cacheMode == mode {
-		return
-	}
-
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.cacheMode = mode
-	clear(st.mapper)
-}
-
-// CacheClear clears the cache regardless of caching mode.
-func (st *Stormy) CacheClear() {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	clear(st.mapper)
-}
-
-// CacheClearModel removes all cache entries associated
-// with a specific model regardless of caching mode.
-func (st *Stormy) CacheClearModel(model any) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.mapper.ClearType(model)
-}
-
-// CacheClearModel removes all cache entries associated
-// with a specific table regardless of caching mode.
-func (st *Stormy) CacheClearTable(name string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	st.mapper.ClearTable(name)
 }
 
 // Open opens the database. If not an 'in-memory' path then
 // the missing directories in the directory path are
 // created.
 func (st *Stormy) Open() error {
-	if st.IsOpen() {
-		return nil
-	}
-
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
-	e := makeParentDirs(st.path)
-	if e != nil {
-		return e
-	}
-
-	db, e := sql.Open("sqlite", st.path)
-	if e != nil {
-		return sin.Err("Unable to open SQLite database").
-			Wrap(e).
-			WrapIn(ErrForDatabase).
-			Fmt(st.path)
-	}
-
-	st.db = db
-	return nil
+	st.autoOpened = false
+	return st.open()
 }
 
 // IsOpen returns true if the database is open.
@@ -165,12 +75,37 @@ func (st *Stormy) Database() *sql.DB {
 // The cache content is always cleared on close regardless
 // of caching mode.
 func (st *Stormy) Close() error {
-	if !st.IsOpen() {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+	return st.close()
+}
+
+func (st *Stormy) open() error {
+	if st.IsOpen() {
 		return nil
 	}
 
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
+	e := makeParentDirs(st.path)
+	if e != nil {
+		return e
+	}
+
+	db, e := sql.Open("sqlite", st.path)
+	if e != nil {
+		return sin.Err("Unable to open SQLite database").
+			Wrap(e).
+			WrapIn(ErrForDatabase).
+			Fmt(st.path)
+	}
+
+	st.db = db
+	return nil
+}
+
+func (st *Stormy) close() error {
+	if !st.IsOpen() {
+		return nil
+	}
 
 	clear(st.mapper)
 
@@ -189,43 +124,6 @@ func (st *Stormy) Close() error {
 		Fmt(st.path)
 }
 
-// Table returns the full table details of the passed
-// object's type name. The returned model is a container
-// for information only and considered invalid for
-// operations.
-func (st *Stormy) Table(object any) (wizzard.Model, error) {
-	return st.TableAs(typeName(object))
-}
-
-// TableAs is the same as [Stormy.Table] except the table
-// name is provided explicitly.
-func (st *Stormy) TableAs(table string) (wizzard.Model, error) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	t, e := scumble.QueryTable(st.db, table)
-
-	if e != nil {
-		return wizzard.Model{}, st.errForTable(table, e)
-	}
-
-	model := wizzard.Model{
-		SqlName: t.Name,
-		Props:   make([]wizzard.Property, len(t.Columns)),
-	}
-
-	for i, c := range t.Columns {
-		model.Props[i] = wizzard.Property{
-			SqlName:    c.Name,
-			SqlType:    c.Type,
-			SqlDefault: defaultGoTypeForSqlType(c.Type),
-			IsKey:      c.PrimaryKey,
-		}
-	}
-
-	return model, nil
-}
-
 func defaultGoTypeForSqlType(sqlType string) any {
 	switch sqlType {
 	case "INTEGER":
@@ -236,75 +134,6 @@ func defaultGoTypeForSqlType(sqlType string) any {
 		return string("")
 	default:
 		panic("Unsupport SQL type: " + sqlType)
-	}
-}
-
-func makeParentDirs(path string) error {
-	if isInMemoryDatabase(path) {
-		// There is no path!
-		return nil
-	}
-
-	parent := filepath.Dir(path)
-	e := os.MkdirAll(parent, os.ModePerm)
-	if e == nil {
-		return nil
-	}
-
-	return sin.Err(
-		"Unable to verify or create path to SQLite database",
-	).Wrap(e)
-}
-
-// isInMemoryDatabase determines if the path will open an
-// in-memory database. There are probably a few very
-// uncommon and highly niche edge cases that are not
-// covered. Tough! I CBA to deal with them and don't
-// currently trust Claudes output on the matter of
-// detecting in-memory database paths.
-//
-// The path is being used like: sql.Open("sqlite", path).
-func isInMemoryDatabase(path string) bool {
-	name, _, _ := strings.Cut(path, "?")
-	if name == ":memory:" || name == "file::memory:" {
-		return true
-	}
-
-	if !strings.HasPrefix(path, "file:") {
-		// Can't be in-memory if it doesn't use the file scheme
-		// or is not the special filename ":memory:".
-		return false
-	}
-
-	u, e := url.Parse(path)
-	if e != nil {
-		// Fails to parse then assume it's not in-memory.
-		return false
-	}
-
-	if u.Query().Get("mode") == "memory" {
-		// Named in-memory database.
-		return true
-	}
-
-	if u.Query().Get("vfs") == "memdb" {
-		// Alternative way to specify in-memory.
-		return true
-	}
-
-	// Finally, handle encoded path.
-	name = u.Opaque
-	if name == "" {
-		name = u.Path
-	}
-
-	name, _ = url.PathUnescape(name)
-	return name == ":memory:"
-}
-
-func (st *Stormy) prepareMapper() {
-	if st.cacheMode == CacheModeRequest {
-		clear(st.mapper)
 	}
 }
 
@@ -372,10 +201,69 @@ func (st *Stormy) errForModel(
 		Fmt(st.path)
 }
 
-func typeName(model any) string {
-	return typeOf(model).Name()
+func makeParentDirs(path string) error {
+	if isInMemoryDatabase(path) {
+		// There is no path!
+		return nil
+	}
+
+	parent := filepath.Dir(path)
+	e := os.MkdirAll(parent, os.ModePerm)
+	if e == nil {
+		return nil
+	}
+
+	return sin.Err(
+		"Unable to verify or create path to SQLite database",
+	).Wrap(e)
 }
 
-func typeOf(model any) ref.Type {
-	return ref.TypeOf(model)
+// isInMemoryDatabase determines if the path will open an
+// in-memory database. There are probably a few very
+// uncommon and highly niche edge cases that are not
+// covered. Tough! I CBA to deal with them and don't
+// currently trust Claudes output on the matter of
+// detecting in-memory database paths.
+//
+// The path is being used like: sql.Open("sqlite", path).
+func isInMemoryDatabase(path string) bool {
+	name, _, _ := strings.Cut(path, "?")
+	if name == ":memory:" || name == "file::memory:" {
+		return true
+	}
+
+	if !strings.HasPrefix(path, "file:") {
+		// Can't be in-memory if it doesn't use the file scheme
+		// or is not the special filename ":memory:".
+		return false
+	}
+
+	u, e := url.Parse(path)
+	if e != nil {
+		// Fails to parse then assume it's not in-memory.
+		return false
+	}
+
+	if u.Query().Get("mode") == "memory" {
+		// Named in-memory database.
+		return true
+	}
+
+	if u.Query().Get("vfs") == "memdb" {
+		// Alternative way to specify in-memory.
+		return true
+	}
+
+	// Finally, handle encoded path.
+	name = u.Opaque
+	if name == "" {
+		name = u.Path
+	}
+
+	name, _ = url.PathUnescape(name)
+	return name == ":memory:"
+}
+
+func typeName(model any) string {
+	return reflect.TypeOf(model).Name()
 }

@@ -107,6 +107,24 @@ func Test_Stormy_Open_Close_1(t *testing.T) {
 	require.Equal(t, false, st.IsOpen())
 }
 
+func Test_Stormy_OpenModeRequest_1(t *testing.T) {
+	// Ensure OpenModeRequest opens and closes the database
+	// for the operation.
+
+	st := New(":memory:")
+	defer st.Close()
+
+	st.SetOpenMode(OpenModeRequest)
+	require.Equal(t, false, st.IsOpen())
+
+	type TestDummy struct {
+		Id int
+	}
+	e := st.Create(TestDummy{})
+	require.NoError(t, e)
+	require.Equal(t, false, st.IsOpen())
+}
+
 func Test_isInMemoryDatabase(t *testing.T) {
 	cases := map[string]bool{
 		// The simple case.
