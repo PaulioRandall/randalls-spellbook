@@ -189,29 +189,54 @@ func (st *Stormy) Close() error {
 		Fmt(st.path)
 }
 
-// Table returns the full table details the passed object
-// maps to. All columns in the table are included, not
-// just those that are mapped.
-func (st *Stormy) Table(model any) (scumble.SqlTable, error) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
-
-	return scumble.QueryTable(
-		st.db,
-		typeName(model),
-	)
+// Table returns the full table details of the passed
+// object's type name. The returned model is a container
+// for information only and considered invalid for
+// operations.
+func (st *Stormy) Table(object any) (wizzard.Model, error) {
+	return st.TableAs(typeName(object))
 }
 
 // TableAs is the same as [Stormy.Table] except the table
 // name is provided explicitly.
-func (st *Stormy) TableAs(table string) (scumble.SqlTable, error) {
+func (st *Stormy) TableAs(table string) (wizzard.Model, error) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
-	return scumble.QueryTable(
-		st.db,
-		table,
-	)
+	t, e := scumble.QueryTable(st.db, table)
+
+	if e != nil {
+		return wizzard.Model{}, st.errForTable(table, e)
+	}
+
+	model := wizzard.Model{
+		SqlName: t.Name,
+		Props:   make([]wizzard.Property, len(t.Columns)),
+	}
+
+	for i, c := range t.Columns {
+		model.Props[i] = wizzard.Property{
+			SqlName:    c.Name,
+			SqlType:    c.Type,
+			SqlDefault: defaultGoTypeForSqlType(c.Type),
+			IsKey:      c.PrimaryKey,
+		}
+	}
+
+	return model, nil
+}
+
+func defaultGoTypeForSqlType(sqlType string) any {
+	switch sqlType {
+	case "INTEGER":
+		return int(0)
+	case "REAL":
+		return float64(0)
+	case "TEXT":
+		return string("")
+	default:
+		panic("Unsupport SQL type: " + sqlType)
+	}
 }
 
 func makeParentDirs(path string) error {

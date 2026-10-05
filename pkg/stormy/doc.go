@@ -52,9 +52,6 @@
 //   - [Stormy.Custom] allows custom queries.
 //
 // # TODO
-//   - Revisit Table function. Change to return
-//     wizzard.Model instead but without any Go type
-//     information.
 //   - Add new mode: OpenMode,
 //   - OpenModeManual: that means the database performs
 //     no automated opening or closing of the database.

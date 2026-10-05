@@ -18,21 +18,14 @@ func ExampleStormy_Table() {
 	err = st.Create(Player{})
 
 	// Point of interest.
-	table, err := st.Table(Player{})
+	model, err := st.Table(Player{})
 
 	_ = err
 
-	fmt.Println(table.Name)
-	for _, col := range table.Columns {
-		if col.PrimaryKey {
-			fmt.Printf("\t%s %s PRIMARY KEY\n", col.Name, col.Type)
-		} else {
-			fmt.Printf("\t%s %s\n", col.Name, col.Type)
-		}
-	}
+	fmt.Println(model.SqlTableString())
 	// Output:
-	// Player
-	//	Id INTEGER PRIMARY KEY
+	// Sql Table: Player
+	//	Id INTEGER
 	//	Name TEXT
 	//	Rating REAL
 }
