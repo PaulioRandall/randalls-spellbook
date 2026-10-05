@@ -12,7 +12,7 @@ type Counter struct {
 	Value float64
 }
 
-func (c *Counter) Init(a *App) func() error {
+func (c *Counter) Init(a *App) func() {
 	// Initialisation code called on app start.
 	c.Value = 0
 
@@ -50,9 +50,10 @@ func Example() {
 		log.Fatal(e)
 	}
 
-	e = NewApp().
+	e = New().
 		Name("Example App").
-		Size(400, 320).
+		Width(400).
+		Height(320).
 		AddEntity(&Counter{}).
 		AddServer("/", http.FileServerFS(webpage)).
 		Start() // Blocks until WebView exits.

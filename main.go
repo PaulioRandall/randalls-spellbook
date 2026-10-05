@@ -19,19 +19,15 @@ func main() {
 		log.Fatal(e)
 	}
 
-	appPortal := &app.App{}
-	dsPortal := &app.Datastore{}
-
-	e = sourcery.NewCreator().
+	e = sourcery.New().
 		Debug().
 		Name("Randall's Spellbook").
-		Size(800, 600).
-		AddPortal(appPortal).
-		AddPortal(dsPortal).
-		AddServer("/media/", dsPortal).
+		Width(800).
+		Height(600).
+		AddEntity(&app.Util{}).
+		AddEntityServer("/media/", &app.Datastore{}).
 		AddServer("/", http.FileServerFS(uiFiles)).
-		BuildWorld().
-		Enter() // Blocks until WebView closes.
+		Start() // Blocks until WebView closes.
 
 	if e != nil {
 		log.Fatal(e)

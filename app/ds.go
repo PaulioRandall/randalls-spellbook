@@ -11,7 +11,7 @@ type Datastore struct {
 	db   *stormy.Stormy
 }
 
-func (ds *Datastore) Init(w *sourcery.World) {
+func (ds *Datastore) Init(w *sourcery.World) func() {
 	var e error
 
 	// TODO: Allow user to specify DB path.
@@ -25,13 +25,13 @@ func (ds *Datastore) Init(w *sourcery.World) {
 	if e != nil {
 		panic(e)
 	}
+
+	return ds.free
 }
 
-func (ds *Datastore) Free() {
+func (ds *Datastore) free() {
 	if ds.db != nil {
 		ds.db.Close()
 		ds.db = nil
 	}
 }
-
-var _ sourcery.Portal = &Datastore{}

@@ -2,32 +2,35 @@ package app
 
 import (
 	"github.com/crgimenes/glaze"
+	"github.com/google/uuid"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
 )
 
-type App struct {
+type Util struct {
 	w      *sourcery.World
 	dbPath string
 }
 
-func (app *App) Init(w *sourcery.World) {
-	app.w = w
+func (u *Util) Init(w *sourcery.World) func() {
+	u.w = w
 	// TODO: Allow user to specify DB path.
-	app.dbPath = "./testproject/data.sqlite"
+	u.dbPath = "./testproject/data.sqlite"
+
+	return func() {
+		u.w = nil
+	}
 }
 
-func (app *App) Free() {
-	app.w = nil
-}
-
-func (app *App) SelectLocalFile(
+func (u *Util) SelectLocalFile(
 	title string,
 ) (string, error) {
 	// Blocks!
-	return app.w.WebView().OpenFile(glaze.FileDialogOptions{
+	return u.w.WebView().OpenFile(glaze.FileDialogOptions{
 		Title: title,
 	})
 }
 
-var _ sourcery.Portal = &App{}
+func randomEntityId() string {
+	return uuid.New().String()
+}

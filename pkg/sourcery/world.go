@@ -8,43 +8,61 @@ import (
 )
 
 type World struct {
-	options   AppOptions
-	portalMap PortalMap
-	funcMap   FuncMap
-	webview   glaze.WebView
+	options        AppOptions
+	functions      map[string]any
+	initialisers   []Initable
+	uninitialisers []func()
+	webview        glaze.WebView
 }
 
-func buildWorld(
-	options AppOptions,
-	portalMap PortalMap,
-	funcMap FuncMap,
-) *World {
-	return &World{
-		options:   options,
-		portalMap: portalMap,
-		funcMap:   funcMap,
+func (w *World) run() error {
+	w.options.OnWebViewReady = w.onWebViewReady
+	e := AppWindow(w.options)
+
+	for _, unit := range w.uninitialisers {
+		unit()
 	}
+
+	return e
 }
 
 func (w *World) WebView() glaze.WebView {
 	return w.webview
 }
 
-func (w *World) Enter() error {
-	w.options.OnWebViewReady = w.onWebViewReady
-	e := AppWindow(w.options)
-
-	w.Log("Freeing portals:")
-	for name, port := range w.portalMap {
-		w.Log("\t%s{}", name)
-		port.Free()
-	}
-
-	return e
-}
-
 func (w *World) Exit() {
 	w.WebView().Terminate()
+}
+
+func (w *World) GoRaw(
+	funcName string,
+	jsonArgs string,
+) (any, error) {
+	if f, ok := w.functions[funcName]; ok {
+		w.Log("Go: %s", funcName)
+		thunk, e := WithJsonArgs(f, jsonArgs)
+
+		if e != nil {
+			return nil, e
+		}
+
+		return thunk.Call()
+	}
+
+	w.Log("Unknown function: %s", funcName)
+	return nil, fmt.Errorf("Unknown function: %s", funcName)
+}
+
+func (w *World) Log(msg string, args ...any) {
+	if !w.options.Debug {
+		return
+	}
+
+	if len(args) > 0 {
+		msg = fmt.Sprintf(msg, args...)
+	}
+
+	fmt.Printf("%s\n", prefixLines(msg, "[Sourcery] "))
 }
 
 func (w *World) onWebViewReady(wv glaze.WebView) error {
@@ -64,47 +82,13 @@ func (w *World) onWebViewReady(wv glaze.WebView) error {
 		return e
 	}
 
-	w.Log("Functions registered:")
-	for name, _ := range w.funcMap {
-		w.Log("\t%s", name)
-	}
-
-	w.Log("Opening portals:")
-	for name, port := range w.portalMap {
-		w.Log("\t%s{}", name)
-		port.Init(w)
+	for _, initable := range w.initialisers {
+		if unit := initable.Init(w); unit != nil {
+			w.uninitialisers = append(w.uninitialisers, unit)
+		}
 	}
 
 	return nil
-}
-
-func (w *World) GoRaw(
-	funcName string,
-	jsonArgs string,
-) (any, error) {
-	if f, ok := w.funcMap[funcName]; ok {
-		w.Log("Go: %s", funcName)
-		thunk, e := WithJsonArgs(f, jsonArgs)
-		if e != nil {
-			return nil, e
-		}
-		return thunk.Call()
-	}
-
-	w.Log("Unknown function: %s", funcName)
-	return nil, fmt.Errorf("Unknown function: %s", funcName)
-}
-
-func (w *World) Log(msg string, args ...any) {
-	if !w.options.Debug {
-		return
-	}
-
-	if len(args) > 0 {
-		msg = fmt.Sprintf(msg, args...)
-	}
-
-	fmt.Printf("%s\n", prefixLines(msg, "[Sourcery] "))
 }
 
 func prefixLines(s, pre string) string {
