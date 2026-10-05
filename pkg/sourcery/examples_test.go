@@ -8,120 +8,56 @@ import (
 	"net/http"
 )
 
-type Box struct {
-	w     *World
-	value int
+type Counter struct {
+	Value float64
 }
 
-func (b *Box) Init(w *World) {
-	b.w = w
-	fmt.Printf("Initial box value is %d\n", b.value)
-}
+func (c *Counter) Init(a *App) func() error {
+	// Initialisation code called on app start.
+	c.Value = 0
 
-func (b *Box) Free() {
-	fmt.Printf("Final box value is %d\n", b.value)
-}
-
-func (b *Box) GetValue() int {
-	return b.value
-}
-
-func (b *Box) SetValue(n int) {
-	b.value = n
-	fmt.Printf("New box value is %d\n", b.value)
-
-	if b.value >= 5 {
-		b.w.Exit()
+	return func() {
+		// Clean up code called on app exit.
+		c.Value = -1
 	}
+}
+
+func (c *Counter) Set(n float64) {
+	c.Value = n
+}
+
+func (c *Counter) MultiplyBy(n float64) float64 {
+	return c.Value * n
+}
+
+func (c *Counter) DivideBy(n float64) (float64, error) {
+	if n == 0 {
+		return 0, fmt.Errorf("You can't divide %v by %v", c.Value, n)
+	}
+	return c.Value / n, nil
+}
+
+func (c *Counter) Print() {
+	fmt.Printf("Counter.Value == %v\n", c.Value)
 }
 
 //go:embed testdata
 var testdata embed.FS
 
-func _Example() {
-	/*
-		type Box struct {
-			w     *World
-			value int
-		}
-
-		func (b *Box) Init(w *World) {
-			b.w = w
-			fmt.Printf("Initial box value is %d\n", b.value)
-		}
-
-		func (b *Box) Free() {
-			fmt.Printf("Final box value is %d\n", b.value)
-		}
-
-		func (b *Box) GetValue() int {
-			return b.value
-		}
-
-		func (b *Box) SetValue(n int) {
-			b.value = n
-			fmt.Printf("New box value is %d\n", b.value)
-
-			if b.value >= 5 {
-				b.w.Exit()
-			}
-		}
-
-		//go:embed testdata
-		var testdata embed.FS
-
-		<!DOCTYPE html>
-		<html>
-			<body>
-				<p>Count: <span id="value">0</span><p>
-				<p id="error" color="red"></p>
-
-				<script>
-					function onError(e) {
-						document.getElementById('error').innerHTML = e
-						throw e
-					}
-
-					function incrementValue() {
-						Go("Box.GetValue")
-							.then(value => {
-								value++
-								document.getElementById('value').innerHTML = value
-								Go("Box.SetValue", value).catch(onError)
-								setTimeout(incrementValue, delayMS)
-							})
-							.catch(onError)
-					}
-
-					const delayMS = 250
-					setTimeout(incrementValue, delayMS)
-				</script>
-			</body>
-		</html>
-	*/
-
+func Example() {
 	webpage, e := fs.Sub(testdata, "testdata")
 	if e != nil {
 		log.Fatal(e)
 	}
 
-	e = NewCreator().
+	e = NewApp().
 		Name("Example App").
 		Size(400, 320).
-		AddPortal(&Box{}).
+		AddEntity(&Counter{}).
 		AddServer("/", http.FileServerFS(webpage)).
-		BuildWorld().
-		Enter() // Blocks until WebView closes.
+		Start() // Blocks until WebView exits.
 
 	if e != nil {
 		log.Fatal(e)
 	}
-	// Output:
-	// Initial box value is 0
-	// New box value is 1
-	// New box value is 2
-	// New box value is 3
-	// New box value is 4
-	// New box value is 5
-	// Final box value is 5
 }

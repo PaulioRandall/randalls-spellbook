@@ -41,8 +41,6 @@
 package sourcery
 
 import (
-	"github.com/crgimenes/glaze"
-
 	"context"
 	"errors"
 	"fmt"
@@ -53,6 +51,8 @@ import (
 	"os"
 	"runtime"
 	"time"
+
+	"github.com/crgimenes/glaze"
 )
 
 // AppTransport selects how AppWindow serves HTTP to the embedded browser.
