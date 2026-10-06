@@ -48,10 +48,8 @@ func Plunder(e error) Curse {
 	}
 }
 
-// Hijack returns a new curse using the message of the
-// passed error as the curse's message and wraps any error
-// the passed error wraps. It will panic if the passed
-// error is nil.
+// Hijack is the same as [Plunder] except the error chain
+// is also plundered.
 func Hijack(e error) Curse {
 	type unwrapper interface {
 		Unwrap() error
@@ -84,7 +82,7 @@ func (cu Curse) WrapIn[T Curse | TemplateCurse](symptom T) T {
 }
 
 // WrapErr wraps the curse in a new curse with the given
-// message.
+// message. The receiving curse is returned.
 func (cu Curse) WrapErr(message string) Curse {
 	return Curse{
 		errId:   uuid.New().String(),
@@ -94,7 +92,8 @@ func (cu Curse) WrapErr(message string) Curse {
 }
 
 // WrapFmt wraps the curse in a new curse with the given
-// message and formatting arguments.
+// message and formatting arguments. The receiving curse is
+// returned.
 func (cu Curse) WrapFmt(message string, args ...any) Curse {
 	return Curse{
 		errId:   uuid.New().String(),
@@ -104,7 +103,7 @@ func (cu Curse) WrapFmt(message string, args ...any) Curse {
 }
 
 // Wrap wraps the cause error replacing any existing
-// cause.
+// cause. The receiving curse is returned.
 func (cu Curse) Wrap(cause error) Curse {
 	cu.Cause = cause
 	return cu
@@ -134,24 +133,29 @@ func (cu Curse) Is(target error) bool {
 // Error returns the error message, satisfying Go's error
 // interface.
 func (cu Curse) Error() string {
-	return cu.AsRawStack(false)
+	return cu.StackString()
 }
 
-// AsStack returns the result of passing the Curse to
-// [AsStack].
-func (cu Curse) AsStack(reversed bool) string {
-	return AsStack(cu, reversed)
+// StackString returns the result of passing the Curse to
+// [StackString].
+func (cu Curse) StackString() string {
+	return StackString(cu)
 }
 
-// AsRawStack returns the result of passing the Curse to
-// [AsRawStack].
-func (cu Curse) AsRawStack(reversed bool) string {
-	return AsRawStack(cu, reversed)
+// ReverseStackString returns the result of passing the Curse
+// to [ReverseStackString].
+func (cu Curse) ReverseStackString() string {
+	return ReverseStackString(cu)
 }
 
 // AsStackError wraps the error in a StackError.
-func (cu Curse) AsStackError(raw, reversed bool) error {
-	return Stack(cu, raw, reversed)
+func (cu Curse) AsStackError() error {
+	return Stack(cu)
+}
+
+// AsReverseStackError wraps the error in a StackError.
+func (cu Curse) AsReverseStackError() error {
+	return ReverseStack(cu)
 }
 
 // TemplateCurse creates [Curse]s with formattable message.

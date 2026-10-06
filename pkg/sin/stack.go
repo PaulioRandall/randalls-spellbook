@@ -6,110 +6,97 @@ import (
 	"strings"
 )
 
-// AsStack stringifies the error chain as formatted
-// lines with the passed error first and the error at the
-// end of the chain last. Each error message is trimmed of
-// all content from the first colon ":" onwards, and the
-// all but the first error messsage is indented and
-// prefixed with corner arrows for ease of reading. If
-// reverse is true then the root cause will be first and
-// the passed error will last.
-//
-// The corner arrows always point from the symptom to the
-// cause so following the arrows will lead you to the root
-// cause.
-func AsStack(e error, reverse bool) string {
-	var st []string
+// ErrorChain recursively unwraps the error and returns the
+// set of errors as a slice with the passed error at the
+// front. If the error is nil then nil is returned.
+func ErrorChain(err error) []string {
+	var chain []string
 
-	for e != nil {
+	for err != nil {
 		var msg string
 
-		if cu, ok := e.(Curse); ok {
+		if cu, ok := err.(Curse); ok {
 			msg = cu.Message
 		} else {
-			msg = e.Error()
+			msg = err.Error()
 		}
 
-		causeIdx := strings.Index(msg, ":")
-		if causeIdx > -1 {
-			msg = msg[:causeIdx]
-		}
-
-		st = append(st, msg)
-		e = errors.Unwrap(e)
+		chain = append(chain, msg)
+		err = errors.Unwrap(err)
 	}
 
-	if reverse {
-		slices.Reverse(st)
-		return strings.Join(st, "\n\t⤤ ")
-	}
-
-	return strings.Join(st, "\n\t⤷ ")
+	return chain
 }
 
-// AsRawStack is the same as [AsStack] except
-// messages are left untrimmed.
-func AsRawStack(e error, reverse bool) string {
-	var st []string
-
-	for e != nil {
-		var msg string
-
-		if cu, ok := e.(Curse); ok {
-			msg = cu.Message
-		} else {
-			msg = e.Error()
-		}
-
-		st = append(st, msg)
-		e = errors.Unwrap(e)
+// StackString stringifies the error chain as formatted
+// lines with the passed error first. All but the first
+// error messsage is indented and prefixed with arrows
+// pointing towards the cause for ease of reading. If the
+// error is nil then an empty string is returned.
+func StackString(err error) string {
+	if err == nil {
+		return ""
 	}
+	chain := ErrorChain(err)
+	return strings.Join(chain, "\n\t⤷ ")
+}
 
-	if reverse {
-		slices.Reverse(st)
-		return strings.Join(st, "\n\t⤤ ")
+// ReverseStackString is the same as [StackString] except
+// the chain is reversed when stringified.
+func ReverseStackString(err error) string {
+	if err == nil {
+		return ""
 	}
-
-	return strings.Join(st, "\n\t⤷ ")
+	chain := ErrorChain(err)
+	slices.Reverse(chain)
+	return strings.Join(chain, "\n\t⮤ ")
 }
 
 // StackError is returned by [Stack] and
-// produces an error string according to [AsStack] or
+// produces an error string according to [StackString] or
 // [AsRawStack] when [StackError.Error] is
 // called. StackError is designed to summarise the chain
 // for easy read output.
 type StackError struct {
 	err     error
-	raw     bool
 	reverse bool
 }
 
 // Stack returns an error that will return the error
-// chain like a stack trace, according to [AsStack]
-// (default), when [StackError.Error] is called. If raw is
-// true then [AsRawStack] is used instead of AsStack. If
-// reverse is true then the stack is reversed so the root
-// cause appears first. If the error is nil then nil is
-// returned.
-func Stack(err error, raw bool, reverse bool) error {
+// chain like a stack trace, according to [StackString],
+// when the Error method is called.
+func Stack(err error) error {
 	if err == nil {
 		return nil
 	}
 
 	return StackError{
 		err:     err,
-		raw:     raw,
-		reverse: reverse,
+		reverse: false,
+	}
+}
+
+// Stack returns an error that will return the error
+// chain like a stack trace, according to
+// [ReverseStackString], when the Error method is called.
+func ReverseStack(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	return StackError{
+		err:     err,
+		reverse: true,
 	}
 }
 
 // Error returns the error chain like a stack trace from
-// calling [AsStack] or [AsRawStack].
+// calling [StackString] or [ReverseStackString].
 func (se StackError) Error() string {
-	if se.raw {
-		return AsRawStack(se.err, se.reverse)
+	if se.reverse {
+		return ReverseStackString(se.err)
 	}
-	return AsStack(se.err, se.reverse)
+	return StackString(se.err)
 }
 
 // Is performs standard equality test against the

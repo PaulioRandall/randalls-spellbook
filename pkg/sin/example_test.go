@@ -6,44 +6,21 @@ import (
 )
 
 func Example() {
-	ErrNotFound := Template("%s not found")
-	ErrAccessDatabase := Err("Database access error")
+	ErrNotFound := Err("Player not found in database")
+	ErrForPlayer := Template("Regarding player '%s'")
+	ErrForTable := Template("Regarding table '%s'")
 
-	findPlayer := func(playerName string) error {
-		if playerName == "" {
-			return Err("Empty player name passed").
-				WrapIn(ErrNotFound).
-				Fmt("Player")
-		}
+	err := ErrForPlayer.
+		Fmt("Bob").
+		Wrap(ErrNotFound).
+		WrapIn(ErrForTable).
+		Fmt("Players")
 
-		// ...
-
-		err := errors.New("SQL specific error")
-		if err != nil {
-			return Fmt(
-				"Error while searching for player '%s'",
-				playerName,
-			).
-				Wrap(err).
-				WrapIn(ErrAccessDatabase)
-		}
-
-		// ...
-
-		return nil
-	}
-
-	err := findPlayer("")
-	fmt.Println(AsStack(err, false))
-
-	err = findPlayer("Fred")
-	fmt.Println(AsStack(err, false))
+	fmt.Println(StackString(err))
 	// Output:
-	// Player not found
-	//	⤷ Empty player name passed
-	// Database access error
-	//	⤷ Error while searching for player 'Fred'
-	//	⤷ SQL specific error
+	// Regarding table 'Players'
+	//	⤷ Regarding player 'Bob'
+	//	⤷ Player not found in database
 }
 
 func ExampleErr() {
@@ -93,7 +70,7 @@ func ExampleCurse_WrapIn() {
 
 	causeWrappedInSymptom := cause.WrapIn(symptom)
 
-	stack := AsStack(causeWrappedInSymptom, false)
+	stack := StackString(causeWrappedInSymptom)
 	fmt.Println(stack)
 	// Output:
 	// The symptom
@@ -104,77 +81,60 @@ func ExampleCurse_WrapIn_template() {
 	ErrTable := Template("In table '%s'")
 	ErrDatabase := Template("In database '%s'")
 
-	columnError := Err("Bad column").
+	colError := Err("Bad column").
 		WrapIn(ErrTable).Fmt("characters").
 		WrapIn(ErrDatabase).Fmt("players")
 
-	fmt.Println(columnError.AsStack(true))
+	fmt.Println(colError.ReverseStackString())
 	// Output:
 	// Bad column
-	//	⤤ In table 'characters'
-	//	⤤ In database 'players'
+	//	⮤ In table 'characters'
+	//	⮤ In database 'players'
 }
 
 func ExampleTemplateCurse() {
 	ErrTable := Template("In table '%s'")
 	err := errors.New("Bad column")
 
-	columnError := ErrTable.Fmt("characters").Wrap(err)
+	colError := ErrTable.Fmt("characters").Wrap(err)
 
-	fmt.Println(columnError.AsStack(false))
+	fmt.Println(colError.StackString())
 	// Output:
 	// In table 'characters'
 	//	⤷ Bad column
 }
 
-func ExampleAsStack() {
-	err1 := fmt.Errorf("Root cause")
-	err2 := fmt.Errorf("Cause: %w", err1)
-	err3 := fmt.Errorf("Top level: %w", err2)
+func ExampleStackString() {
+	err1 := Err("Root cause")
+	err2 := Err("Cause")
+	err3 := Err("Top level")
+	cu := err1.WrapIn(err2).WrapIn(err3)
 
-	errStack := AsStack(err3, false)
+	errStack := StackString(cu)
 	fmt.Println(errStack)
 
-	errStack = AsStack(err3, true)
+	errStack = ReverseStackString(cu)
 	fmt.Println(errStack)
 	// Output:
 	// Top level
 	//	⤷ Cause
 	//	⤷ Root cause
 	// Root cause
-	//	⤤ Cause
-	//	⤤ Top level
-}
-
-func ExampleAsRawStack() {
-	err1 := fmt.Errorf("Root cause")
-	err2 := fmt.Errorf("Cause: %w", err1)
-	err3 := fmt.Errorf("Top level: %w", err2)
-
-	errStack := AsRawStack(err3, false)
-	fmt.Println(errStack)
-
-	errStack = AsRawStack(err3, true)
-	fmt.Println(errStack)
-	// Output:
-	// Top level: Cause: Root cause
-	//	⤷ Cause: Root cause
-	//	⤷ Root cause
-	// Root cause
-	//	⤤ Cause: Root cause
-	//	⤤ Top level: Cause: Root cause
+	//	⮤ Cause
+	//	⮤ Top level
 }
 
 func ExampleStackError() {
-	err1 := fmt.Errorf("Root cause")
-	err2 := fmt.Errorf("Cause: %w", err1)
-	err3 := fmt.Errorf("Top level: %w", err2)
+	err1 := Err("Root cause")
+	err2 := Err("Cause")
+	err3 := Err("Top level")
+	cu := err1.WrapIn(err2).WrapIn(err3)
 
-	st := Stack(err3, true, true)
+	st := Stack(cu)
 
 	fmt.Println(st.Error())
 	// Output:
-	// Root cause
-	//	⤤ Cause: Root cause
-	//	⤤ Top level: Cause: Root cause
+	// Top level
+	//	⤷ Cause
+	//	⤷ Root cause
 }
