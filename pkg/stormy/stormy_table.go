@@ -3,7 +3,7 @@ package stormy
 import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sqlick"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/stormy/wizzard"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/wizzard"
 )
 
 // Table returns the full table details of the passed

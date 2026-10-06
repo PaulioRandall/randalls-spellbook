@@ -13,7 +13,7 @@ import (
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/stormy/wizzard"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/wizzard"
 )
 
 // Stormy is the core type for interfacing with the

@@ -3,7 +3,7 @@ package stormy
 import (
 	"database/sql"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/stormy/wizzard"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/wizzard"
 )
 
 // Operation is the function type used for [Stormy.Custom]
