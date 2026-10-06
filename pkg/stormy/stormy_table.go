@@ -1,7 +1,7 @@
 package stormy
 
 import (
-	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sqlick"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/stormy/wizzard"
 )
@@ -20,7 +20,7 @@ func (st *Stormy) TableAs(table string) (wizzard.Model, error) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
-	t, e := scumble.QueryTable(st.db, table)
+	t, e := sqlick.QueryTable(st.db, table)
 
 	if e != nil {
 		return wizzard.Model{}, st.errForTable(table, e)

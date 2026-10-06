@@ -8,7 +8,7 @@ import (
 	_ "github.com/glebarez/go-sqlite"
 	"github.com/stretchr/testify/require"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sqlick"
 )
 
 type Dummy struct {
@@ -77,20 +77,20 @@ func modelOfDummy() Model {
 }
 
 func requireDummyTableDoesNotExist(t *testing.T, db *sql.DB) {
-	_, e := scumble.QuerySqliteSchema(db, "Dummy")
-	require.ErrorIs(t, e, scumble.ErrEntityNotFound)
+	_, e := sqlick.QuerySqliteSchema(db, "Dummy")
+	require.ErrorIs(t, e, sqlick.ErrEntityNotFound)
 }
 
 func requireDummyTableExists(t *testing.T, db *sql.DB) {
-	tableSchema, e := scumble.QuerySqliteSchema(db, "Dummy")
+	tableSchema, e := sqlick.QuerySqliteSchema(db, "Dummy")
 	require.NoError(t, e)
 	require.Equal(t, "Dummy", tableSchema.Name)
 	require.Equal(t, "Dummy", tableSchema.TableName)
 
-	tableInfo, e := scumble.QueryTableInfo(db, "Dummy")
+	tableInfo, e := sqlick.QueryTableInfo(db, "Dummy")
 	require.NoError(t, e)
 
-	idColInfo := scumble.TableInfo{
+	idColInfo := sqlick.TableInfo{
 		Name:            "Id",
 		Type:            "INTEGER",
 		NotNull:         true,
@@ -100,7 +100,7 @@ func requireDummyTableExists(t *testing.T, db *sql.DB) {
 	}
 	require.Equal(t, idColInfo, tableInfo[0])
 
-	nameColInfo := scumble.TableInfo{
+	nameColInfo := sqlick.TableInfo{
 		Name:            "Name",
 		Type:            "TEXT",
 		NotNull:         true,
@@ -110,7 +110,7 @@ func requireDummyTableExists(t *testing.T, db *sql.DB) {
 	}
 	require.Equal(t, nameColInfo, tableInfo[1])
 
-	ratingColInfo := scumble.TableInfo{
+	ratingColInfo := sqlick.TableInfo{
 		Name:            "Rating",
 		Type:            "REAL",
 		NotNull:         true,

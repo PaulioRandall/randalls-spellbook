@@ -5,7 +5,7 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sqlick"
 )
 
 // Map parses the object and modifies the resultant model
@@ -72,11 +72,11 @@ Err:
 func queryTable(
 	db *sql.DB,
 	tableName string,
-) ([]scumble.TableInfo, bool, error) {
+) ([]sqlick.TableInfo, bool, error) {
 
 	// Check if table exists at all.
-	_, e := scumble.QuerySqliteSchema(db, tableName)
-	if errors.Is(e, scumble.ErrEntityNotFound) {
+	_, e := sqlick.QuerySqliteSchema(db, tableName)
+	if errors.Is(e, sqlick.ErrEntityNotFound) {
 		return nil, false, nil
 	}
 
@@ -84,7 +84,7 @@ func queryTable(
 		return nil, false, e
 	}
 
-	cols, e := scumble.QueryTableInfo(db, tableName)
+	cols, e := sqlick.QueryTableInfo(db, tableName)
 	if e != nil {
 		return nil, false, e
 	}
@@ -94,12 +94,12 @@ func queryTable(
 
 func filterAndCheckColumns(
 	props []Property,
-	cols []scumble.TableInfo,
+	cols []sqlick.TableInfo,
 ) ([]Property, error) {
 	var filteredProps []Property
 
 	for _, prop := range props {
-		var col scumble.TableInfo
+		var col sqlick.TableInfo
 
 		// Find the table column that the property maps to.
 		for _, c := range cols {
@@ -108,7 +108,7 @@ func filterAndCheckColumns(
 			}
 		}
 
-		if col == (scumble.TableInfo{}) {
+		if col == (sqlick.TableInfo{}) {
 			// Ignore the property if not in database table.
 			continue
 		}

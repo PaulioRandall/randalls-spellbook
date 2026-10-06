@@ -1,4 +1,4 @@
-package scumble
+package sqlick
 
 import (
 	"database/sql"

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sqlick"
 )
 
 type TestTable struct {
@@ -23,14 +23,14 @@ func openStormyDatabase(t *testing.T) *Stormy {
 }
 
 func requireTableExists(t *testing.T, st *Stormy, name string) {
-	tableSchema, e := scumble.QuerySqliteSchema(st.db, name)
+	tableSchema, e := sqlick.QuerySqliteSchema(st.db, name)
 	require.NoError(t, e)
 	require.Equal(t, name, tableSchema.Name)
 	require.Equal(t, name, tableSchema.TableName)
 }
 
 func requireDummyTableExists(t *testing.T, st *Stormy) {
-	tableSchema, e := scumble.QuerySqliteSchema(st.db, "TestTable")
+	tableSchema, e := sqlick.QuerySqliteSchema(st.db, "TestTable")
 	require.NoError(t, e)
 	require.Equal(t, "TestTable", tableSchema.Name)
 	require.Equal(t, "TestTable", tableSchema.TableName)

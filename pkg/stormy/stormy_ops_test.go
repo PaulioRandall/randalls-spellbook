@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/PaulioRandall/randalls-spellbook/pkg/scumble"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sqlick"
 )
 
 func Test_Stormy_Create_1(t *testing.T) {
@@ -601,6 +601,6 @@ func Test_Stormy_Drop_2(t *testing.T) {
 	e = st.Drop(TestTable{})
 	require.NoError(t, e)
 
-	_, e = scumble.QuerySqliteSchema(st.db, "TestTable")
-	require.ErrorIs(t, e, scumble.ErrEntityNotFound)
+	_, e = sqlick.QuerySqliteSchema(st.db, "TestTable")
+	require.ErrorIs(t, e, sqlick.ErrEntityNotFound)
 }
