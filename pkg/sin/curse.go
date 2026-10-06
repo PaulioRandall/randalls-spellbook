@@ -7,9 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// TODO: Curse.Error() should return the raw stack
-//       representation as most optimal.
-
 // Curse is an error with a Message and optional Cause. If
 // created via [TemplateCurse.Fmt] then [Curse.Is] will
 // return true if called with itself or any curse created
@@ -158,9 +155,9 @@ func (cu Curse) AsReverseStackError() error {
 	return ReverseStack(cu)
 }
 
-// TemplateCurse creates [Curse]s with formattable message.
-// It is designed to be used as named package errors.
-// [TemplateCurse.Fmt] should be called at the site
+// TemplateCurse creates [Curse] errors with formattable
+// messages. It is designed to be used as named package
+// errors. [TemplateCurse.Fmt] should be called at the site
 // of an error to create an error that is returned. If the
 // exported error needs no formatting then create the
 // package error with [Err].
