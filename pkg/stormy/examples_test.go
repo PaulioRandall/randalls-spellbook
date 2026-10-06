@@ -2,6 +2,8 @@ package stormy
 
 import (
 	"fmt"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/wizzard"
 )
 
 func ExampleOpenMode() {
@@ -327,7 +329,7 @@ func ExampleStormy_Custom() {
 		WHERE Name LIKE '%li%'
 	`)
 
-		results, err := model.ScanRows[Player](rows)
+		results, err := wizzard.ScanRows[Player](model, rows)
 		_ = err
 		return results, nil
 	}

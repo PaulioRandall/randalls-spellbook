@@ -69,7 +69,7 @@ func (mc ModelCache) ClearType(object any) {
 // to be certain about the integrity of any [Model]
 // and the state of the database table at anytime. As a
 // minimum, we have to assume a table's structure will not
-// change (or deleted) for the duration of an operation.
+// change (or be deleted) for the duration of an operation.
 // However, the user programmer (you) will usually have a
 // clear idea about what can change and when, thus, the
 // user programmer is charged with managing the cache.
@@ -82,13 +82,13 @@ type TableCache map[string]ModelCache
 // object's type and returns it if found, else a call to
 // [Map] is made and the result cached only if the database
 // table exists.
-func (cm TableCache) Map(
+func (tc TableCache) Map(
 	db *sql.DB,
 	object any,
 ) (Model, bool, error) {
 	objectType := derefObjectType(object)
 
-	return cm.mapTypeAsModel(
+	return tc.mapTypeAsModel(
 		db,
 		objectType.Name(),
 		objectType,
@@ -97,30 +97,30 @@ func (cm TableCache) Map(
 
 // MapAs is the same as [TableCache.Map] but works the
 // same as [MapAs] function instead.
-func (cm TableCache) MapAs(
+func (tc TableCache) MapAs(
 	db *sql.DB,
 	table string,
 	object any,
 ) (Model, bool, error) {
 	objectType := derefObjectType(object)
 
-	return cm.mapTypeAsModel(
+	return tc.mapTypeAsModel(
 		db,
 		table,
 		objectType,
 	)
 }
 
-func (cm TableCache) mapTypeAsModel(
+func (tc TableCache) mapTypeAsModel(
 	db *sql.DB,
 	table string,
 	objectType reflect.Type,
 ) (Model, bool, error) {
-	mc, ok := cm[table]
+	mc, ok := tc[table]
 
 	if !ok {
 		mc = ModelCache{}
-		cm[table] = mc
+		tc[table] = mc
 	}
 
 	return mc.mapTypeAsModel(
@@ -132,15 +132,15 @@ func (cm TableCache) mapTypeAsModel(
 
 // Clear removes all entries from the cache. This may also
 // be done using Go's clear function.
-func (cm TableCache) Clear() {
-	clear(cm)
+func (tc TableCache) Clear() {
+	clear(tc)
 }
 
 // ClearType removes the model represented by the object,
 // if it exists.
-func (cm TableCache) ClearType(object any) {
+func (tc TableCache) ClearType(object any) {
 	t := reflect.TypeOf(object)
-	for _, mc := range cm {
+	for _, mc := range tc {
 		delete(mc, t)
 	}
 }
@@ -148,6 +148,6 @@ func (cm TableCache) ClearType(object any) {
 // ClearTable removes all models associated with the
 // specified table name. This may also be done using Go's
 // delete function.
-func (cm TableCache) ClearTable(table string) {
-	delete(cm, table)
+func (tc TableCache) ClearTable(table string) {
+	delete(tc, table)
 }

@@ -21,11 +21,11 @@ func Example() {
 	model, tableExists, err := Map(db, Player{})
 
 	// Create the Player table.
-	err = model.Create(db)
+	err = Create(model, db)
 
 	// Insert an entry into the Player table.
 	// Can also use model.Insert.
-	err = model.Upsert(db, Player{
+	err = Upsert(model, db, Player{
 		Id:     123,
 		Name:   "Bob",
 		Rating: 6.9,
@@ -33,23 +33,23 @@ func Example() {
 
 	// Update an entry within the Player table.
 	// Can also use model.Update.
-	err = model.Upsert(db, Player{
+	err = Upsert(model, db, Player{
 		Id:     123,
 		Name:   "Charlie",
 		Rating: 4.2,
 	})
 
 	// Select all entries from the Player table.
-	results, err := model.Select[Player](db, "")
+	results, err := Select[Player](model, db, "")
 
 	// Select the entry from the Player table.
-	result, found, err := model.SelectFirst[Player](db, "Id = ?", 123)
+	result, found, err := SelectFirst[Player](model, db, "Id = ?", 123)
 
 	// Delete the entry from the Player table.
-	err = model.Delete(db, "Id = ?", 123)
+	err = Delete(model, db, "Id = ?", 123)
 
 	// Remove the Player table.
-	err = model.Drop(db)
+	err = Drop(model, db)
 
 	_ = err
 	_ = tableExists
@@ -195,13 +195,13 @@ func ExampleTableCache() {
 	// doesn't exist.
 	model, exists, err := mapper.Map(db, Player{})
 
-	model.Create(db)
+	Create(model, db)
 
 	// Will add the model to the cache because the table now
 	// exists.
 	model, exists, err = mapper.Map(db, Player{})
 
-	model.Upsert(db, Player{
+	Upsert(model, db, Player{
 		Id:     123,
 		Name:   "Bob",
 		Rating: 6.9,
@@ -212,7 +212,7 @@ func ExampleTableCache() {
 
 	// The table will be dropped but the cache entry still
 	// remains.
-	err = model.Drop(db)
+	err = Drop(model, db)
 
 	// Removes the cache entry for the Player type.
 	mapper.ClearType(Player{})

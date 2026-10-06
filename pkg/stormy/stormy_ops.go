@@ -1,5 +1,9 @@
 package stormy
 
+import (
+	"github.com/PaulioRandall/randalls-spellbook/pkg/wizzard"
+)
+
 // Create creates tables from models of the passed objects.
 // If a table already exists then the model is skipped. A
 // few rules:
@@ -30,7 +34,7 @@ func (st *Stormy) Create(objects ...any) (e error) {
 			continue
 		}
 
-		e = model.Create(st.db)
+		e = wizzard.Create(model, st.db)
 		if e != nil {
 			return st.errForModel(model, e)
 		}
@@ -57,7 +61,7 @@ func (st *Stormy) CreateAs(table string, object any) (e error) {
 		return nil
 	}
 
-	e = model.Create(st.db)
+	e = wizzard.Create(model, st.db)
 	if e != nil {
 		return st.errForModel(model, e)
 	}
@@ -93,14 +97,14 @@ func (st *Stormy) Put[T any](objects ...T) (e error) {
 		}
 
 		if !exists {
-			e = model.Create(st.db)
+			e = wizzard.Create(model, st.db)
 			if e != nil {
 				return st.errForModel(model, e)
 			}
 		}
 
 		if e == nil {
-			e = model.Upsert(st.db, o)
+			e = wizzard.Upsert(model, st.db, o)
 		}
 
 		if e != nil {
@@ -134,14 +138,14 @@ func (st *Stormy) PutAs[T any](table string, objects ...T) (e error) {
 
 		if !exists {
 			// Might be true on first call only.
-			e = model.Create(st.db)
+			e = wizzard.Create(model, st.db)
 			if e != nil {
 				return st.errForModel(model, e)
 			}
 		}
 
 		if e == nil {
-			e = model.Upsert(st.db, o)
+			e = wizzard.Upsert(model, st.db, o)
 		}
 
 		if e != nil {
@@ -171,7 +175,7 @@ func (st *Stormy) List[T any](object T, where string, args ...any) (result []T, 
 		return nil, nil
 	}
 
-	result, e = model.Select[T](st.db, where, args...)
+	result, e = wizzard.Select[T](model, st.db, where, args...)
 	if e != nil {
 		return nil, st.errForModel(model, e)
 	}
@@ -196,7 +200,7 @@ func (st *Stormy) ListAs[T any](table string, object T, where string, args ...an
 		return nil, nil
 	}
 
-	result, e = model.Select[T](st.db, where, args...)
+	result, e = wizzard.Select[T](model, st.db, where, args...)
 	if e != nil {
 		return nil, st.errForModel(model, e)
 	}
@@ -224,7 +228,7 @@ func (st *Stormy) Get[T any](object T, where string, args ...any) (result T, fou
 		return empty, false, nil
 	}
 
-	result, found, e = model.SelectFirst[T](st.db, where, args...)
+	result, found, e = wizzard.SelectFirst[T](model, st.db, where, args...)
 	if e != nil {
 		return empty, false, st.errForModel(model, e)
 	}
@@ -255,7 +259,7 @@ func (st *Stormy) GetAs[T any](table string, object T, where string, args ...any
 		return empty, false, nil
 	}
 
-	result, found, e = model.SelectFirst[T](st.db, where, args...)
+	result, found, e = wizzard.SelectFirst[T](model, st.db, where, args...)
 	if e != nil {
 		return empty, false, st.errForModel(model, e)
 	}
@@ -285,7 +289,7 @@ func (st *Stormy) Delete[T any](object T, where string, args ...any) (e error) {
 		return nil
 	}
 
-	e = model.Delete(st.db, where, args...)
+	e = wizzard.Delete(model, st.db, where, args...)
 	if e != nil {
 		return st.errForModel(model, e)
 	}
@@ -310,7 +314,7 @@ func (st *Stormy) DeleteAs[T any](table string, object T, where string, args ...
 		return nil
 	}
 
-	e = model.Delete(st.db, where, args...)
+	e = wizzard.Delete(model, st.db, where, args...)
 	if e != nil {
 		return st.errForModel(model, e)
 	}
@@ -346,7 +350,7 @@ func (st *Stormy) Drop(objects ...any) (e error) {
 
 		st.mapper.ClearTable(model.SqlName)
 
-		e = model.Drop(st.db)
+		e = wizzard.Drop(model, st.db)
 		if e != nil {
 			st.errForModel(model, e)
 		}
@@ -376,7 +380,7 @@ func (st *Stormy) DropAs(tables ...string) (e error) {
 
 		st.mapper.ClearTable(table)
 
-		e = model.Drop(st.db)
+		e = wizzard.Drop(model, st.db)
 		if e != nil {
 			return st.errForModel(model, e)
 		}

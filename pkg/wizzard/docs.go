@@ -31,4 +31,11 @@
 // connections, it only uses them. Connections must be
 // passed to various functions to create models and operate
 // on the database.
+//
+// The SQL functions that operate on the database (e.g.
+// [Create], [Insert], [Select], etc) are intentionally
+// standalone functions with no receiver. This allows them
+// to be copied and modified easily. There's also functions
+// utility functions for scanning rows into the model's
+// type (i.e. [ScanRows] and [ScanFirstRow]).
 package wizzard

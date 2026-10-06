@@ -155,7 +155,7 @@ func Test_Table_KeyProp_1(t *testing.T) {
 	require.Equal(t, model.Props[0], model.KeyProp())
 }
 
-func Test_Model_Create_1(t *testing.T) {
+func Test_Create_1(t *testing.T) {
 	// When the creating a table
 	// then the table is created
 
@@ -163,12 +163,12 @@ func Test_Model_Create_1(t *testing.T) {
 	defer db.Close()
 
 	model := modelOfDummy()
-	model.Create(db)
+	Create(model, db)
 
 	requireDummyTableExists(t, db)
 }
 
-func Test_Model_Upsert_1(t *testing.T) {
+func Test_Upsert_1(t *testing.T) {
 	// When upserting data
 	// if the data row doesn't exist
 	// then the data is inserted
@@ -185,7 +185,7 @@ func Test_Model_Upsert_1(t *testing.T) {
 		Name:   "Alice",
 		Rating: 1.11,
 	}
-	e := model.Upsert(db, data)
+	e := Upsert(model, db, data)
 	require.NoError(t, e)
 
 	requireDummyTableContains(t, db, data)
@@ -195,13 +195,13 @@ func Test_Model_Upsert_1(t *testing.T) {
 		Name:   "Bob",
 		Rating: 2.22,
 	}
-	e = model.Upsert(db, newData)
+	e = Upsert(model, db, newData)
 	require.NoError(t, e)
 
 	requireDummyTableContains(t, db, newData)
 }
 
-func Test_Model_Insert_Update_1(t *testing.T) {
+func Test_Insert_Update_1(t *testing.T) {
 	// When inserting data
 	// then the data is inserted
 	// when updating that data
@@ -217,7 +217,7 @@ func Test_Model_Insert_Update_1(t *testing.T) {
 		Name:   "Alice",
 		Rating: 1.11,
 	}
-	e := model.Insert(db, data)
+	e := Insert(model, db, data)
 	require.NoError(t, e)
 
 	requireDummyTableContains(t, db, data)
@@ -227,13 +227,13 @@ func Test_Model_Insert_Update_1(t *testing.T) {
 		Name:   "Bob",
 		Rating: 2.22,
 	}
-	e = model.Update(db, newData)
+	e = Update(model, db, newData)
 	require.NoError(t, e)
 
 	requireDummyTableContains(t, db, newData)
 }
 
-func Test_Model_Delete_1(t *testing.T) {
+func Test_Delete_1(t *testing.T) {
 	// When deleting data
 	// if the data row exists
 	// then the data is deleted
@@ -248,20 +248,20 @@ func Test_Model_Delete_1(t *testing.T) {
 		Name:   "Alice",
 		Rating: 1.11,
 	}
-	e := model.Upsert(db, data)
+	e := Upsert(model, db, data)
 	require.NoError(t, e)
 
 	dbData := requireDummyTableContains(t, db)
 	require.Equal(t, 1, len(dbData))
 
-	e = model.Delete(db, "Id = ?", 1)
+	e = Delete(model, db, "Id = ?", 1)
 	require.NoError(t, e)
 
 	dbData = requireDummyTableContains(t, db)
 	require.Equal(t, 0, len(dbData))
 }
 
-func Test_Model_Select_1(t *testing.T) {
+func Test_Select_1(t *testing.T) {
 	// When selcting data
 	// if the where clause is empty
 	// then all rows are returned
@@ -290,16 +290,16 @@ func Test_Model_Select_1(t *testing.T) {
 	}
 
 	for _, d := range data {
-		e := model.Upsert(db, d)
+		e := Upsert(model, db, d)
 		require.NoError(t, e)
 	}
 
-	results, e := model.Select[Dummy](db, "")
+	results, e := Select[Dummy](model, db, "")
 	require.NoError(t, e)
 	require.Equal(t, data, results)
 }
 
-func Test_Model_Select_2(t *testing.T) {
+func Test_Select_2(t *testing.T) {
 	// When selecting data
 	// if the where clause has a statement filtering results
 	// and the where statement contains a parameter
@@ -330,18 +330,18 @@ func Test_Model_Select_2(t *testing.T) {
 	}
 
 	for _, d := range data {
-		e := model.Upsert(db, d)
+		e := Upsert(model, db, d)
 		require.NoError(t, e)
 	}
 
-	results, e := model.Select[Dummy](db, "Rating > ?", 2)
+	results, e := Select[Dummy](model, db, "Rating > ?", 2)
 	require.NoError(t, e)
 
 	exp := data[1:] // Bob and Charlie only.
 	require.Equal(t, exp, results)
 }
 
-func Test_Model_SelectFirst_1(t *testing.T) {
+func Test_SelectFirst_1(t *testing.T) {
 	// When selecting a specific row
 	// if the where clause is empty
 	// then the first row of the table is returned
@@ -370,17 +370,17 @@ func Test_Model_SelectFirst_1(t *testing.T) {
 	}
 
 	for _, d := range data {
-		e := model.Upsert(db, d)
+		e := Upsert(model, db, d)
 		require.NoError(t, e)
 	}
 
-	result, found, e := model.SelectFirst[Dummy](db, "")
+	result, found, e := SelectFirst[Dummy](model, db, "")
 	require.NoError(t, e)
 	require.Equal(t, true, found)
 	require.Equal(t, data[0], result)
 }
 
-func Test_Model_SelectFirst_2(t *testing.T) {
+func Test_SelectFirst_2(t *testing.T) {
 	// When selecting a specific row
 	// if the where clause has a statement filtering results
 	// and the where statement contains a parameter
@@ -411,11 +411,12 @@ func Test_Model_SelectFirst_2(t *testing.T) {
 	}
 
 	for _, d := range data {
-		e := model.Upsert(db, d)
+		e := Upsert(model, db, d)
 		require.NoError(t, e)
 	}
 
-	result, found, e := model.SelectFirst[Dummy](
+	result, found, e := SelectFirst[Dummy](
+		model,
 		db,
 		"Id = ?",
 		2,
@@ -425,7 +426,7 @@ func Test_Model_SelectFirst_2(t *testing.T) {
 	require.Equal(t, data[1], result)
 }
 
-func Test_Model_SelectFirst_3(t *testing.T) {
+func Test_SelectFirst_3(t *testing.T) {
 	// When selecting a specific row
 	// if the where clause has a statement filtering results
 	// and the where statement contains a parameter
@@ -457,11 +458,12 @@ func Test_Model_SelectFirst_3(t *testing.T) {
 	}
 
 	for _, d := range data {
-		e := model.Upsert(db, d)
+		e := Upsert(model, db, d)
 		require.NoError(t, e)
 	}
 
-	_, found, e := model.SelectFirst[Dummy](
+	_, found, e := SelectFirst[Dummy](
+		model,
 		db,
 		"Id = ?",
 		4,
@@ -470,7 +472,7 @@ func Test_Model_SelectFirst_3(t *testing.T) {
 	require.Equal(t, false, found)
 }
 
-func Test_Model_Drop_1(t *testing.T) {
+func Test_Drop_1(t *testing.T) {
 	// When dropping a table
 	// then the table is removed
 
@@ -479,7 +481,8 @@ func Test_Model_Drop_1(t *testing.T) {
 
 	requireDummyTableExists(t, db)
 
-	modelOfDummy().Drop(db)
+	model := modelOfDummy()
+	Drop(model, db)
 
 	requireDummyTableDoesNotExist(t, db)
 }
