@@ -1,6 +1,6 @@
 <script>
 	import { onMount } from 'svelte'
-	import eventUtil from '$lib/eventUtil.js'
+	import eventUtil from '#lib/eventUtil.js'
 
 	let { mediaSvox, ...attrs } = $props()
 

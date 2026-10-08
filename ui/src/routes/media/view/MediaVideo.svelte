@@ -1,8 +1,8 @@
 <script>
 	import { onMount } from 'svelte'
 
-	import MediaSvox from '$lib/MediaSvox.svelte.js'
-	import TextareaSvox from '$lib/TextareaSvox.svelte.js'
+	import MediaSvox from '#lib/MediaSvox.svelte.js'
+	import TextareaSvox from '#lib/TextareaSvox.svelte.js'
 
 	import MediaSeekbar from './MediaSeekbar.svelte'
 	import MediaButtonPlayPause from './MediaButtonPlayPause.svelte'
