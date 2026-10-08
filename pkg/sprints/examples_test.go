@@ -66,7 +66,7 @@ func Example() {
 	// 	Uint8: uint8(69),
 	// 	Float64: float64(69.69),
 	//	Nested: Nested{...},
-	//	ArrayOrSlice: [3]string{...},
+	//	ArrayOrSlice: [3]string{},
 	//	Empty: [0]int64{},
 	//	Nil: []int64,
 	//	Ptr: *bool(true),

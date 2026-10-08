@@ -8,6 +8,14 @@ const (
 	// OptionShowUnexported shows unexported field names but
 	// won't show their values.
 	OptionShowUnexported = "OptionShowUnexported"
+
+	// OptionHideTypes hides the field type names so only
+	// the values are shown.
+	OptionHideTypes = "OptionHideTypes"
+
+	// OptionHideValues hides the field values so only
+	// the types are shown.
+	OptionHideValues = "OptionHideValues"
 )
 
 // Print stringifies the object and prints it to terminal.

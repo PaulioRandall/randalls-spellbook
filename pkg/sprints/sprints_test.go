@@ -152,8 +152,45 @@ func Test_Sprints_5(t *testing.T) {
 	exp := joinLines(
 		`*Thing {`,
 		`	Empty: [0]string{},`,
-		`	NotEmpty: [2]string{...},`,
+		`	NotEmpty: [2]string{},`,
 		`	Nil: []string,`,
+		`}`,
+	)
+
+	require.Equal(t, exp, act)
+}
+
+func Test_Sprints_6(t *testing.T) {
+	// OptionHideValues options.
+
+	type Thing struct {
+		Int     int
+		Float64 float64
+		String  string
+		List    []string
+		Nil     []string
+		Role    Role
+	}
+
+	thing := Thing{
+		Int:     123,
+		Float64: 123.456,
+		String:  "ABC",
+		List:    []string{"A", "B", "C"},
+		Nil:     nil,
+		Role:    Role{},
+	}
+
+	act := String(thing, OptionHideValues)
+
+	exp := joinLines(
+		`Thing {`,
+		`	Int: int,`,
+		`	Float64: float64,`,
+		`	String: string,`,
+		`	List: []string,`,
+		`	Nil: []string,`,
+		`	Role: Role,`,
 		`}`,
 	)
 

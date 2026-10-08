@@ -7,7 +7,8 @@ import (
 )
 
 type fmtCtx struct {
-	unexported bool
+	showUnexported bool
+	hideValues     bool
 }
 
 func newFmtCtx(options []string) fmtCtx {
@@ -16,9 +17,13 @@ func newFmtCtx(options []string) fmtCtx {
 	for i := 0; i < len(options); i++ {
 		op := options[i]
 
-		if op == OptionShowUnexported {
-			ctx.unexported = true
-			continue
+		switch op {
+		case OptionShowUnexported:
+			ctx.showUnexported = true
+		case OptionHideValues:
+			ctx.hideValues = true
+		default:
+			fmt.Printf("Unknown option: %s\n", op)
 		}
 	}
 
@@ -63,7 +68,7 @@ func writeFields(
 	ctx fmtCtx,
 ) {
 	for field, fieldVal := range structVal.Fields() {
-		if !field.IsExported() && !ctx.unexported {
+		if !field.IsExported() && !ctx.showUnexported {
 			continue
 		}
 
@@ -73,6 +78,7 @@ func writeFields(
 			getPrintableValue(
 				field,
 				fieldVal,
+				ctx,
 			),
 		)
 
@@ -84,6 +90,7 @@ func writeFields(
 func getPrintableValue(
 	field reflect.StructField,
 	val reflect.Value,
+	ctx fmtCtx,
 ) any {
 	if !field.IsExported() {
 		return "<unexported>"
@@ -97,17 +104,25 @@ func getPrintableValue(
 
 	switch typ.Kind() {
 	case reflect.Struct:
-		result = fmtContainerName(val)
+		result = fmtContainerName(val, ctx)
 	case reflect.Array, reflect.Slice:
-		result = fmtCollectionName(val, typ.Elem())
+		result = fmtCollectionName(val, typ.Elem(), ctx)
 	case reflect.String:
-		result = fmtString(val)
+		if ctx.hideValues {
+			result = "string"
+		} else {
+			result = fmtString(val)
+		}
 	default:
-		result = fmt.Sprintf(
-			"%s(%v)",
-			typ.Name(),
-			val.Interface(),
-		)
+		if ctx.hideValues {
+			result = typ.Name()
+		} else {
+			result = fmt.Sprintf(
+				"%s(%v)",
+				typ.Name(),
+				val.Interface(),
+			)
+		}
 	}
 
 	return prefix + result
@@ -147,7 +162,13 @@ func fmtString(val reflect.Value) string {
 	return `"` + string(s) + `"`
 }
 
-func fmtContainerName(val reflect.Value) string {
+func fmtContainerName(
+	val reflect.Value,
+	ctx fmtCtx,
+) string {
+	if ctx.hideValues {
+		return val.Type().Name()
+	}
 	if val.IsZero() {
 		return val.Type().Name() + "{}"
 	}
@@ -157,17 +178,22 @@ func fmtContainerName(val reflect.Value) string {
 func fmtCollectionName(
 	val reflect.Value,
 	elemTyp reflect.Type,
+	ctx fmtCtx,
 ) string {
-	switch {
-	case val.IsNil():
+	if val.IsNil() {
 		return fmt.Sprintf("[]%s", elemTyp.Name())
-	case val.Len() == 0:
-		return fmt.Sprintf("[0]%s{}", elemTyp.Name())
-	default:
+	}
+
+	if ctx.hideValues {
 		return fmt.Sprintf(
-			"[%d]%s{...}",
-			val.Len(),
+			"[]%s",
 			elemTyp.Name(),
 		)
 	}
+
+	return fmt.Sprintf(
+		"[%d]%s{}",
+		val.Len(),
+		elemTyp.Name(),
+	)
 }
