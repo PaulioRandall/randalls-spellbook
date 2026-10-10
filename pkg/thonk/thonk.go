@@ -1,4 +1,4 @@
-package sourcery
+package thonk
 
 import (
 	"encoding/json"
@@ -8,29 +8,37 @@ import (
 )
 
 var (
+	// ErrNotFunc occurs when validation fails because the
+	// passed value being validated is not a function.
 	ErrNotFunc = sin.Template(
 		"Expected a function but given %s",
 	)
 
+	// ErrTooManyOutputs occurs when validation fails because
+	// the function has too many outputs.
 	ErrTooManyOutputs = sin.Template(
-		"Too many output parameters, given %d: either return nothing, a value (T), an error (error), or a value then an error (T, error)",
+		"Function has too many outputs: given %d but want either nothing, a value (T), an error (error), or a value then an error (T, error)",
 	)
 
+	// ErrBadJsonString occurs when attempting to parse
+	// arguments provided as a JSON array but the JSON is
+	// invalid.
 	ErrBadJsonString = sin.Err(
 		"Failed to parse JSON string",
 	)
 
+	// ErrArgMismatch occurs when the number of arguments
+	// being set does not match the number of input
+	// parameters the function expects.
 	ErrArgMismatch = sin.Err(
 		"Mismatch between expected and given arguments",
 	)
 )
 
-type ValErrFunc struct {
-	Func any
-	Args []reflect.Value
-}
-
-func ValidateValErrFunc(f any) error {
+// Validate checks if the passed function may be used with
+// a [Thonk]. It returns nil if it can, and an error if
+// not.
+func Validate(f any) error {
 	typ := reflect.TypeOf(f)
 
 	if typ.Kind() != reflect.Func {
@@ -44,10 +52,23 @@ func ValidateValErrFunc(f any) error {
 	return nil
 }
 
-func WithNoArgs(f any) (ValErrFunc, error) {
-	var result ValErrFunc
+// Thonk is a configurable Thunk limited to functions that
+// return either nothing, a single value (T), and error
+// (error), or a value then an error (T, error).
+type Thonk struct {
+	// The function to be called.
+	Func any
 
-	e := ValidateValErrFunc(f)
+	// The input arguments to the function.
+	Args []reflect.Value
+}
+
+// WithNoArgs returns a new Thonk with no arguments. An
+// error is returned if f fails validation.
+func WithNoArgs(f any) (Thonk, error) {
+	var result Thonk
+
+	e := Validate(f)
 	if e != nil {
 		return result, e
 	}
@@ -56,40 +77,43 @@ func WithNoArgs(f any) (ValErrFunc, error) {
 	return result, nil
 }
 
-func WithJsonArgs(f any, jsonStr string) (ValErrFunc, error) {
-	var empty ValErrFunc
+// WithJsonArgs returns a new Thonk with arguments parsed
+// from a JSON array, provided as a string. An error is
+// returned if f fails validation, jsonStr cannot be
+// parsed, or there's a mismatch between arguments and
+// the function's inputs.
+func WithJsonArgs(f any, jsonStr string) (Thonk, error) {
+	var empty Thonk
 
-	vet, e := WithNoArgs(f)
+	th, e := WithNoArgs(f)
 	if e != nil {
 		return empty, e
 	}
 
-	return vet.WithJsonArgs(jsonStr)
+	return th.WithJsonArgs(jsonStr)
 }
 
-// WithNoArgs returns a copy of the ValErrFunc with all
+// WithNoArgs returns a copy of the Thonk with all
 // arguments removed.
-func (vet ValErrFunc) WithNoArgs() ValErrFunc {
-	vet.Args = nil
-	return vet
+func (th Thonk) WithNoArgs() Thonk {
+	th.Args = nil
+	return th
 }
 
-// WithJsonArgs returns a copy of the ValErrThink with
-// arguments replaced by those parsed from the passed
-// jsonStr. The JSON must be an array of values that map to
-// the function's parameters. Ordering matters!
-func (vet ValErrFunc) WithJsonArgs(
-	jsonStr string,
-) (ValErrFunc, error) {
-	empty := ValErrFunc{}
+// WithJsonArgs returns a copy of the Thonk with arguments
+// parsed from a JSON array, provided as a string. An error
+// is returned if jsonStr cannot be parsed or there's a
+// mismatch between arguments and the function's inputs.
+func (th Thonk) WithJsonArgs(jsonStr string) (Thonk, error) {
+	empty := Thonk{}
 
-	args, e := parseJsonArgs(vet.Func, jsonStr)
+	args, e := parseJsonArgs(th.Func, jsonStr)
 	if e != nil {
 		return empty, e
 	}
 
-	vet.Args = args
-	return vet, nil
+	th.Args = args
+	return th, nil
 }
 
 func parseJsonArgs(
@@ -182,13 +206,13 @@ func createPointerValueToParam(
 	return reflect.New(paramTyp)
 }
 
-// Call invokes the thunk with its set arguments.
-// If the function has 1 output that satisfies the error
-// interface then it will be returned as both the value and
-// the error. Call doesn't recover from panics.
-func (vet ValErrFunc) Call() (any, error) {
-	val := reflect.ValueOf(vet.Func)
-	results := val.Call(vet.Args)
+// Call invokes the thunk with its set arguments. If the
+// function has 1 output that satisfies the error interface
+// then it will be returned as both the value and the
+// error. Call doesn't recover from panics.
+func (th Thonk) Call() (any, error) {
+	val := reflect.ValueOf(th.Func)
+	results := val.Call(th.Args)
 
 	switch len(results) {
 	case 0:
@@ -206,14 +230,16 @@ func (vet ValErrFunc) Call() (any, error) {
 	}
 }
 
-// CallRecover does the same as Call except it recovers
-// from a panic and returns the recovered value as a third
-// return value.
-func (vet ValErrFunc) CallRecover() (v any, e error, r any) {
+// CallRecover does the same as [Thonk.Call] except it
+// recovers from a panic and returns the recovered value as
+// a third return value. In most cases the user should
+// check if the third recover value is nil before checking
+// if the error is nil.
+func (th Thonk) CallRecover() (v any, e error, r any) {
 	defer func() {
 		r = recover()
 	}()
 
-	v, e = vet.Call()
+	v, e = th.Call()
 	return v, e, nil
 }

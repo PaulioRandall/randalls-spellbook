@@ -10,6 +10,7 @@ import (
 	_ "github.com/abemedia/go-webview/embedded"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/thonk"
 )
 
 type Initialiser interface {
@@ -143,7 +144,7 @@ func getEntityMethodAt(typ reflect.Type, i int) (reflect.Method, bool) {
 }
 
 func checkEntityMethod(f any, name string) {
-	e := ValidateValErrFunc(f)
+	e := thonk.Validate(f)
 	if e == nil {
 		return
 	}
@@ -248,14 +249,14 @@ func (w *World) GoRaw(
 	jsonArgs string,
 ) (any, error) {
 	if f, ok := w.functions[funcName]; ok {
-		w.log("Go: %s", funcName)
-		thunk, e := WithJsonArgs(f, jsonArgs)
+		w.Log("Go: %s", funcName)
+		th, e := thonk.WithJsonArgs(f, jsonArgs)
 
 		if e != nil {
 			return nil, e
 		}
 
-		return thunk.Call()
+		return th.Call()
 	}
 
 	w.log("Unknown function: %s", funcName)

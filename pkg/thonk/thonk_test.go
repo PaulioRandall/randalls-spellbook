@@ -1,4 +1,4 @@
-package sourcery
+package thonk
 
 import (
 	"errors"
@@ -8,52 +8,54 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_ValidateValErrFunc_1(t *testing.T) {
-	// GIVEN f is not a function.
-	// WHEN calling ValidateValErrFunc.
-	// THEN returns named error.
+func Test_Validate_1(t *testing.T) {
+	// When validating a function
+	// where f is not a function
+	// then a named error is returned
 
-	e := ValidateValErrFunc(0)
+	e := Validate(0)
 	require.ErrorIs(t, e, ErrNotFunc)
 }
 
-func Test_ValidateValErrFunc_2(t *testing.T) {
-	// GIVEN f has 3 or more outputs.
-	// WHEN calling ValidateValErrFunc.
-	// THEN returns named error.
+func Test_Validate_2(t *testing.T) {
+	// When validating a function
+	// where f has too many output parameters
+	// then a named error is returned
 
 	f := func() (bool, int, error) {
 		return true, 2, nil
 	}
 
-	e := ValidateValErrFunc(f)
+	e := Validate(f)
 	require.ErrorIs(t, e, ErrTooManyOutputs)
 }
 
-func Test_ValidateValErrFunc_3(t *testing.T) {
-	// GIVEN f has 0, 1, or 2 outputs.
-	// WHEN calling ValidateValErrFunc.
-	// THEN returns nil error.
+func Test_Validate_3(t *testing.T) {
+	// When validating a function
+	// where f has a valid function signature
+	// then no errors are returned
 
 	var e error
 
 	f0 := func() { return }
-	e = ValidateValErrFunc(f0)
+	e = Validate(f0)
 	require.NoError(t, e)
 
 	f1 := func() int { return 2 }
-	e = ValidateValErrFunc(f1)
+	e = Validate(f1)
 	require.NoError(t, e)
 
 	f2 := func() (int, error) { return 2, nil }
-	e = ValidateValErrFunc(f2)
+	e = Validate(f2)
 	require.NoError(t, e)
 }
 
 func Test_WithNoArgs_1(t *testing.T) {
-	// GIVEN valid func.
-	// WHEN calling WithNoArgs.
-	// THEN returns ValErrFunc with Func set and Args as nil.
+	// When creating a Thonk without arguments
+	// where a valid function is passed
+	// then a new Thonk is returned
+	// with its function field set
+	// and its arguments field empty (nil)
 
 	thunk, e := WithNoArgs(func() {})
 
@@ -63,9 +65,9 @@ func Test_WithNoArgs_1(t *testing.T) {
 }
 
 func Test_WithJsonArgs_1(t *testing.T) {
-	// GIVEN bad JSON string.
-	// WHEN calling WithJsonArgs.
-	// THEN returns named error.
+	// When creating a Thonk with JSON arguments
+	// where bad JSON is given
+	// then a named error is returned
 
 	_, e := WithJsonArgs(
 		func() {},
@@ -76,9 +78,11 @@ func Test_WithJsonArgs_1(t *testing.T) {
 }
 
 func Test_WithJsonArgs_2(t *testing.T) {
-	// GIVEN too few args for non-variadic func.
-	// WHEN calling WithJsonArgs.
-	// THEN returns named error.
+	// When creating a Thonk with JSON arguments
+	// that is non-variadic
+	// where the JSON has less values than the amount
+	// required by the function
+	// then a named error is returned
 
 	_, e := WithJsonArgs(
 		func(v any) {},
@@ -91,9 +95,11 @@ func Test_WithJsonArgs_2(t *testing.T) {
 }
 
 func Test_WithJsonArgs_3(t *testing.T) {
-	// GIVEN too many args for non-variadic func.
-	// WHEN calling WithJsonArgs.
-	// THEN returns named error.
+	// When creating a Thonk with JSON arguments
+	// that is non-variadic
+	// where the JSON has more values than the amount
+	// required by the function
+	// then a named error is returned
 
 	_, e := WithJsonArgs(
 		func() {},
@@ -108,9 +114,11 @@ func Test_WithJsonArgs_3(t *testing.T) {
 }
 
 func Test_WithJsonArgs_4(t *testing.T) {
-	// GIVEN too few args for variadic func.
-	// WHEN calling WithJsonArgs.
-	// THEN returns named error.
+	// When creating a Thonk with JSON arguments
+	// that is variadic
+	// where the JSON has less values than the amount of
+	// non-variadic parameters required by the function
+	// then a named error is returned
 
 	_, e := WithJsonArgs(
 		func(v any, more ...any) {},
@@ -123,9 +131,11 @@ func Test_WithJsonArgs_4(t *testing.T) {
 }
 
 func Test_WithJsonArgs_5(t *testing.T) {
-	// GIVEN valid number of args for non-variadic func.
-	// WHEN calling WithJsonArgs.
-	// THEN returns no error.
+	// When creating a Thonk with JSON arguments
+	// that is non-variadic
+	// where the number of JSON values matches the amount of
+	// inputs required by the function
+	// then no error is returned
 
 	_, e := WithJsonArgs(
 		func(v1 any, v2 any) {},
@@ -141,9 +151,11 @@ func Test_WithJsonArgs_5(t *testing.T) {
 }
 
 func Test_WithJsonArgs_6(t *testing.T) {
-	// GIVEN valid number of args for variadic func.
-	// WHEN calling WithJsonArgs.
-	// THEN returns no error.
+	// When creating a Thonk with JSON arguments
+	// that is variadic
+	// where the number of JSON values matches the amount of
+	// non-variadic inputs required by the function
+	// then no error is returned
 
 	_, e := WithJsonArgs(
 		func(v1 any, v2 any, more ...any) {},
@@ -159,9 +171,12 @@ func Test_WithJsonArgs_6(t *testing.T) {
 }
 
 func Test_WithJsonArgs_7(t *testing.T) {
-	// GIVEN no args for func with no parameters.
-	// WHEN calling WithJsonArgs.
-	// THEN returns ValErrFunc with no args.
+	// When creating a Thonk with JSON arguments
+	// that is non-variadic
+	// where the JSON contains values and the function
+	// accepts no parameeters
+	// then no error is returned
+	// and Thonk's argument field is empty
 
 	thunk, e := WithJsonArgs(
 		func() {},
@@ -175,9 +190,13 @@ func Test_WithJsonArgs_7(t *testing.T) {
 }
 
 func Test_WithJsonArgs_8(t *testing.T) {
-	// GIVEN valid arguments for non-variadic func.
-	// WHEN calling WithJsonArgs.
-	// THEN sets ValErrFunction.Args with the arguments.
+	// When creating a Thonk with JSON arguments
+	// that is non-variadic
+	// where the function requires typed inputs
+	// and the JSON values match the types
+	// then no error is returned
+	// and Thonk's argument field contains the parsed JSON
+	// values
 
 	thunk, e := WithJsonArgs(
 		func(s string, i int) {},
@@ -196,9 +215,13 @@ func Test_WithJsonArgs_8(t *testing.T) {
 }
 
 func Test_WithJsonArgs_9(t *testing.T) {
-	// GIVEN no variadic args for variadic func.
-	// WHEN calling WithJsonArgs.
-	// THEN sets ValErrFunction.Args with the arguments.
+	// When creating a Thonk with JSON arguments
+	// that is variadic
+	// where the JSON provides only the non-variadic
+	// arguments
+	// then no error is returned
+	// and Thonk's argument field contains the parsed JSON
+	// values
 
 	thunk, e := WithJsonArgs(
 		func(s string, numbers ...float64) {},
@@ -215,9 +238,13 @@ func Test_WithJsonArgs_9(t *testing.T) {
 }
 
 func Test_WithJsonArgs_10(t *testing.T) {
-	// GIVEN many variadic args for variadic func.
-	// WHEN calling WithJsonArgs.
-	// THEN sets ValErrFunction.Args with the arguments.
+	// When creating a Thonk with JSON arguments
+	// that is variadic
+	// where the JSON provides several values for the
+	// function's variadic input
+	// then no error is returned
+	// and Thonk's argument field contains the parsed JSON
+	// values, including the variadic ones
 
 	thunk, e := WithJsonArgs(
 		func(s string, numbers ...float64) {},
@@ -241,12 +268,15 @@ func Test_WithJsonArgs_10(t *testing.T) {
 
 func Test_WithJsonArgs_11(t *testing.T) {
 	// Test not really needed but wanted extra confidence
-	// there wasn't any issue with paarsing structs and
+	// there wasn't any issue with parsing structs and
 	// arrays.
 
-	// GIVEN func has struct and array parameters.
-	// WHEN calling WithJsonArgs.
-	// THEN sets ValErrFunction.Args with the arguments.
+	// When creating a Thonk with JSON arguments
+	// where the function accepts objects
+	// the JSON provides the values for those objects
+	// then no error is returned
+	// and Thonk's argument field contains the parsed JSON
+	// objects
 
 	type DummyArg struct {
 		One int
@@ -292,16 +322,17 @@ func Test_WithJsonArgs_11(t *testing.T) {
 	require.Equal(t, 2, len(thunk.Args))
 }
 
-func Test_ValErrFunc_Call_1(t *testing.T) {
-	// GIVEN func with many parameters.
-	// WHEN calling ValErrFunc.CallRecover.
-	// THEN function is called with expected arguments.
+func Test_Thonk_Call_1(t *testing.T) {
+	// When calling a Thonk
+	// with many input parameters
+	// then the function is called with the arguments
+	// and in the correct order
 
 	var v1 int
 	var v2 string
 	var v3 []float64
 
-	thunk := ValErrFunc{
+	thunk := Thonk{
 		Func: func(arg1 int, arg2 string, arg3 ...float64) {
 			v1 = arg1
 			v2 = arg2
@@ -325,14 +356,15 @@ func Test_ValErrFunc_Call_1(t *testing.T) {
 	require.Equal(t, exp3, v3)
 }
 
-func Test_ValErrFunc_Call_2(t *testing.T) {
-	// GIVEN func with outputs.
-	// WHEN calling ValErrFunc.Call.
-	// THEN returns values returned by the function.
+func Test_Thonk_Call_2(t *testing.T) {
+	// When calling a Thonk
+	// with many output parameters
+	// then the function is called
+	// and the output values are returned
 
 	var BadToTheBone = errors.New("Bad to the bone")
 
-	thunk := ValErrFunc{
+	thunk := Thonk{
 		Func: func() (string, error) {
 			return "abc", BadToTheBone
 		},
@@ -344,12 +376,13 @@ func Test_ValErrFunc_Call_2(t *testing.T) {
 	require.Equal(t, "abc", v)
 }
 
-func Test_ValErrFunc_CallRecover_1(t *testing.T) {
-	// GIVEN func that panics.
-	// WHEN calling ValErrFunc.CallRecover.
-	// Then recovers and returns recovered value.
+func Test_Thonk_CallRecover_1(t *testing.T) {
+	// When calling a Thonk that recovers
+	// where the function panics
+	// then the Thonk recovers
+	// and the panic value returned
 
-	thunk := ValErrFunc{
+	thunk := Thonk{
 		Func: func() {
 			panic("Moo")
 		},
