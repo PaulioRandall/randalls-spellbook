@@ -2,28 +2,135 @@ package sourcery
 
 import (
 	"fmt"
+	"net"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/crgimenes/glaze"
 )
 
+type contentServer struct {
+	server   *http.Server
+	listener net.Listener
+	baseUrl  string
+}
+
+func createContentServer(handler http.Handler) (contentServer, error) {
+	server := &http.Server{
+		// TODO: Needs optimising.
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       20 * time.Second,
+		MaxHeaderBytes:    16 << 10, // 16 KiB
+	}
+
+	// Create listener on a random loopback port.
+	listener, e := net.Listen("tcp4", "127.0.0.1:0")
+	if e != nil {
+		return contentServer{}, e
+	}
+
+	baseUrl := "http://" + listener.Addr().(*net.TCPAddr).String()
+
+	cs := contentServer{
+		server:   server,
+		listener: listener,
+		baseUrl:  baseUrl,
+	}
+
+	return cs, nil
+}
+
+func (cs *contentServer) serve() error {
+	return cs.server.Serve(cs.listener)
+}
+
+func (cs *contentServer) close() error {
+	return cs.server.Close()
+}
+
 type World struct {
-	options        AppOptions
+	debug          bool
+	title          string
+	width          int
+	height         int
+	handler        *http.ServeMux
 	functions      map[string]any
 	initialisers   []Initable
 	uninitialisers []func()
 	webview        glaze.WebView
 }
 
-func (w *World) run() error {
-	w.options.OnWebViewReady = w.onWebViewReady
-	e := AppWindow(w.options)
+func (w *World) run() (e error) {
+	cs, e := createContentServer(w.handler)
+	if e != nil {
+		return e
+	}
 
+	go func() {
+		err := cs.serve()
+		if e == nil {
+			e = err
+		}
+	}()
+
+	defer func() {
+		err := cs.close()
+		if e == nil {
+			e = err
+		}
+	}()
+
+	defer w.callUninitialisers()
+
+	// Create the webview window.
+	w.webview, e = glaze.New(w.debug)
+	if e != nil {
+		return e
+	}
+
+	defer func() {
+		w.webview.Destroy()
+		w.webview = nil
+	}()
+
+	w.webview.SetTitle(w.title)
+	w.webview.SetSize(w.width, w.height, glaze.HintNone)
+	w.webview.Navigate(cs.baseUrl)
+	w.bindGoRaw()
+	w.callInitialisers()
+
+	// Starts the webview and blocks until it exits.
+	w.webview.Run()
+
+	return nil
+}
+
+func (w *World) bindGoRaw() error {
+	w.webview.Init(`
+		var Go = function(funcName, ...args) {
+			return GoRaw(
+				funcName,
+				JSON.stringify(args),
+			)
+		}
+	`)
+	return w.webview.Bind("GoRaw", w.GoRaw)
+}
+
+func (w *World) callInitialisers() {
+	for _, initable := range w.initialisers {
+		if unit := initable.Init(w); unit != nil {
+			w.uninitialisers = append(w.uninitialisers, unit)
+		}
+	}
+}
+
+func (w *World) callUninitialisers() {
 	for _, unit := range w.uninitialisers {
 		unit()
 	}
-
-	return e
 }
 
 func (w *World) WebView() glaze.WebView {
@@ -54,7 +161,7 @@ func (w *World) GoRaw(
 }
 
 func (w *World) Log(msg string, args ...any) {
-	if !w.options.Debug {
+	if !w.debug {
 		return
 	}
 
@@ -63,32 +170,6 @@ func (w *World) Log(msg string, args ...any) {
 	}
 
 	fmt.Printf("%s\n", prefixLines(msg, "[Sourcery] "))
-}
-
-func (w *World) onWebViewReady(wv glaze.WebView) error {
-	w.webview = wv
-
-	wv.Init(`
-		var Go = function(funcName, ...args) {
-			return GoRaw(
-				funcName,
-				JSON.stringify(args),
-			)
-		}
-	`)
-
-	e := wv.Bind("GoRaw", w.GoRaw)
-	if e != nil {
-		return e
-	}
-
-	for _, initable := range w.initialisers {
-		if unit := initable.Init(w); unit != nil {
-			w.uninitialisers = append(w.uninitialisers, unit)
-		}
-	}
-
-	return nil
 }
 
 func prefixLines(s, pre string) string {

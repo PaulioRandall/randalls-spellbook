@@ -89,45 +89,6 @@ func (m Media) Clean() (Media, error) {
 	return m, nil
 }
 
-// GetEntityId returns the unique entity ID of the media.
-func (m Media) GetEntityId() string {
-	return m.EntityId
-}
-
-// GetMediaType returns the type of the media, e.g. video,
-// audio, PDF, etc.
-func (m Media) GetMediaType() string {
-	return m.MediaType
-}
-
-// GetName returns the user defined readable and meaningful
-// name for humans users and AI agents. This is not the
-// filename, LocalPath returns the filename. It should
-// never be empty and should be trimmed of whitespace.
-func (m Media) GetName() string {
-	return m.Name
-}
-
-// GetDescription is the user defined detailed explanation
-// of the video for human users and AI agents It
-// compliments the media name but may also hold general
-// notes. It may be empty and should be trimmed of
-// whitespace.
-func (m Media) GetDescription() string {
-	return m.Description
-}
-
-// GetLocalPath is the path to the media file within the
-// local file system. There is no guarantee that the
-// file exists, as it may have been deleted or moved
-// since it was added to project. This may also happen
-// if the project is moved to a new computer without
-// copying the media files to matching locations in
-// the new file system.
-func (m Media) GetLocalPath() string {
-	return m.LocalPath
-}
-
 func (ds *Datastore) ListMedia() ([]Media, error) {
 	return ds.db.List(Media{}, "")
 }

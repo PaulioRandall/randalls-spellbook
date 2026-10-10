@@ -51,7 +51,7 @@ func Example() {
 	}
 
 	e = New().
-		Name("Example App").
+		Title("Example App").
 		Width(400).
 		Height(320).
 		AddEntity(&Counter{}).

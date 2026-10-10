@@ -1,12 +1,8 @@
 package sourcery
 
 import (
-	"maps"
 	"net/http"
 	"reflect"
-	"slices"
-
-	"github.com/crgimenes/glaze"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
@@ -16,7 +12,7 @@ type Initable interface {
 }
 
 type App struct {
-	options      AppOptions
+	world        World
 	servers      map[string]http.Handler
 	functions    map[string]any
 	initialisers []Initable
@@ -24,8 +20,9 @@ type App struct {
 
 func New() *App {
 	return &App{
-		options: AppOptions{
-			Hint: glaze.HintNone,
+		world: World{
+			title:   "Technotelicomnicon",
+			handler: http.NewServeMux(),
 		},
 		servers:   map[string]http.Handler{},
 		functions: map[string]any{},
@@ -33,22 +30,22 @@ func New() *App {
 }
 
 func (a *App) Debug() *App {
-	a.options.Debug = true
+	a.world.debug = true
 	return a
 }
 
-func (a *App) Name(name string) *App {
-	a.options.Title = name
+func (a *App) Title(title string) *App {
+	a.world.title = title
 	return a
 }
 
 func (a *App) Width(width int) *App {
-	a.options.Width = width
+	a.world.width = width
 	return a
 }
 
 func (a *App) Height(height int) *App {
-	a.options.Height = height
+	a.world.height = height
 	return a
 }
 
@@ -58,13 +55,14 @@ func (a *App) AddEntity(entity any) *App {
 }
 
 func (a *App) AddServer(path string, server http.Handler) *App {
-	a.servers[path] = server
+	a.world.handler.Handle(path, server)
 	return a
 }
 
 func (a *App) AddEntityServer(path string, entityServer http.Handler) *App {
-	a.servers[path] = entityServer
-	return a.AddEntity(any(entityServer))
+	a.world.handler.Handle(path, entityServer)
+	a.AddEntity(any(entityServer))
+	return a
 }
 
 func (a *App) parseEntityFunctions(entity any) {
@@ -73,7 +71,7 @@ func (a *App) parseEntityFunctions(entity any) {
 	entityName := typ.Elem().Name()
 
 	if initable, ok := entity.(Initable); ok {
-		a.initialisers = append(a.initialisers, initable)
+		a.world.initialisers = append(a.world.initialisers, initable)
 	}
 
 	for i := 0; i < val.NumMethod(); i++ {
@@ -100,29 +98,10 @@ func (a *App) parseEntityFunctions(entity any) {
 			panic(e)
 		}
 
-		a.functions[name] = f
+		a.world.functions[name] = f
 	}
 }
 
 func (a *App) Start() error {
-	options := a.options
-	options.Handler = a.marryServers()
-
-	w := &World{
-		options:      options,
-		functions:    maps.Clone(a.functions),
-		initialisers: slices.Clone(a.initialisers),
-	}
-
-	return w.run()
-}
-
-func (a *App) marryServers() *http.ServeMux {
-	mux := http.NewServeMux()
-
-	for path, server := range a.servers {
-		mux.Handle(path, server)
-	}
-
-	return mux
+	return a.world.run()
 }

@@ -21,7 +21,7 @@ func main() {
 
 	e = sourcery.New().
 		Debug().
-		Name("Randall's Spellbook").
+		Title("Randall's Spellbook").
 		Width(800).
 		Height(600).
 		AddEntity(&app.Util{}).
