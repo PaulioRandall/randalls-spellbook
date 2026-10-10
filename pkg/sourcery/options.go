@@ -5,66 +5,105 @@ import (
 	"net/http"
 	"reflect"
 
+	"github.com/crgimenes/glaze"
+
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
 
-type Initable interface {
+type Initialiser interface {
 	Init(w *World) func()
 }
 
-type Options struct {
-	Debug     bool
-	Title     string
-	Width     int
-	Height    int
-	ServeMux  *http.ServeMux
-	Functions map[string]any
+type Unitialiser interface {
+	Unit() func()
 }
 
-func NewOptions() Options {
+type Options struct {
+	debug        bool
+	webview      glaze.WebView
+	functions    map[string]any
+	serveMux     *http.ServeMux
+	initialisers []Initialiser
+	unitialisers []Unitialiser
+}
+
+func New(debug bool) Options {
 	return Options{
-		Title:     "Technotelicomnicon",
-		Width:     800,
-		Height:    600,
-		ServeMux:  http.NewServeMux(),
-		Functions: map[string]any{},
+		debug:        debug,
+		webview:      createWebView(debug),
+		functions:    map[string]any{},
+		serveMux:     nil,
+		initialisers: nil,
+		unitialisers: nil,
 	}
 }
 
-func (ops Options) EnableDebug() Options {
-	ops.Debug = true
-	return ops
+func createWebView(debug bool) glaze.WebView {
+	webview, e := glaze.New(debug)
+	if e != nil {
+		panic(e)
+	}
+
+	webview.SetTitle("Technotelicomnicon")
+	webview.SetSize(
+		800,
+		600,
+		glaze.HintNone,
+	)
+
+	return webview
 }
 
 func (ops Options) SetTitle(title string) Options {
-	ops.Title = title
+	ops.webview.SetTitle(title)
 	return ops
 }
 
-func (ops Options) SetWidth(width int) Options {
-	ops.Width = width
+func (ops Options) SetSize(width, height int) Options {
+	ops.webview.SetSize(
+		width,
+		height,
+		glaze.HintNone,
+	)
 	return ops
 }
 
-func (ops Options) SetHeight(height int) Options {
-	ops.Height = height
+func (ops Options) SetHtml(html string) Options {
+	ops.webview.SetHtml(html)
 	return ops
 }
 
 func (ops Options) AddEntity(entity any) Options {
 	funcs := parseEntityFunctions(entity)
-	maps.Copy(ops.Functions, funcs)
+	maps.Copy(ops.functions, funcs)
+
+	if init, ok := entity.(Initialiser); ok {
+		ops.initialisers = append(ops.initialisers, init)
+	}
+
+	if unit, ok := entity.(Unitialiser); ok {
+		ops.unitialisers = append(ops.unitialisers, unit)
+	}
+
 	return ops
 }
 
 func (ops Options) AddServer(path string, server http.Handler) Options {
-	ops.ServeMux.Handle(path, server)
+	if ops.serveMux == nil {
+		ops.serveMux = http.NewServeMux()
+	}
+
+	ops.serveMux.Handle(path, server)
 	return ops
 }
 
 func (ops Options) AddEntityServer(path string, entityServer http.Handler) Options {
-	ops.ServeMux.Handle(path, entityServer)
+	ops = ops.AddServer(path, entityServer)
 	return ops.AddEntity(any(entityServer))
+}
+
+func (ops Options) CreateWorld() *World {
+	return newWorld(ops)
 }
 
 func parseEntityFunctions(entity any) map[string]any {

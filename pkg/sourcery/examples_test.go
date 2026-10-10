@@ -50,13 +50,13 @@ func Example() {
 		log.Fatal(e)
 	}
 
-	e = New().
-		Title("Example App").
-		Width(400).
-		Height(320).
+	e = New(true).
+		SetTitle("Example App").
+		SetSize(400, 320).
 		AddEntity(&Counter{}).
 		AddServer("/", http.FileServerFS(webpage)).
-		Start() // Blocks until WebView exits.
+		CreateWorld().
+		Start()
 
 	if e != nil {
 		log.Fatal(e)
