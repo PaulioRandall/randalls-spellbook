@@ -62,7 +62,7 @@ type World struct {
 	webview        glaze.WebView
 }
 
-func (w *World) run() (e error) {
+func (w *World) Start() (e error) {
 	cs, e := createContentServer(w.handler)
 	if e != nil {
 		return e

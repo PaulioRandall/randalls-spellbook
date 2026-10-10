@@ -12,7 +12,7 @@ type Counter struct {
 	Value float64
 }
 
-func (c *Counter) Init(a *App) func() {
+func (c *Counter) Init(w *World) func() {
 	// Initialisation code called on app start.
 	c.Value = 0
 

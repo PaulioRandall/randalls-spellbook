@@ -155,6 +155,11 @@ func (cu Curse) AsReverseStackError() error {
 	return ReverseStack(cu)
 }
 
+// Panic panics with the error as the argument.
+func (cu Curse) Panic() {
+	panic(cu)
+}
+
 // TemplateCurse creates [Curse] errors with formattable
 // messages. It is designed to be used as named package
 // errors. [TemplateCurse.Fmt] should be called at the site
@@ -174,13 +179,6 @@ func Template(message string) TemplateCurse {
 	}
 }
 
-// Error returns the error message, satisfying Go's error
-// interface.
-func (tc TemplateCurse) Error() string {
-	log.Println("WARNING: Use of unformatted TemplateCurse")
-	return tc.curse.Message
-}
-
 // Fmt formats the template's error message, which must be
 // using the passed args and fmt.Sprintf. Calling
 // [Curse.Is] with the receiving template will
@@ -190,6 +188,20 @@ func (tc TemplateCurse) Fmt(args ...any) Curse {
 	cu := tc.curse
 	cu.Message = fmt.Sprintf(cu.Message, args...)
 	return cu
+}
+
+// Error returns the error message, satisfying Go's error
+// interface.
+func (tc TemplateCurse) Error() string {
+	log.Println("WARNING: Use of unformatted TemplateCurse")
+	return tc.curse.Message
+}
+
+// Panic formats using [TemplateCurse.Fmt] and the passed
+// arguments then usees the result as the argument in a
+// panic.
+func (tc TemplateCurse) Panic(args ...any) {
+	tc.Fmt(args...).Panic()
 }
 
 var _ error = Curse{}

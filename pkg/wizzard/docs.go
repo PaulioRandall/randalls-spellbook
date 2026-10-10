@@ -1,5 +1,5 @@
-// Package wizzard provides a simple ORM-based interface to
-// managing SQLite databases with Go struct's.
+// Package wizzard provides a simple ORM-based interface
+// for managing SQLite databases with Go struct's.
 //
 // # Rincewind the Wizzard
 //

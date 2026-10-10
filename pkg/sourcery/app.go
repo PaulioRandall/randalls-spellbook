@@ -7,71 +7,57 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
 
-type Initable interface {
-	Init(w *World) func()
-}
-
-type App struct {
-	world        World
-	servers      map[string]http.Handler
-	functions    map[string]any
-	initialisers []Initable
-}
-
-func New() *App {
-	return &App{
-		world: World{
-			title:   "Technotelicomnicon",
-			handler: http.NewServeMux(),
-		},
-		servers:   map[string]http.Handler{},
+func New() *World {
+	return &World{
+		title:     "Technotelicomnicon",
+		handler:   http.NewServeMux(),
 		functions: map[string]any{},
 	}
 }
 
-func (a *App) Debug() *App {
-	a.world.debug = true
-	return a
+func (w *World) Debug() *World {
+	w.debug = true
+	return w
 }
 
-func (a *App) Title(title string) *App {
-	a.world.title = title
-	return a
+func (w *World) Title(title string) *World {
+	w.title = title
+	return w
 }
 
-func (a *App) Width(width int) *App {
-	a.world.width = width
-	return a
+func (w *World) Width(width int) *World {
+	w.width = width
+	return w
 }
 
-func (a *App) Height(height int) *App {
-	a.world.height = height
-	return a
+func (w *World) Height(height int) *World {
+	w.height = height
+	return w
 }
 
-func (a *App) AddEntity(entity any) *App {
-	a.parseEntityFunctions(entity)
-	return a
+func (w *World) AddEntity(entity any) *World {
+	w.parseEntityFunctions(entity)
+	return w
 }
 
-func (a *App) AddServer(path string, server http.Handler) *App {
-	a.world.handler.Handle(path, server)
-	return a
+func (w *World) AddServer(path string, server http.Handler) *World {
+	w.handler.Handle(path, server)
+	return w
 }
 
-func (a *App) AddEntityServer(path string, entityServer http.Handler) *App {
-	a.world.handler.Handle(path, entityServer)
-	a.AddEntity(any(entityServer))
-	return a
+func (w *World) AddEntityServer(path string, entityServer http.Handler) *World {
+	w.handler.Handle(path, entityServer)
+	w.AddEntity(any(entityServer))
+	return w
 }
 
-func (a *App) parseEntityFunctions(entity any) {
+func (w *World) parseEntityFunctions(entity any) {
 	val := reflect.ValueOf(entity)
 	typ := val.Type()
 	entityName := typ.Elem().Name()
 
 	if initable, ok := entity.(Initable); ok {
-		a.world.initialisers = append(a.world.initialisers, initable)
+		w.initialisers = append(w.initialisers, initable)
 	}
 
 	for i := 0; i < val.NumMethod(); i++ {
@@ -98,10 +84,6 @@ func (a *App) parseEntityFunctions(entity any) {
 			panic(e)
 		}
 
-		a.world.functions[name] = f
+		w.functions[name] = f
 	}
-}
-
-func (a *App) Start() error {
-	return a.world.run()
 }
