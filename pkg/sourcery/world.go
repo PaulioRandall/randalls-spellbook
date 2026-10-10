@@ -2,25 +2,168 @@ package sourcery
 
 import (
 	"fmt"
+	"maps"
+	"net/http"
+	"reflect"
 
 	"github.com/crgimenes/glaze"
+
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
 
-type World struct {
-	options Options
+type Initialiser interface {
+	Init(w *World) func()
 }
 
-func newWorld(options Options) *World {
+type Unitialiser interface {
+	Unit() func()
+}
+
+type World struct {
+	debug        bool
+	webview      glaze.WebView
+	functions    map[string]any
+	serveMux     *http.ServeMux
+	initialisers []Initialiser
+	unitialisers []Unitialiser
+}
+
+func NewWorld(debug bool) *World {
 	return &World{
-		options: options,
+		debug:        debug,
+		webview:      createWebView(debug),
+		functions:    map[string]any{},
+		serveMux:     nil,
+		initialisers: nil,
+		unitialisers: nil,
 	}
+}
+
+func createWebView(debug bool) glaze.WebView {
+	webview, e := glaze.New(debug)
+	if e != nil {
+		panic(e)
+	}
+
+	webview.SetTitle("Technotelicomnicon")
+	webview.SetSize(
+		800,
+		600,
+		glaze.HintNone,
+	)
+
+	return webview
+}
+
+func (w *World) SetTitle(title string) *World {
+	w.webview.SetTitle(title)
+	return w
+}
+
+func (w *World) SetSize(width, height int) *World {
+	w.webview.SetSize(
+		width,
+		height,
+		glaze.HintNone,
+	)
+	return w
+}
+
+func (w *World) SetHtml(html string) *World {
+	w.webview.SetHtml(html)
+	return w
+}
+
+func (w *World) AddEntity(entity any) *World {
+	funcs := parseEntityFunctions(entity)
+	maps.Copy(w.functions, funcs)
+
+	if init, ok := entity.(Initialiser); ok {
+		w.initialisers = append(w.initialisers, init)
+	}
+
+	if unit, ok := entity.(Unitialiser); ok {
+		w.unitialisers = append(w.unitialisers, unit)
+	}
+
+	return w
+}
+
+func (w *World) AddServer(path string, server http.Handler) *World {
+	if w.serveMux == nil {
+		w.serveMux = http.NewServeMux()
+	}
+
+	w.serveMux.Handle(path, server)
+	return w
+}
+
+func (w *World) AddEntityServer(path string, entityServer http.Handler) *World {
+	w = w.AddServer(path, entityServer)
+	return w.AddEntity(any(entityServer))
+}
+
+func parseEntityFunctions(entity any) map[string]any {
+	val := reflect.ValueOf(entity)
+	typ := val.Type()
+	entityName := typ.Elem().Name()
+
+	results := map[string]any{}
+
+	for i := 0; i < val.NumMethod(); i++ {
+		funcTyp, allowed := getEntityMethodAt(typ, i)
+		if !allowed {
+			continue
+		}
+
+		name := entityName + "." + funcTyp.Name
+		f := val.Method(i).Interface()
+		checkEntityMethod(f, name)
+
+		results[name] = f
+	}
+
+	return results
+}
+
+func getEntityMethodAt(typ reflect.Type, i int) (reflect.Method, bool) {
+	funcTyp := typ.Method(i)
+
+	if !funcTyp.IsExported() {
+		// Ignore unexported because we can only call exported
+		// methods when external to the object.
+		return reflect.Method{}, false
+	}
+
+	n := funcTyp.Name
+	if n == "Init" || n == "ServeHttp" {
+		// Ignore Init and ServeHttp named functions as they
+		// serve special purposes.
+		return reflect.Method{}, false
+	}
+
+	return funcTyp, true
+}
+
+func checkEntityMethod(f any, name string) {
+	e := ValidateValErrFunc(f)
+	if e == nil {
+		return
+	}
+
+	sin.Fmt(
+		"'%s' has invalid function signature",
+		name,
+	).
+		Wrap(e).
+		Panic()
 }
 
 func (w *World) Start() (e error) {
 	var baseUrl string
 
-	if w.options.serveMux != nil {
-		cs, e := createContentServer(w.options.serveMux)
+	if w.serveMux != nil {
+		cs, e := createContentServer(w.serveMux)
 		if e != nil {
 			return e
 		}
@@ -43,12 +186,12 @@ func (w *World) Start() (e error) {
 	}
 
 	defer func() {
-		w.options.webview.Destroy()
-		w.options.webview = nil
+		w.webview.Destroy()
+		w.webview = nil
 	}()
 
 	if baseUrl != "" {
-		w.options.webview.Navigate(baseUrl)
+		w.webview.Navigate(baseUrl)
 	}
 
 	e = w.bindGoRaw()
@@ -60,29 +203,25 @@ func (w *World) Start() (e error) {
 	w.initialise()
 
 	// Starts the webview and blocks until it exits.
-	w.options.webview.Run()
+	w.webview.Run()
 
 	return nil
 }
 
 func (w *World) initialise() {
-	for _, v := range w.options.initialisers {
+	for _, v := range w.initialisers {
 		v.Init(w)
 	}
 }
 
 func (w *World) unitialise() {
-	for _, v := range w.options.unitialisers {
+	for _, v := range w.unitialisers {
 		v.Unit()
 	}
 }
 
-func (w *World) Options() Options {
-	return w.options
-}
-
 func (w *World) WebView() glaze.WebView {
-	return w.options.webview
+	return w.webview
 }
 
 func (w *World) Exit() {
@@ -90,12 +229,12 @@ func (w *World) Exit() {
 }
 
 func (w *World) bindGoRaw() error {
-	e := w.options.webview.Bind("GoRaw", w.GoRaw)
+	e := w.webview.Bind("GoRaw", w.GoRaw)
 	if e != nil {
 		return e
 	}
 
-	w.options.webview.Init(`
+	w.webview.Init(`
 		var Go = function(funcName, ...args) {
 			return GoRaw(
 				funcName,
@@ -111,7 +250,7 @@ func (w *World) GoRaw(
 	funcName string,
 	jsonArgs string,
 ) (any, error) {
-	if f, ok := w.options.functions[funcName]; ok {
+	if f, ok := w.functions[funcName]; ok {
 		w.Log("Go: %s", funcName)
 		thunk, e := WithJsonArgs(f, jsonArgs)
 
@@ -127,7 +266,7 @@ func (w *World) GoRaw(
 }
 
 func (w *World) Log(msg string, args ...any) {
-	if !w.options.debug {
+	if !w.debug {
 		return
 	}
 

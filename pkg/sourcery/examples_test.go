@@ -50,12 +50,11 @@ func Example() {
 		log.Fatal(e)
 	}
 
-	e = New(true).
+	e = NewWorld(true).
 		SetTitle("Example App").
 		SetSize(400, 320).
 		AddEntity(&Counter{}).
 		AddServer("/", http.FileServerFS(webpage)).
-		CreateWorld().
 		Start()
 
 	if e != nil {

@@ -20,13 +20,12 @@ func main() {
 	}
 
 	e = sourcery.
-		New(true).
+		NewWorld(true).
 		SetTitle("Randall's Spellbook").
 		SetSize(800, 600).
 		AddEntity(&app.Util{}).
 		AddEntityServer("/media/", &app.Datastore{}).
 		AddServer("/", http.FileServerFS(uiFiles)).
-		CreateWorld().
 		Start() // Blocks until WebView closes.
 
 	if e != nil {
