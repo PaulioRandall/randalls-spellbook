@@ -249,7 +249,7 @@ func (w *World) GoRaw(
 	jsonArgs string,
 ) (any, error) {
 	if f, ok := w.functions[funcName]; ok {
-		w.Log("Go: %s", funcName)
+		w.log("Go: %s", funcName)
 		th, e := thonk.WithJsonArgs(f, jsonArgs)
 
 		if e != nil {
