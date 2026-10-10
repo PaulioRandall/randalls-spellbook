@@ -1,9 +1,9 @@
 package app
 
 import (
-	"github.com/crgimenes/glaze"
 	"github.com/google/uuid"
 
+	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
 )
 
@@ -25,10 +25,7 @@ func (u *Util) Init(w *sourcery.World) func() {
 func (u *Util) SelectLocalFile(
 	title string,
 ) (string, error) {
-	// Blocks!
-	return u.w.WebView().OpenFile(glaze.FileDialogOptions{
-		Title: title,
-	})
+	return "", sin.Err("Not yet implemented!")
 }
 
 func randomEntityId() string {

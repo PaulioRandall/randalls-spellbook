@@ -1,5 +1,5 @@
-github.com/crgimenes/glaze v0.0.33 h1:XZm2cFTSFSY7UarC4w/ziCMJ7Zwkce5Dh1NaO1Koj5Q=
-github.com/crgimenes/glaze v0.0.33/go.mod h1:ZuCIST0F5U6wJLw5ZtqfcTIQA7LI/m2MHv7iMOBmu6U=
+github.com/abemedia/go-webview v0.0.0-20250327021345-7b06ad397f16 h1:TzbbT13DaJy3TR2zae7TFy1/kLk5ht7vFU1yn+YF+bs=
+github.com/abemedia/go-webview v0.0.0-20250327021345-7b06ad397f16/go.mod h1:MUm5qeBfgr9qtrAHbpCbdQwx6wiQRih+dQpzkpqzzFY=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/ebitengine/purego v0.10.1 h1:dewVBCBT2GaMu1SrNTYxQhgQBethzfhiwvZiLGP/qyY=

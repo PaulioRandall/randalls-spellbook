@@ -53,8 +53,8 @@ func Example() {
 	e = NewWorld(true).
 		SetTitle("Example App").
 		SetSize(400, 320).
-		AddEntity(&Counter{}).
-		AddServer("/", http.FileServerFS(webpage)).
+		Entity(&Counter{}).
+		Server("/", http.FileServerFS(webpage)).
 		Start()
 
 	if e != nil {

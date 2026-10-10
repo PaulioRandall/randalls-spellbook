@@ -64,7 +64,7 @@ godoVet() {
 }
 
 godoRun() {
-	runCmd "go run ./main.go"
+	runCmd "go run ./main.go -ldflags="-H windowsgui" ."
 }
 
 godoUiBuild() {

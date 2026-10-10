@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/crgimenes/glaze"
+	engine "github.com/abemedia/go-webview"
+	_ "github.com/abemedia/go-webview/embedded"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 )
@@ -21,7 +22,7 @@ type Unitialiser interface {
 
 type World struct {
 	debug        bool
-	webview      glaze.WebView
+	webview      engine.WebView
 	functions    map[string]any
 	serveMux     *http.ServeMux
 	initialisers []Initialiser
@@ -39,17 +40,13 @@ func NewWorld(debug bool) *World {
 	}
 }
 
-func createWebView(debug bool) glaze.WebView {
-	webview, e := glaze.New(debug)
-	if e != nil {
-		panic(e)
-	}
-
+func createWebView(debug bool) engine.WebView {
+	webview := engine.New(debug)
 	webview.SetTitle("Technotelicomnicon")
 	webview.SetSize(
 		800,
 		600,
-		glaze.HintNone,
+		engine.HintNone,
 	)
 
 	return webview
@@ -64,7 +61,7 @@ func (w *World) SetSize(width, height int) *World {
 	w.webview.SetSize(
 		width,
 		height,
-		glaze.HintNone,
+		engine.HintNone,
 	)
 	return w
 }
@@ -74,7 +71,7 @@ func (w *World) SetHtml(html string) *World {
 	return w
 }
 
-func (w *World) AddEntity(entity any) *World {
+func (w *World) Entity(entity any) *World {
 	funcs := parseEntityFunctions(entity)
 	maps.Copy(w.functions, funcs)
 
@@ -89,7 +86,7 @@ func (w *World) AddEntity(entity any) *World {
 	return w
 }
 
-func (w *World) AddServer(path string, server http.Handler) *World {
+func (w *World) Server(path string, server http.Handler) *World {
 	if w.serveMux == nil {
 		w.serveMux = http.NewServeMux()
 	}
@@ -98,9 +95,9 @@ func (w *World) AddServer(path string, server http.Handler) *World {
 	return w
 }
 
-func (w *World) AddEntityServer(path string, entityServer http.Handler) *World {
-	w = w.AddServer(path, entityServer)
-	return w.AddEntity(any(entityServer))
+func (w *World) EntityServer(path string, entityServer http.Handler) *World {
+	w = w.Server(path, entityServer)
+	return w.Entity(any(entityServer))
 }
 
 func parseEntityFunctions(entity any) map[string]any {
@@ -220,7 +217,7 @@ func (w *World) unitialise() {
 	}
 }
 
-func (w *World) WebView() glaze.WebView {
+func (w *World) WebView() engine.WebView {
 	return w.webview
 }
 
@@ -251,7 +248,7 @@ func (w *World) GoRaw(
 	jsonArgs string,
 ) (any, error) {
 	if f, ok := w.functions[funcName]; ok {
-		w.Log("Go: %s", funcName)
+		w.log("Go: %s", funcName)
 		thunk, e := WithJsonArgs(f, jsonArgs)
 
 		if e != nil {
@@ -261,11 +258,11 @@ func (w *World) GoRaw(
 		return thunk.Call()
 	}
 
-	w.Log("Unknown function: %s", funcName)
+	w.log("Unknown function: %s", funcName)
 	return nil, fmt.Errorf("Unknown function: %s", funcName)
 }
 
-func (w *World) Log(msg string, args ...any) {
+func (w *World) log(msg string, args ...any) {
 	if !w.debug {
 		return
 	}
