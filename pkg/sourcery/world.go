@@ -9,6 +9,7 @@ import (
 	"github.com/crgimenes/glaze"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
+	"github.com/PaulioRandall/randalls-spellbook/pkg/thonk"
 )
 
 type Initialiser interface {
@@ -146,7 +147,7 @@ func getEntityMethodAt(typ reflect.Type, i int) (reflect.Method, bool) {
 }
 
 func checkEntityMethod(f any, name string) {
-	e := ValidateValErrFunc(f)
+	e := thonk.Validate(f)
 	if e == nil {
 		return
 	}
@@ -252,13 +253,13 @@ func (w *World) GoRaw(
 ) (any, error) {
 	if f, ok := w.functions[funcName]; ok {
 		w.Log("Go: %s", funcName)
-		thunk, e := WithJsonArgs(f, jsonArgs)
+		th, e := thonk.WithJsonArgs(f, jsonArgs)
 
 		if e != nil {
 			return nil, e
 		}
 
-		return thunk.Call()
+		return th.Call()
 	}
 
 	w.Log("Unknown function: %s", funcName)
