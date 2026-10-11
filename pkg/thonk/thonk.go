@@ -212,21 +212,23 @@ func createPointerValueToParam(
 // error. Call doesn't recover from panics.
 func (th Thonk) Call() (any, error) {
 	val := reflect.ValueOf(th.Func)
-	results := val.Call(th.Args)
+	res := val.Call(th.Args)
 
-	switch len(results) {
+	// We can be sure this is correct because type and
+	// parameter checking was done during function and
+	// argument parsing.
+	switch len(res) {
 	case 0:
 		return nil, nil
 	case 1:
-		v := results[0].Interface()
+		v := res[0].Interface()
 		if err, ok := v.(error); ok {
 			return v, err
 		}
 		return v, nil
 	default: // 2 return values
-		// Type check done during parsing.
-		err, _ := results[1].Interface().(error)
-		return results[0].Interface(), err
+		err, _ := res[1].Interface().(error)
+		return res[0].Interface(), err
 	}
 }
 

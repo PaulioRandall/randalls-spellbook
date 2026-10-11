@@ -16,25 +16,25 @@ type Unitialiser interface {
 	Unit() error
 }
 
-// EntityList is a list of entities where each may
+// entityList is a list of entities where each may
 // optionally implement [Initialiser] and [Unitialiser].
-type EntityList []any
+type entityList []any
 
 // Append appends an item to the end of the list the same
 // as Go's standard append function, thus, always assign
 // the output.
-func (el EntityList) Append(item any) EntityList {
+func (el entityList) Append(item any) entityList {
 	return append(el, item)
 }
 
 // Init initialises all list items that implement
 // [Initialiser]. If an error occurs all items that were
 // initialised, except the item that produced the error,
-// will be unitialised, as though [EntityList.Unit] was
+// will be unitialised, as though [entityList.Unit] was
 // called exclusively for them. Any errors from
 // unitialisation are ignored. A panic will bypass
 // unitialisation.
-func (el EntityList) Init(w *World) error {
+func (el entityList) Init(w *World) error {
 	var list []any = []any(el)
 	var e error
 
@@ -60,7 +60,7 @@ func (el EntityList) Init(w *World) error {
 // unitialisation will continue for the remaining items.
 // Only the first error encountered will be returned. A
 // panic will bypass remaining unitialisation.
-func (el EntityList) Unit() error {
+func (el entityList) Unit() error {
 	return unit([]any(el))
 }
 
@@ -81,5 +81,7 @@ func unit(list []any) (err error) {
 	return err
 }
 
-var _ Initialiser = &EntityList{}
-var _ Unitialiser = &EntityList{}
+var (
+	_ Initialiser = &entityList{}
+	_ Unitialiser = &entityList{}
+)

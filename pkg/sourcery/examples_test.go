@@ -52,12 +52,12 @@ func Example() {
 		log.Fatal(e)
 	}
 
-	e = NewWorld(true).
+	e = New(true).
 		SetTitle("Example App").
 		SetSize(400, 320).
 		Entity(&Counter{}).
 		Server("/", http.FileServerFS(webpage)).
-		Start()
+		Run()
 
 	if e != nil {
 		log.Fatal(e)

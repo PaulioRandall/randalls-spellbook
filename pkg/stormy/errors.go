@@ -8,7 +8,7 @@ var (
 	// ErrForDatabase is returned for almost all errors and
 	// prints the database path.
 	ErrForDatabase = sin.Template(
-		"Stormyy database error '%s'",
+		"Stormy database error '%s'",
 	)
 
 	// ErrForTable occurs in the chain of every error

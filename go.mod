@@ -3,7 +3,7 @@ module github.com/PaulioRandall/randalls-spellbook
 go 1.27.0
 
 require (
-	github.com/abemedia/go-webview v0.0.0-20250327021345-7b06ad397f16
+	github.com/PaulioRandall/go-webview v0.0.0-20261011221102-a3b2a3c66fc0
 	github.com/glebarez/go-sqlite v1.23.0
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.12.1

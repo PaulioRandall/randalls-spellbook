@@ -8,19 +8,19 @@ var (
 	// ErrForTable occurs when an operation on a known table
 	// fails.
 	ErrForTable = sin.Template(
-		"Regarding table '%s'",
+		"For table '%s'",
 	)
 
 	// ErrForType occurs when an operation on a known model
 	// fails.
 	ErrForType = sin.Template(
-		"Regarding model '%s'",
+		"For model '%s'",
 	)
 
 	// ErrForField occurs when an operation on a known
 	// property within a model fails.
 	ErrForField = sin.Template(
-		"Regarding property '%s'",
+		"For property '%s'",
 	)
 
 	// ErrNotStruct occurs when attempting the parse a
@@ -38,14 +38,14 @@ var (
 
 	// ErrWrongObjectType occurs when passing an object with
 	// a type that is not the model's GoType.
-	ErrWrongObjectType = sin.Template(
+	ErrWrongObjectType = sin.Err(
 		"This model does not handle the passed object type",
 	)
 
 	// ErrWrongParameterType occurs when using a type that is
 	// not the model's GoType with one of the model's generic
 	// methods.
-	ErrWrongParameterType = sin.Template(
+	ErrWrongParameterType = sin.Err(
 		"This model does not handle the parameter type used (generics)",
 	)
 

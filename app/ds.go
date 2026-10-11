@@ -34,3 +34,8 @@ func (ds *Datastore) Unit() error {
 
 	return e
 }
+
+var (
+	_ sourcery.Initialiser = &Datastore{}
+	_ sourcery.Unitialiser = &Datastore{}
+)

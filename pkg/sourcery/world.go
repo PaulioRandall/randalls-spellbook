@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"reflect"
 
-	engine "github.com/abemedia/go-webview"
-	_ "github.com/abemedia/go-webview/embedded"
+	engine "github.com/PaulioRandall/go-webview"
+	_ "github.com/PaulioRandall/go-webview/embedded"
 
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sin"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/thonk"
@@ -18,10 +18,10 @@ type World struct {
 	webview   engine.WebView
 	functions map[string]any
 	serveMux  *http.ServeMux
-	entities  EntityList
+	entities  entityList
 }
 
-func NewWorld(debug bool) *World {
+func New(debug bool) *World {
 	return &World{
 		debug:     debug,
 		webview:   createWebView(debug),
@@ -139,7 +139,7 @@ func checkEntityMethod(f any, name string) {
 		Panic()
 }
 
-func (w *World) Start() (e error) {
+func (w *World) Run() (e error) {
 	var baseUrl string
 
 	if w.serveMux != nil {
@@ -195,10 +195,6 @@ func (w *World) WebView() engine.WebView {
 	return w.webview
 }
 
-func (w *World) Exit() {
-	w.WebView().Terminate()
-}
-
 func (w *World) bindGoRaw() error {
 	e := w.webview.Bind("GoRaw", w.GoRaw)
 	if e != nil {
@@ -221,19 +217,20 @@ func (w *World) GoRaw(
 	funcName string,
 	jsonArgs string,
 ) (any, error) {
-	if f, ok := w.functions[funcName]; ok {
-		w.log("Go: %s", funcName)
-		th, e := thonk.WithJsonArgs(f, jsonArgs)
-
-		if e != nil {
-			return nil, e
-		}
-
-		return th.Call()
+	f, ok := w.functions[funcName]
+	if !ok {
+		w.log("Unknown function: %s", funcName)
+		return nil, fmt.Errorf("Unknown function: %s", funcName)
 	}
 
-	w.log("Unknown function: %s", funcName)
-	return nil, fmt.Errorf("Unknown function: %s", funcName)
+	w.log("Go: %s", funcName)
+	th, e := thonk.WithJsonArgs(f, jsonArgs)
+
+	if e != nil {
+		return nil, e
+	}
+
+	return th.Call()
 }
 
 func (w *World) log(msg string, args ...any) {

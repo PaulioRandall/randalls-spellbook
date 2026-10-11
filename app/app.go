@@ -33,3 +33,8 @@ func (u *Util) SelectLocalFile(
 func randomEntityId() string {
 	return uuid.New().String()
 }
+
+var (
+	_ sourcery.Initialiser = &Util{}
+	_ sourcery.Unitialiser = &Util{}
+)
