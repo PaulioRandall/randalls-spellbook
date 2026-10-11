@@ -13,31 +13,21 @@ import (
 	"github.com/PaulioRandall/randalls-spellbook/pkg/thonk"
 )
 
-type Initialiser interface {
-	Init(w *World) func()
-}
-
-type Unitialiser interface {
-	Unit() func()
-}
-
 type World struct {
-	debug        bool
-	webview      engine.WebView
-	functions    map[string]any
-	serveMux     *http.ServeMux
-	initialisers []Initialiser
-	unitialisers []Unitialiser
+	debug     bool
+	webview   engine.WebView
+	functions map[string]any
+	serveMux  *http.ServeMux
+	entities  EntityList
 }
 
 func NewWorld(debug bool) *World {
 	return &World{
-		debug:        debug,
-		webview:      createWebView(debug),
-		functions:    map[string]any{},
-		serveMux:     nil,
-		initialisers: nil,
-		unitialisers: nil,
+		debug:     debug,
+		webview:   createWebView(debug),
+		functions: map[string]any{},
+		serveMux:  nil,
+		entities:  nil,
 	}
 }
 
@@ -75,15 +65,7 @@ func (w *World) SetHtml(html string) *World {
 func (w *World) Entity(entity any) *World {
 	funcs := parseEntityFunctions(entity)
 	maps.Copy(w.functions, funcs)
-
-	if init, ok := entity.(Initialiser); ok {
-		w.initialisers = append(w.initialisers, init)
-	}
-
-	if unit, ok := entity.(Unitialiser); ok {
-		w.unitialisers = append(w.unitialisers, unit)
-	}
-
+	w.entities = w.entities.Append(entity)
 	return w
 }
 
@@ -134,9 +116,9 @@ func getEntityMethodAt(typ reflect.Type, i int) (reflect.Method, bool) {
 	}
 
 	n := funcTyp.Name
-	if n == "Init" || n == "ServeHttp" {
-		// Ignore Init and ServeHttp named functions as they
-		// serve special purposes.
+	if n == "Init" || n == "Unit" || n == "ServeHttp" {
+		// Ignore these reserved function names as they serve
+		// special purposes.
 		return reflect.Method{}, false
 	}
 
@@ -197,25 +179,16 @@ func (w *World) Start() (e error) {
 		return e
 	}
 
-	defer w.unitialise()
-	w.initialise()
+	e = w.entities.Init(w)
+	if e != nil {
+		return e
+	}
+	defer w.entities.Unit()
 
 	// Starts the webview and blocks until it exits.
 	w.webview.Run()
 
 	return nil
-}
-
-func (w *World) initialise() {
-	for _, v := range w.initialisers {
-		v.Init(w)
-	}
-}
-
-func (w *World) unitialise() {
-	for _, v := range w.unitialisers {
-		v.Unit()
-	}
 }
 
 func (w *World) WebView() engine.WebView {

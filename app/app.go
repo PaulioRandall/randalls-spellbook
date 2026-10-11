@@ -12,14 +12,16 @@ type Util struct {
 	dbPath string
 }
 
-func (u *Util) Init(w *sourcery.World) func() {
+func (u *Util) Init(w *sourcery.World) error {
 	u.w = w
 	// TODO: Allow user to specify DB path.
 	u.dbPath = "./testproject/data.sqlite"
+	return nil
+}
 
-	return func() {
-		u.w = nil
-	}
+func (u *Util) Unit() error {
+	u.w = nil
+	return nil
 }
 
 func (u *Util) SelectLocalFile(

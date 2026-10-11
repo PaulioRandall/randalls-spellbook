@@ -12,14 +12,16 @@ type Counter struct {
 	Value float64
 }
 
-func (c *Counter) Init(w *World) func() {
+func (c *Counter) Init(w *World) error {
 	// Initialisation code called on app start.
 	c.Value = 0
+	return nil
+}
 
-	return func() {
-		// Clean up code called on app exit.
-		c.Value = -1
-	}
+func (c *Counter) Unit() error {
+	// Clean up code called on app exit.
+	c.Value = -1
+	return nil
 }
 
 func (c *Counter) Set(n float64) {

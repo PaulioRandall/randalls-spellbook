@@ -11,27 +11,26 @@ type Datastore struct {
 	db   *stormy.Stormy
 }
 
-func (ds *Datastore) Init(w *sourcery.World) func() {
+func (ds *Datastore) Init(w *sourcery.World) error {
 	var e error
 
 	// TODO: Allow user to specify DB path.
 	ds.w = w
 	ds.db, e = stormy.Open("./testproject/data.sqlite")
 	if e != nil {
-		panic(e)
+		return e
 	}
 
-	e = ds.db.Create(Media{})
-	if e != nil {
-		panic(e)
-	}
-
-	return ds.free
+	return ds.db.Create(Media{})
 }
 
-func (ds *Datastore) free() {
+func (ds *Datastore) Unit() error {
+	var e error
+
 	if ds.db != nil {
-		ds.db.Close()
+		e = ds.db.Close()
 		ds.db = nil
 	}
+
+	return e
 }
