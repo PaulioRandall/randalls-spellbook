@@ -14,7 +14,7 @@ type contentServer struct {
 
 func createContentServer(handler http.Handler) (contentServer, error) {
 	server := &http.Server{
-		// TODO: Needs optimising.
+		// TODO: Needs tuning.
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       20 * time.Second,

@@ -1,23 +1,18 @@
 <script>
 	import { onMount } from 'svelte'
+	import Page from '#lib/Page.svelte'
+	import Button from '#lib/Button.svelte'
 
 	let mediaList = $state([])
-	let selectedMedia = $state(null)
-
-	function selectMedia(event) {
-		selectedMedia = mediaList.find((m) => {
-			return m.EntityId === this.EntityId
-		})
-	}
 
 	function deleteMedia(event) {
-		Go('Datastore.DeleteMediaById', this.EntityId) //
+		Go('Project.DeleteMedia', this.EntityId) //
 			.then(updateMediaList)
 			.catch(console.error)
 	}
 
 	function updateMediaList() {
-		Go('Datastore.ListMedia') //
+		Go('Project.ListMedia') //
 			.then((result) => (mediaList = result))
 			.catch(console.error)
 	}
@@ -25,58 +20,25 @@
 	onMount(updateMediaList)
 </script>
 
-<main>
-	<div class="media-menu-bar">
-		<a href="/media/add">Add New Media</a>
-	</div>
+{#snippet header()}
+	<a href="/">Back</a>
+	<a href="/media/add">Add New Media</a>
+{/snippet}
+
+<Page {header}>
 	<div class="media-list" role="list">
 		{#each mediaList as media (media.EntityId)}
 			<div class="media-item" role="listitem">
-				<div
-					class="selectable-media"
-					role="button"
-					onclick={selectMedia.bind(media)}>
-					<span class="media-name">{media.Name}</span>
-				</div>
-				<a
-					class="media-view-button"
-					href="/media/view?entity_id={media.EntityId}">
-					View
+				<a class="media-name" href="/media/view?entity_id={media.EntityId}">
+					{media.Name}
 				</a>
-				<button class="media-delete-button" onclick={deleteMedia.bind(media)}>
-					Delete
-				</button>
+				<Button onclick={deleteMedia.bind(media)}>Delete</Button>
 			</div>
 		{/each}
 	</div>
-	<p class="selected-media-description">
-		{#if selectedMedia}
-			<span class="media-name">{selectedMedia.Name}:</span>
-			{selectedMedia.Description}
-		{/if}
-	</p>
-</main>
+</Page>
 
 <style>
-	main {
-		flex-grow: 1;
-		width: 100%;
-
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-
-		height: 100%;
-		max-height: 100%;
-	}
-
-	.media-menu-bar {
-		flex: 0 0 40px;
-
-		padding: 8px;
-		border-bottom: 2px solid grey;
-	}
-
 	.media-list {
 		flex: 1 0 100px;
 
@@ -101,41 +63,12 @@
 		display: flex;
 	}
 
-	.selectable-media {
+	.media-name {
 		flex-grow: 1;
 		cursor: pointer;
 
 		&:hover {
 			background: #cccccc;
 		}
-
-		display: flex;
-		gap: 16px;
-		justify-content: space-between;
-
-		padding: 8px;
-	}
-
-	.media-name {
-		font-weight: bold;
-	}
-
-	.media-view-button,
-	.media-delete-button {
-		cursor: pointer;
-
-		&:hover {
-			background: #cccccc;
-		}
-	}
-
-	.selected-media-description {
-		flex: 0 0 100px;
-		width: 100%;
-
-		margin: 0;
-		padding: 16px;
-
-		border-top: 2px solid grey;
 	}
 </style>

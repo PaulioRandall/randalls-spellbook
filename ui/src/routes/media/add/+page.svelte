@@ -2,9 +2,12 @@
 	import { onMount } from 'svelte'
 	import { goto } from '$app/navigation'
 
-	const mediaTypes = {
-		video: 'Video', //
-	}
+	import Page from '#lib/Page.svelte'
+	import Button from '#lib/Button.svelte'
+	import Dropdown from '#lib/Dropdown.svelte'
+	import Form from '#lib/Form.svelte'
+	import TextInput from '#lib/TextInput.svelte'
+	import FileInput from '#lib/FileInput.svelte'
 
 	let mediaType = $state('video')
 	let mediaTypeError = $state('')
@@ -18,8 +21,12 @@
 	let localPath = $state('')
 	let localPathError = $state('')
 
-	async function selectFile() {
-		localPath = await Go('App.SelectLocalFile', 'Select media file')
+	const mediaTypes = {
+		video: 'Video',
+	}
+
+	function fileSelected(path) {
+		localPath = path
 
 		if (!name.trim()) {
 			name = extractNameFromLocalPath(localPath)
@@ -47,9 +54,9 @@
 			localPath,
 		}
 
-		Go('Datastore.AddMedia', media)
+		Go('Project.AddMedia', media)
 			.then((media) => {
-				goto(`/media/view?entity_id=${media.entityId}`)
+				goto(`/media/view?entity_id=${media.EntityId}`)
 			})
 			.catch(console.error)
 	}
@@ -90,110 +97,35 @@
 	}
 </script>
 
-<main>
-	<div class="form">
-		<div class="form-field">
-			<label class="form-field-media-type" for="mediaType"> Media type </label>
-			{#if mediaTypeError}
-				<p class="form-field-error">
-					{mediaTypeErrorError}
-				</p>
-			{/if}
-			<select name="mediaType" bind:value={mediaType}>
-				{#each Object.entries(mediaTypes) as [value, label] (value)}
-					<option {value}>{label}</option>
-				{/each}
-			</select>
-		</div>
-		<div class="form-field">
-			<label class="form-field-label" for="name"> Name </label>
-			{#if nameError}
-				<p class="form-field-error">
-					{nameError}
-				</p>
-			{/if}
-			<input type="text" name="name" bind:value={name} />
-		</div>
-		<div class="form-field">
-			<label class="form-field-label" for="description"> Description </label>
-			{#if descriptionError}
-				<p class="form-field-error">
-					{descriptionError}
-				</p>
-			{/if}
-			<textarea name="description" rows="3" bind:value={description} />
-		</div>
-		<div class="form-field">
-			<label class="form-field-label" for="local-path"> Local path </label>
-			{#if localPathError}
-				<p class="form-field-error">
-					{localPathError}
-				</p>
-			{/if}
-			<button onclick={selectFile}> Select Media File </button>
-			<input type="text" name="local-path" bind:value={localPath} />
-		</div>
-		<button type="submit" onclick={submit}>Submit</button>
-	</div>
-</main>
+{#snippet header()}
+	<a href="/media">Cancel</a>
+{/snippet}
 
-<style>
-	main {
-		width: 100%;
-		height: 100%;
+<Page {header}>
+	<Form>
+		<Dropdown
+			disabled
+			label="Media type"
+			name="media-type"
+			bind:value={mediaType}
+			error={mediaTypeError}
+			options={mediaTypes} />
 
-		display: flex;
-		flex-direction: column;
-	}
+		<TextInput label="Name" name="name" bind:value={name} error={nameError} />
 
-	.form {
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
+		<TextInput
+			multiline
+			label="Description"
+			name="description"
+			bind:value={description}
+			error={descriptionError} />
 
-		padding: 16px;
-	}
+		<FileInput
+			label="Local path"
+			name="local-path"
+			bind:value={localPath}
+			error={localPathError} />
 
-	.form-field {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-
-	.form-field-label {
-		/* TODO */
-	}
-
-	.form-field-error {
-		color: darkred;
-	}
-
-	label {
-		font-weight: bold;
-	}
-
-	p {
-		margin: 0;
-	}
-
-	button,
-	input,
-	textarea {
-		border-radius: 4px;
-		padding: 8px;
-	}
-
-	textarea {
-		min-height: 60px;
-		resize: vertical;
-	}
-
-	input,
-	textarea {
-		border: 1px solid grey;
-	}
-
-	button {
-		cursor: pointer;
-	}
-</style>
+		<Button type="submit" onclick={submit}>Submit</Button>
+	</Form>
+</Page>

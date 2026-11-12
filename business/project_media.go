@@ -1,4 +1,4 @@
-package app
+package business
 
 import (
 	"errors"
@@ -89,37 +89,70 @@ func (m Media) Clean() (Media, error) {
 	return m, nil
 }
 
-func (ds *Datastore) ListMedia() ([]Media, error) {
-	return ds.db.List(Media{}, "")
+func (p *Project) GetCurrentMediaId() string {
+	return p.currentMediaId
 }
 
-func (ds *Datastore) AddMedia(media Media) (Media, error) {
+func (p *Project) GetCurrentMedia() (Media, error) {
+	if p.currentMediaId == "" {
+		return Media{}, nil
+	} else {
+		return p.GetMediaById(p.currentMediaId)
+	}
+}
+
+func (p *Project) SetCurrentMedia(id string) error {
+	if id == "" {
+		p.currentMediaId = ""
+		return nil
+	}
+
+	m, e := p.GetMediaById(id)
+	if e != nil {
+		return e
+	}
+
+	if m == (Media{}) {
+		p.currentMediaId = ""
+		log.Printf("Can't set current media because media not found. ID '%s'\n", id)
+	} else {
+		p.currentMediaId = m.EntityId
+	}
+
+	return nil
+}
+
+func (p *Project) ListMedia() ([]Media, error) {
+	return p.db.List(Media{}, "")
+}
+
+func (p *Project) AddMedia(media Media) (Media, error) {
 	media, e := media.Clean()
 	if e == nil {
-		e = ds.db.Put(media)
+		e = p.db.Put(media)
 	}
 	return media, e
 }
 
-func (ds *Datastore) GetMediaById(id string) (Media, error) {
-	m, _, e := ds.db.Get(Media{}, "Id = ?", id)
+func (p *Project) GetMediaById(id string) (Media, error) {
+	m, _, e := p.db.Get(Media{}, "EntityId = ?", id)
 	return m, e
 }
 
-func (ds *Datastore) DeleteMedia(id string) error {
-	return ds.db.Delete(Media{}, "Id = ?", id)
+func (p *Project) DeleteMedia(id string) error {
+	return p.db.Delete(Media{}, "EntityId = ?", id)
 }
 
 type Res = http.ResponseWriter
 
-func (ds *Datastore) ServeHTTP(w Res, r *http.Request) {
+func (p *Project) ServeHTTP(w Res, r *http.Request) {
 	entityId := r.URL.Query().Get("entity_id")
 	if entityId == "" {
 		httpErrBadIdParam(w)
 		return
 	}
 
-	media, e := ds.GetMediaById(entityId)
+	media, e := p.GetMediaById(entityId)
 	if e != nil {
 		httpErrMediaLookup(w, e)
 		return
@@ -194,4 +227,4 @@ func httpErrMediaFileAccess(w Res, e error) {
 	)
 }
 
-var _ http.Handler = &Datastore{}
+var _ http.Handler = &Project{}

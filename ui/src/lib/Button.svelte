@@ -8,6 +8,11 @@
 
 <style>
 	button {
+		border-radius: 4px;
 		cursor: pointer;
+
+		&:hover {
+			background: #cccccc;
+		}
 	}
 </style>

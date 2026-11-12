@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/PaulioRandall/randalls-spellbook/app"
+	_ "github.com/PaulioRandall/randalls-spellbook/business"
 	"github.com/PaulioRandall/randalls-spellbook/pkg/sourcery"
 )
 
@@ -19,15 +19,16 @@ func main() {
 		log.Fatal(e)
 	}
 
-	e = sourcery.
-		New(true).
-		SetTitle("Randall's Spellbook").
-		SetSize(800, 600).
-		Entity(&app.Util{}).
-		Server("/", http.FileServerFS(uiFiles)).
-		EntityServer("/media/", &app.Datastore{}).
-		Run() // Blocks until WebView closes.
+	sourcery.Append(
+		sourcery.OptionDebug(true),
+		sourcery.OptionTitle("Randall's Spellbook"),
+		sourcery.OptionSize(1000, 600),
+		sourcery.OptionServer("/", http.FileServerFS(uiFiles)),
+	)
 
+	app := sourcery.DefaultApp()
+
+	e = app.Run()
 	if e != nil {
 		log.Fatal(e)
 	}

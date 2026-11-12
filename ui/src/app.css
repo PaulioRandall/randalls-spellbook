@@ -75,7 +75,7 @@ body {
 	margin: 0;
 	background-color: var(--theme-bg);
 
-	color: var(--theme-text);
+	color: var(--color-ice_cream);
 	font-size: var(--font-size-md);
 	font-family: var(--font-family-nunito);
 
@@ -105,14 +105,14 @@ h3 {
 	max-width: 100%;
 
 	font-weight: normal;
-	color: var(--theme-strong);
+	color: white;
 }
 
 h1 {
-	margin: var(--space-lg) 0;
+	margin: 0;
 	padding: 0;
 
-	text-align: center;
+	text-align: left;
 	font-weight: normal;
 	font-size: var(--font-size-2xl);
 }
