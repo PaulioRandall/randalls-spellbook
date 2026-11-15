@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+	<body>
+		<p>Count: <span id="value">0</span><p>
+		<p id="error" color="red"></p>
+
+		<script>
+			function onError(e) {
+				document.getElementById('error').innerHTML = e
+				throw e
+			}
+
+			function incrementValue() {
+				Go("Box.GetValue")
+					.then(value => {
+						value++
+						document.getElementById('value').innerHTML = value
+						Go("Box.SetValue", value).catch(onError)
+						setTimeout(incrementValue, delayMS)
+					})
+					.catch(onError)
+			}
+
+			const delayMS = 100
+			setTimeout(incrementValue, delayMS)
+		</script>
+	</body>
+</html>
